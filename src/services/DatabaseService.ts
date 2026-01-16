@@ -40,6 +40,10 @@ export interface Participant {
     synced?: number;
     status?: string; // draft, pending, synced
     analysis_result?: string | null; // JSON string for ONNX result
+    file_ids?: string | null; // JSON array of file IDs from server
+    sync_attempts?: number; // Number of sync attempts
+    last_sync_attempt?: string | null; // Timestamp of last sync attempt
+    server_participant_id?: string | null; // Server-side ID after sync
 }
 
 export interface Recording {
@@ -106,7 +110,11 @@ export const initDatabase = async () => {
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         synced INTEGER DEFAULT 0,
         status TEXT DEFAULT 'draft',
-        analysis_result TEXT -- JSON
+        analysis_result TEXT, -- JSON
+        file_ids TEXT, -- JSON array of file IDs from server
+        sync_attempts INTEGER DEFAULT 0,
+        last_sync_attempt TEXT,
+        server_participant_id TEXT -- Server-side ID after sync
       );
 
       CREATE TABLE IF NOT EXISTS recordings (
@@ -122,6 +130,9 @@ export const initDatabase = async () => {
       );
     `);
             console.log('Database initialized successfully (v2)');
+            
+            // Migrate existing database to add new sync columns if they don't exist
+            await migrateDatabase();
         } catch (error) {
             console.error('Error initializing database:', error);
             initPromise = null; // Reset on error so it can be retried
@@ -130,6 +141,44 @@ export const initDatabase = async () => {
     })();
 
     return initPromise;
+};
+
+/**
+ * Migrate database to add new sync-related columns
+ */
+const migrateDatabase = async () => {
+    if (!db) return;
+    
+    try {
+        // Check if columns exist by querying table info
+        const tableInfo = await db.getAllAsync(`PRAGMA table_info(participants)`);
+        const columnNames = (tableInfo as any[]).map((col: any) => col.name);
+        
+        // Add new columns if they don't exist (using try-catch for each to handle if already exists)
+        const migrations = [
+            { name: 'file_ids', sql: `ALTER TABLE participants ADD COLUMN file_ids TEXT` },
+            { name: 'sync_attempts', sql: `ALTER TABLE participants ADD COLUMN sync_attempts INTEGER DEFAULT 0` },
+            { name: 'last_sync_attempt', sql: `ALTER TABLE participants ADD COLUMN last_sync_attempt TEXT` },
+            { name: 'server_participant_id', sql: `ALTER TABLE participants ADD COLUMN server_participant_id TEXT` },
+        ];
+        
+        for (const migration of migrations) {
+            if (!columnNames.includes(migration.name)) {
+                try {
+                    await db.execAsync(migration.sql);
+                    console.log(`[DB Migration] Added ${migration.name} column`);
+                } catch (err: any) {
+                    // Column might have been added by another process, ignore
+                    if (!err.message?.includes('duplicate column')) {
+                        console.warn(`[DB Migration] Error adding ${migration.name}:`, err);
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('[DB Migration] Error migrating database:', error);
+        // Don't throw - migration errors are non-critical
+    }
 };
 
 export const getDB = async () => {

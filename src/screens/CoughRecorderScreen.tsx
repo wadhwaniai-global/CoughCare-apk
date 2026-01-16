@@ -55,6 +55,17 @@ export default function CoughRecorderScreen() {
 
   const startRecording = async () => {
     try {
+      // Request audio permissions first
+      const { status } = await Audio.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Microphone permission is required to record audio.');
+        return;
+      }
+
+      // react-native-audio-record handles audio mode internally
+      // No need to set audio mode explicitly
+
+      console.log('[CoughRecorder] Creating new AudioRecorder instance...');
       const recorder = new AudioRecorder();
       await recorder.start();
       recorderRef.current = recorder;
@@ -83,9 +94,18 @@ export default function CoughRecorderScreen() {
           return next;
         });
       }, 1000);
+      
+      console.log('[CoughRecorder] Recording started successfully');
     } catch (error: any) {
-      console.error('Error accessing microphone:', error);
-      Alert.alert('Permission Error', 'Could not access microphone. Please check permissions.');
+      console.error('[CoughRecorder] Error accessing microphone:', error);
+      Alert.alert(
+        'Recording Error',
+        `Could not start recording: ${error.message || 'Unknown error'}\n\n` +
+        `If using Android emulator, try:\n` +
+        `1. Enable microphone in emulator settings\n` +
+        `2. Use a real device for testing\n` +
+        `3. Check microphone permissions`
+      );
     }
   };
 

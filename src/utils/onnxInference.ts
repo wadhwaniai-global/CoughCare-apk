@@ -416,39 +416,219 @@ function decodeWAV(audioData: ArrayBuffer): { waveform: Float32Array; sampleRate
 
 /**
  * Decode audio file to Float32Array waveform (React Native)
- * Supports WAV files directly, other formats need conversion
+ * Supports WAV files directly, and AAC/M4A files via expo-av
  */
 async function decodeAudioReactNative(audioData: ArrayBuffer): Promise<Float32Array> {
   try {
-    // Decode WAV file
-    const { waveform, sampleRate: fileSampleRate } = decodeWAV(audioData);
-    
-    // Resample if needed
-    let finalWaveform = waveform;
-    if (fileSampleRate !== CONFIG.sampleRate) {
-      console.log(`[ONNX] Resampling from ${fileSampleRate}Hz to ${CONFIG.sampleRate}Hz`);
-      finalWaveform = resample(waveform, fileSampleRate, CONFIG.sampleRate);
-    }
-    
-    // Normalize to [-1, 1] (matching Python: waveform / waveform.abs().max())
-    let maxAbs = 0;
-    for (let i = 0; i < finalWaveform.length; i++) {
-      const abs = Math.abs(finalWaveform[i]);
-      if (abs > maxAbs) {
-        maxAbs = abs;
+    // Try to decode as WAV first (faster, direct)
+    try {
+      const { waveform, sampleRate: fileSampleRate } = decodeWAV(audioData);
+      
+      // Resample if needed
+      let finalWaveform = waveform;
+      if (fileSampleRate !== CONFIG.sampleRate) {
+        console.log(`[ONNX] Resampling from ${fileSampleRate}Hz to ${CONFIG.sampleRate}Hz`);
+        finalWaveform = resample(waveform, fileSampleRate, CONFIG.sampleRate);
       }
-    }
-    if (maxAbs > 0) {
+      
+      // Normalize to [-1, 1] (matching Python: waveform / waveform.abs().max())
+      let maxAbs = 0;
       for (let i = 0; i < finalWaveform.length; i++) {
-        finalWaveform[i] /= maxAbs;
+        const abs = Math.abs(finalWaveform[i]);
+        if (abs > maxAbs) {
+          maxAbs = abs;
+        }
       }
+      if (maxAbs > 0) {
+        for (let i = 0; i < finalWaveform.length; i++) {
+          finalWaveform[i] /= maxAbs;
+        }
+      }
+      
+      return finalWaveform;
+    } catch (wavError) {
+      // If WAV decoding fails, try using expo-av to decode AAC/M4A
+      console.log('[ONNX] WAV decoding failed, trying expo-av for AAC/M4A...');
+      return await decodeAudioWithExpoAV(audioData);
     }
-    
-    return finalWaveform;
   } catch (error: any) {
     console.error('[ONNX] Audio decoding failed:', error);
-    throw new Error(`Audio decoding failed: ${error.message}. Please use WAV format (16-bit PCM).`);
+    throw new Error(`Audio decoding failed: ${error.message}. Supported formats: WAV (16-bit PCM) or AAC/M4A.`);
   }
+}
+
+/**
+ * Decode AAC/M4A files using expo-av
+ * This is used when the audio file is not in WAV format
+ * 
+ * WORKAROUND: Since expo-av doesn't expose raw PCM data directly,
+ * we use a workaround: record the playback to get PCM data
+ */
+async function decodeAudioWithExpoAV(audioData: ArrayBuffer): Promise<Float32Array> {
+  const { Audio } = require('expo-av');
+  
+  // Create a temporary file from the ArrayBuffer
+  const tempUri = await createTempFileFromArrayBuffer(audioData);
+  
+  try {
+    console.log('[ONNX] Loading AAC/M4A file with expo-av...');
+    // Load audio with expo-av
+    const { sound } = await Audio.Sound.createAsync(
+      { uri: tempUri },
+      { shouldPlay: false }
+    );
+    
+    const status = await sound.getStatusAsync();
+    if (!status.isLoaded) {
+      throw new Error('Failed to load audio file with expo-av');
+    }
+    
+    // Get audio properties
+    const durationMillis = status.durationMillis || 0;
+    const durationSeconds = durationMillis / 1000;
+    const fileSampleRate = status.rate || 16000; // Default to 16kHz if not available
+    
+    console.log('[ONNX] Audio properties:', {
+      duration: durationSeconds,
+      sampleRate: fileSampleRate,
+    });
+    
+    // WORKAROUND: Use expo-av's recording to capture playback
+    // This gives us access to the decoded audio data
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: true,
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: true,
+    });
+    
+    // Create a recording session to capture the playback
+    const { recording } = await Audio.Recording.createAsync(
+      Audio.RecordingOptionsPresets.HIGH_QUALITY
+    );
+    
+    await recording.startAsync();
+    
+    // Play the audio (muted)
+    await sound.setVolumeAsync(0);
+    await sound.playAsync();
+    
+    // Wait for playback to complete
+    await new Promise<void>((resolve) => {
+      const checkStatus = async () => {
+        const playStatus = await sound.getStatusAsync();
+        if (playStatus.isLoaded && playStatus.didJustFinish) {
+          resolve();
+        } else if (playStatus.isLoaded && playStatus.isPlaying) {
+          setTimeout(checkStatus, 100);
+        } else {
+          resolve();
+        }
+      };
+      checkStatus();
+    });
+    
+    // Stop playback and recording
+    await sound.stopAsync();
+    await recording.stopAndUnloadAsync();
+    const recordingUri = recording.getURI();
+    await sound.unloadAsync();
+    
+    if (!recordingUri) {
+      throw new Error('Failed to get recording URI from expo-av');
+    }
+    
+    // Read the recorded file (should be in a decodable format)
+    const recordedData = await FileSystem.readAsStringAsync(recordingUri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    
+    // Convert base64 to ArrayBuffer
+    const binaryString = atob(recordedData);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    const recordedArrayBuffer = bytes.buffer;
+    
+    // Try to decode as WAV (the recording might be in WAV format)
+    try {
+      const { waveform, sampleRate: recordedSampleRate } = decodeWAV(recordedArrayBuffer);
+      
+      // Resample if needed
+      let finalWaveform = waveform;
+      if (recordedSampleRate !== CONFIG.sampleRate) {
+        console.log(`[ONNX] Resampling from ${recordedSampleRate}Hz to ${CONFIG.sampleRate}Hz`);
+        finalWaveform = resample(waveform, recordedSampleRate, CONFIG.sampleRate);
+      }
+      
+      // Normalize to [-1, 1]
+      let maxAbs = 0;
+      for (let i = 0; i < finalWaveform.length; i++) {
+        const abs = Math.abs(finalWaveform[i]);
+        if (abs > maxAbs) {
+          maxAbs = abs;
+        }
+      }
+      if (maxAbs > 0) {
+        for (let i = 0; i < finalWaveform.length; i++) {
+          finalWaveform[i] /= maxAbs;
+        }
+      }
+      
+      // Clean up temp recording file
+      try {
+        await FileSystem.deleteAsync(recordingUri, { idempotent: true });
+      } catch (cleanupError) {
+        console.warn('[ONNX] Failed to cleanup temp recording:', cleanupError);
+      }
+      
+      return finalWaveform;
+    } catch (wavError) {
+      // If it's not WAV, we can't decode it
+      throw new Error(`Failed to decode recorded audio as WAV: ${wavError instanceof Error ? wavError.message : String(wavError)}`);
+    }
+    
+  } finally {
+    // Clean up temp file
+    try {
+      const fileInfo = await FileSystem.getInfoAsync(tempUri);
+      if (fileInfo.exists) {
+        await FileSystem.deleteAsync(tempUri, { idempotent: true });
+      }
+    } catch (cleanupError) {
+      console.warn('[ONNX] Failed to cleanup temp file:', cleanupError);
+    }
+  }
+}
+
+/**
+ * Create a temporary file from ArrayBuffer
+ */
+async function createTempFileFromArrayBuffer(audioData: ArrayBuffer): Promise<string> {
+  const tempFileName = `temp_audio_${Date.now()}.m4a`;
+  const tempUri = `${FileSystem.documentDirectory}${tempFileName}`;
+  
+  // Convert ArrayBuffer to base64
+  const base64 = arrayBufferToBase64(audioData);
+  
+  // Write to file
+  await FileSystem.writeAsStringAsync(tempUri, base64, {
+    encoding: FileSystem.EncodingType.Base64,
+  });
+  
+  return tempUri;
+}
+
+/**
+ * Convert ArrayBuffer to base64 string
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = '';
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
 }
 
 /**

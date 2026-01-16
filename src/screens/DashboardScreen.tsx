@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, SafeAreaView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, SafeAreaView, Platform, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -13,14 +13,21 @@ type DashboardScreenRouteProp = RouteProp<RootStackParamList, 'Dashboard'>;
 
 import { useFocusEffect } from '@react-navigation/native';
 import { getParticipants, getStats, viewDatabaseContents } from '../services/DatabaseService';
+import { syncService, SyncProgress } from '../services/SyncService';
+import { useAuth } from '../contexts/AuthContext';
+import { Alert } from 'react-native';
 
 const DashboardScreen = () => {
     const navigation = useNavigation<DashboardScreenNavigationProp>();
     const route = useRoute<DashboardScreenRouteProp>();
+    const { logout, username } = useAuth();
 
     const [stats, setStats] = useState({ pending: 0, drafts: 0, total: 0 });
     const [isOnline, setIsOnline] = useState(true);
     const [recentCases, setRecentCases] = useState<any[]>([]);
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
+    const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
     const loadData = async () => {
         try {
@@ -118,6 +125,55 @@ const DashboardScreen = () => {
         }
     }, []);
 
+    const handleSync = async () => {
+        if (!isOnline) {
+            Alert.alert('Offline', 'Please connect to the internet to sync data.');
+            return;
+        }
+
+        if (isSyncing) {
+            return;
+        }
+
+        setIsSyncing(true);
+        setSyncProgress({ total: 0, completed: 0 });
+
+        // Set up progress callback
+        syncService.setProgressCallback((progress) => {
+            setSyncProgress(progress);
+        });
+
+        try {
+            const result = await syncService.syncPendingForms();
+
+            if (result.success) {
+                setLastSyncTime(new Date().toLocaleString());
+                Alert.alert(
+                    'Sync Complete',
+                    `Successfully synced ${result.synced} record(s).`,
+                    [{ text: 'OK' }]
+                );
+            } else {
+                const errorMsg = result.errors.length > 0
+                    ? result.errors.join('\n')
+                    : 'Sync completed with errors';
+                Alert.alert(
+                    'Sync Complete',
+                    `Synced: ${result.synced}, Failed: ${result.failed}\n\n${errorMsg}`,
+                    [{ text: 'OK' }]
+                );
+            }
+
+            // Reload data to reflect sync status
+            await loadData();
+        } catch (error: any) {
+            Alert.alert('Sync Error', error.message || 'Failed to sync data.');
+        } finally {
+            setIsSyncing(false);
+            setSyncProgress(null);
+        }
+    };
+
     useFocusEffect(
         React.useCallback(() => {
             loadData();
@@ -133,18 +189,44 @@ const DashboardScreen = () => {
                 <View>
                     <Text style={styles.headerTitle}>TB Screening</Text>
                     <Text style={styles.headerSubtitle}>Ghana Data Collection</Text>
+                    {username && (
+                        <Text style={styles.usernameText}>Logged in as: {username}</Text>
+                    )}
                 </View>
-                <View style={[
-                    styles.onlineBadge,
-                    !isOnline && { backgroundColor: '#64748B' }
-                ]}>
-                    <Ionicons 
-                        name={isOnline ? "wifi" : "wifi-outline"} 
-                        size={16} 
-                        color="white" 
-                        style={{ marginRight: 4 }} 
-                    />
-                    <Text style={styles.onlineText}>{isOnline ? 'Online' : 'Offline'}</Text>
+                <View style={styles.headerRight}>
+                    <View style={[
+                        styles.onlineBadge,
+                        !isOnline && { backgroundColor: '#64748B' }
+                    ]}>
+                        <Ionicons 
+                            name={isOnline ? "wifi" : "wifi-outline"} 
+                            size={16} 
+                            color="white" 
+                            style={{ marginRight: 4 }} 
+                        />
+                        <Text style={styles.onlineText}>{isOnline ? 'Online' : 'Offline'}</Text>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.logoutButton}
+                        onPress={() => {
+                            Alert.alert(
+                                'Logout',
+                                'Are you sure you want to logout?',
+                                [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    {
+                                        text: 'Logout',
+                                        style: 'destructive',
+                                        onPress: async () => {
+                                            await logout();
+                                        },
+                                    },
+                                ]
+                            );
+                        }}
+                    >
+                        <Ionicons name="log-out-outline" size={18} color="white" />
+                    </TouchableOpacity>
                 </View>
             </View>
 
@@ -182,15 +264,34 @@ const DashboardScreen = () => {
                     <View style={styles.syncHeader}>
                         <View>
                             <Text style={styles.sectionLabel}>Last Sync</Text>
-                            <Text style={styles.syncTime}>—</Text>
+                            <Text style={styles.syncTime}>
+                                {lastSyncTime || '—'}
+                            </Text>
                         </View>
-                        <TouchableOpacity style={styles.syncBtn}>
-                            <Ionicons name="refresh" size={18} color="white" style={{ marginRight: 6 }} />
-                            <Text style={styles.syncBtnText}>Sync</Text>
+                        <TouchableOpacity
+                            style={[styles.syncBtn, isSyncing && styles.syncBtnDisabled]}
+                            onPress={handleSync}
+                            disabled={isSyncing || !isOnline}
+                        >
+                            {isSyncing ? (
+                                <ActivityIndicator size="small" color="white" />
+                            ) : (
+                                <>
+                                    <Ionicons name="refresh" size={18} color="white" style={{ marginRight: 6 }} />
+                                    <Text style={styles.syncBtnText}>Sync</Text>
+                                </>
+                            )}
                         </TouchableOpacity>
                     </View>
                     <View style={styles.syncStatusContainer}>
-                        <Text style={styles.syncStatusText}>{stats.pending} record(s) ready to sync</Text>
+                        <Text style={styles.syncStatusText}>
+                            {isSyncing && syncProgress
+                                ? `Syncing ${syncProgress.completed}/${syncProgress.total}... ${syncProgress.current || ''}`
+                                : `${stats.pending} record(s) ready to sync`}
+                        </Text>
+                        {syncProgress?.error && (
+                            <Text style={styles.syncErrorText}>{syncProgress.error}</Text>
+                        )}
                     </View>
                 </View>
 
@@ -304,6 +405,22 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'flex-start',
     },
+    headerRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    usernameText: {
+        fontSize: 12,
+        color: '#BFDBFE',
+        marginTop: 4,
+    },
+    logoutButton: {
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
     headerTitle: {
         fontSize: 24,
         fontWeight: 'bold',
@@ -413,6 +530,14 @@ const styles = StyleSheet.create({
         color: 'white',
         fontWeight: '600',
         fontSize: 14,
+    },
+    syncBtnDisabled: {
+        opacity: 0.6,
+    },
+    syncErrorText: {
+        color: '#EF4444',
+        fontSize: 12,
+        marginTop: 4,
     },
     syncStatusContainer: {
         backgroundColor: '#FFF7ED',

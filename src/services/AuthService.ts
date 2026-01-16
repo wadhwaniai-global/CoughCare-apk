@@ -1,0 +1,201 @@
+/**
+ * Authentication Service
+ * Handles login, logout, and token management using secure storage
+ */
+
+import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+
+// Dynamically import SecureStore to handle cases where native module isn't available
+let SecureStore: any = null;
+try {
+  SecureStore = require('expo-secure-store');
+} catch (error) {
+  console.warn('[AuthService] expo-secure-store not available, using fallback');
+}
+
+// Fallback to AsyncStorage if SecureStore is not available
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+/**
+ * Get API base URL with Android emulator support
+ * Android emulator uses 10.0.2.2 to access host machine's localhost
+ */
+const getApiBaseUrl = (): string => {
+  const baseUrl = Constants.expoConfig?.extra?.apiBaseUrl || 'https://cough-pilot.wadhwaniaiglobal.com';
+  
+  // On Android, replace 127.0.0.1 or localhost with 10.0.2.2 (emulator host alias)
+  // This only applies to localhost URLs, not production HTTPS URLs
+  if (Platform.OS === 'android' && (baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost'))) {
+    return baseUrl.replace(/127\.0\.0\.1|localhost/, '10.0.2.2');
+  }
+  
+  return baseUrl;
+};
+
+const API_BASE_URL = getApiBaseUrl();
+const ACCESS_TOKEN_KEY = 'access_token';
+const USERNAME_KEY = 'username';
+
+// Helper to use SecureStore if available, otherwise AsyncStorage
+const secureStorage = {
+  async getItem(key: string): Promise<string | null> {
+    if (SecureStore && Platform.OS !== 'web') {
+      try {
+        return await SecureStore.getItemAsync(key);
+      } catch (error) {
+        console.warn('[AuthService] SecureStore getItem failed, using AsyncStorage:', error);
+        return await AsyncStorage.getItem(key);
+      }
+    }
+    return await AsyncStorage.getItem(key);
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    if (SecureStore && Platform.OS !== 'web') {
+      try {
+        await SecureStore.setItemAsync(key, value);
+        return;
+      } catch (error) {
+        console.warn('[AuthService] SecureStore setItem failed, using AsyncStorage:', error);
+      }
+    }
+    await AsyncStorage.setItem(key, value);
+  },
+  async deleteItem(key: string): Promise<void> {
+    if (SecureStore && Platform.OS !== 'web') {
+      try {
+        await SecureStore.deleteItemAsync(key);
+        return;
+      } catch (error) {
+        console.warn('[AuthService] SecureStore deleteItem failed, using AsyncStorage:', error);
+      }
+    }
+    await AsyncStorage.removeItem(key);
+  },
+};
+
+export interface LoginResponse {
+  access_token: string;
+  token_type?: string;
+  expires_in?: number;
+}
+
+export interface LoginCredentials {
+  username: string;
+  password: string;
+}
+
+class AuthService {
+  /**
+   * Login with username and password
+   * Returns access token and stores it securely
+   */
+  async login(credentials: LoginCredentials): Promise<LoginResponse> {
+    try {
+      const url = `${API_BASE_URL}/auth/login`;
+      console.log('[AuthService] Attempting login to:', url);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: credentials.username,
+          password: credentials.password,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: 'Login failed' }));
+        throw new Error(errorData.detail || errorData.message || `Login failed: ${response.status}`);
+      }
+
+      const data: LoginResponse = await response.json();
+      
+      // Store access token securely
+      if (data.access_token) {
+        await secureStorage.setItem(ACCESS_TOKEN_KEY, data.access_token);
+        await secureStorage.setItem(USERNAME_KEY, credentials.username);
+        console.log('[AuthService] Login successful, token stored');
+      } else {
+        throw new Error('No access token received from server');
+      }
+
+      return data;
+    } catch (error: any) {
+      console.error('[AuthService] Login error:', error);
+      
+      // Provide more helpful error messages
+      if (error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
+        throw new Error(
+          `Cannot connect to server at ${API_BASE_URL}.\n\n` +
+          `Please ensure:\n` +
+          `1. Backend server is running\n` +
+          `2. If using Android emulator with localhost, use 10.0.2.2 instead of 127.0.0.1\n` +
+          `3. Check your network connection`
+        );
+      }
+      
+      throw error;
+    }
+  }
+
+  /**
+   * Logout - clear stored tokens
+   */
+  async logout(): Promise<void> {
+    try {
+      await secureStorage.deleteItem(ACCESS_TOKEN_KEY);
+      await secureStorage.deleteItem(USERNAME_KEY);
+    } catch (error) {
+      console.error('[AuthService] Logout error:', error);
+      // Continue even if deletion fails
+    }
+  }
+
+  /**
+   * Get stored access token
+   */
+  async getAccessToken(): Promise<string | null> {
+    try {
+      return await secureStorage.getItem(ACCESS_TOKEN_KEY);
+    } catch (error) {
+      console.error('[AuthService] Error getting access token:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get stored username
+   */
+  async getUsername(): Promise<string | null> {
+    try {
+      return await secureStorage.getItem(USERNAME_KEY);
+    } catch (error) {
+      console.error('[AuthService] Error getting username:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Check if user is authenticated
+   */
+  async isAuthenticated(): Promise<boolean> {
+    const token = await this.getAccessToken();
+    return token !== null && token.length > 0;
+  }
+
+  /**
+   * Refresh access token (if refresh tokens are implemented)
+   * This is a placeholder for future implementation
+   */
+  async refreshToken(): Promise<string | null> {
+    // TODO: Implement refresh token logic if backend supports it
+    console.warn('[AuthService] Refresh token not implemented');
+    return null;
+  }
+}
+
+export const authService = new AuthService();
+

@@ -1,5 +1,7 @@
 import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useAuth } from '../contexts/AuthContext';
 import HomeScreen from '../screens/HomeScreen';
 import ConsentScreen from '../screens/ConsentScreen';
 import QuestionsScreen from '../screens/QuestionsScreen';
@@ -8,6 +10,7 @@ import AnalyzingScreen from '../screens/AnalyzingScreen';
 import ResultScreen from '../screens/ResultScreen';
 import TbResultScreen from '../screens/TbResultScreen';
 import ChatbotScreen from '../screens/ChatbotScreen';
+import LoginScreen from '../screens/LoginScreen';
 
 import DashboardScreen from '../screens/DashboardScreen';
 import NewParticipantScreen from '../screens/NewParticipantScreen';
@@ -17,6 +20,7 @@ import ViewDraftsScreen from '../screens/ViewDraftsScreen';
 import AddTestResultsScreen from '../screens/AddTestResultsScreen';
 
 export type RootStackParamList = {
+  Login: undefined;
   Dashboard: undefined;
   NewParticipant: undefined;
   ViewRecord: { participantId: string };
@@ -35,7 +39,22 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function AppNavigator() {
+// Auth Stack (Login screen)
+function AuthStack() {
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerShown: false,
+        animation: 'fade',
+      }}
+    >
+      <Stack.Screen name="Login" component={LoginScreen} />
+    </Stack.Navigator>
+  );
+}
+
+// App Stack (Main application screens)
+function AppStack() {
   return (
     <Stack.Navigator
       initialRouteName="Dashboard"
@@ -60,5 +79,21 @@ export default function AppNavigator() {
       <Stack.Screen name="Analysis" component={ChatbotScreen} />
     </Stack.Navigator>
   );
+}
+
+export default function AppNavigator() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  // Show loading indicator while checking auth state
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#158B95' }}>
+        <ActivityIndicator size="large" color="#FFFFFF" />
+      </View>
+    );
+  }
+
+  // Show auth stack if not authenticated, app stack if authenticated
+  return isAuthenticated ? <AppStack /> : <AuthStack />;
 }
 
