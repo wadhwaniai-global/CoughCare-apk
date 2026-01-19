@@ -143,13 +143,11 @@ export const SectionA: React.FC<SectionAProps> = ({
 
             <View style={[styles.consentContainer, formData.consentObtained === false && styles.consentContainerError]}>
                 <Text style={styles.label}>Consent Obtained *</Text>
-                <View style={styles.radioGroup}>
-                    <RadioButtonGroup
-                        value={formData.consentObtained}
-                        onSelect={(val) => updateField('consentObtained', val)}
-                        variant={formData.consentObtained === true ? 'success' : formData.consentObtained === false ? 'error' : 'default'}
-                    />
-                </View>
+                <RadioButtonGroup
+                    value={formData.consentObtained}
+                    onSelect={(val) => updateField('consentObtained', val)}
+                    variant={formData.consentObtained === true ? 'success' : formData.consentObtained === false ? 'error' : 'default'}
+                />
             </View>
 
             {formData.consentObtained === false && (

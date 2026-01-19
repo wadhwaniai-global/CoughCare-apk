@@ -45,7 +45,7 @@ export const RadioButtonGroup: React.FC<RadioButtonGroupProps> = ({
     };
 
     return (
-        <View style={{ marginBottom: 16 }}>
+        <View style={{ marginBottom: 16, width: '100%' }}>
             {label && <Text style={styles.label}>{label}</Text>}
             <View style={styles.radioGroup}>
                 <TouchableOpacity
@@ -75,7 +75,7 @@ const styles = StyleSheet.create({
     },
     radioGroup: {
         flexDirection: 'row',
-        gap: 16,
+        // gap: 16, // Removed for compatibility
     },
     radioButton: {
         flex: 1,
@@ -86,6 +86,8 @@ const styles = StyleSheet.create({
         borderColor: '#CBD5E1',
         alignItems: 'center',
         justifyContent: 'center',
+        minHeight: 48, // Ensure minimum height for visibility and touch target
+        marginHorizontal: 8, // Add spacing between buttons
     },
     radioButtonActive: {
         borderColor: '#2563EB',
@@ -102,16 +104,16 @@ const styles = StyleSheet.create({
     },
     radioText: {
         color: '#000000', // Pure black for maximum contrast
-        fontWeight: '600',
+        fontWeight: 'bold',
         fontSize: 16,
     },
     radioTextActive: {
         color: '#2563EB',
-        fontWeight: '600',
+        fontWeight: 'bold',
     },
     radioTextWhite: {
         color: 'white',
-        fontWeight: '600',
+        fontWeight: 'bold',
     },
 });
 
