@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "postinstall": "patch-package",
     "start": "expo start",
     "start:web": "expo start --web",
     "start:android": "expo start --android",
@@ -17,6 +18,9 @@
     "setup:android": "expo prebuild --clean -p android && expo run:android",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "evaluate": "node evaluate_app_pipeline.js",
+    "evaluate:quick": "node evaluate_app_pipeline.js --limit 10",
+    "evaluate:compile": "tsc evaluate_app_pipeline.ts --module commonjs --target ES2020 --esModuleInterop --skipLibCheck --resolveJsonModule --moduleResolution node --outDir .",
     "docker:backend": "docker-compose up --build -d backend",
     "docker:backend:logs": "docker-compose logs -f backend",
     "docker:backend:stop": "docker-compose stop backend",
@@ -42,6 +46,7 @@
     "expo-secure-store": "^15.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
+    "ffmpeg-kit-react-native": "^6.0.2",
     "onnxruntime-react-native": "^1.23.2",
     "onnxruntime-web": "^1.23.2",
     "react": "19.1.0",
@@ -62,6 +67,7 @@
     "@babel/core": "^7.23.0",
     "@expo/config-plugins": "^54.0.4",
     "@types/react": "~19.1.10",
+    "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },
   "private": true

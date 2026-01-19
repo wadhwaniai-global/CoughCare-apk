@@ -64,6 +64,24 @@ export const SectionD: React.FC<SectionDProps> = ({
         onClearRecording(key);
     };
 
+    const handleNoCoughDetected = (key: string) => {
+        Alert.alert(
+            'No Cough Detected',
+            'We could not detect a clear cough sound in your recording. Please re-record and make sure to cough clearly into the microphone.',
+            [
+                {
+                    text: 'Re-record',
+                    onPress: () => handleReRecord(key),
+                    style: 'default',
+                },
+                {
+                    text: 'Keep Recording',
+                    style: 'cancel',
+                },
+            ]
+        );
+    };
+
     return (
         <>
             <View style={styles.protocolBox}>
@@ -86,6 +104,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onStopRecording={() => handleStopRecording('recording1')}
                 onReRecord={() => handleReRecord('recording1')}
                 onUseSample={() => handleUseSample('recording1')}
+                onNoCoughDetected={() => handleNoCoughDetected('recording1')}
             />
 
             <RecordingCard
@@ -101,6 +120,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onStopRecording={() => handleStopRecording('recording2')}
                 onReRecord={() => handleReRecord('recording2')}
                 onUseSample={() => handleUseSample('recording2')}
+                onNoCoughDetected={() => handleNoCoughDetected('recording2')}
             />
 
             <RecordingCard
@@ -116,6 +136,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onStopRecording={() => handleStopRecording('recording3')}
                 onReRecord={() => handleReRecord('recording3')}
                 onUseSample={() => handleUseSample('recording3')}
+                onNoCoughDetected={() => handleNoCoughDetected('recording3')}
             />
 
             <RecordingCard

@@ -13,6 +13,14 @@ module.exports = {
         },
       },
     },
+    'ffmpeg-kit-react-native': {
+      root: './node_modules/ffmpeg-kit-react-native',
+      platforms: {
+        android: {
+          sourceDir: './android',
+        },
+      },
+    },
   },
 };
 

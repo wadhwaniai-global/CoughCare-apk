@@ -26,7 +26,7 @@ export const SectionB: React.FC<SectionBProps> = ({
             <Dropdown
                 label="Diabetes Status"
                 value={formData.diabetesStatus}
-                options={['Yes, diagnosed', 'No', 'Unknown']}
+                options={['Diabetic', 'Non-Diabetic', 'Unknown']}
                 onSelect={(val) => updateField('diabetesStatus', val)}
                 isExpanded={expandedDropdown === 'diabetes'}
                 onToggle={() => setExpandedDropdown(expandedDropdown === 'diabetes' ? null : 'diabetes')}

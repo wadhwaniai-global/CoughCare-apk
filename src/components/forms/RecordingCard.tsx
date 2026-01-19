@@ -20,11 +20,13 @@ interface RecordingCardProps {
     onStopRecording: () => void;
     onReRecord: () => void;
     onUseSample?: () => void;
+    onNoCoughDetected?: () => void;
 }
 
 export const RecordingCard: React.FC<RecordingCardProps> = ({
     title,
     subtitle,
+    recordingKey,
     isRecorded,
     isRecording,
     currentDuration,
@@ -34,7 +36,35 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
     onStopRecording,
     onReRecord,
     onUseSample,
+    onNoCoughDetected,
 }) => {
+    // Track if we've already shown the no-cough popup for this analysis
+    const [hasShownNoCoughPopup, setHasShownNoCoughPopup] = React.useState(false);
+
+    // Check if no cough detected and trigger popup (only for cough recordings, not ambient)
+    React.useEffect(() => {
+        const isAmbientRecording = recordingKey === 'recordingBackground';
+        if (
+            !isAmbientRecording &&
+            isRecorded &&
+            !isRecording &&
+            !analysis?.loading &&
+            analysis?.result &&
+            !analysis.result.coughDetected &&
+            !hasShownNoCoughPopup &&
+            onNoCoughDetected
+        ) {
+            setHasShownNoCoughPopup(true);
+            onNoCoughDetected();
+        }
+    }, [isRecorded, isRecording, analysis, hasShownNoCoughPopup, onNoCoughDetected, recordingKey]);
+
+    // Reset popup tracking when recording is cleared
+    React.useEffect(() => {
+        if (!isRecorded) {
+            setHasShownNoCoughPopup(false);
+        }
+    }, [isRecorded]);
     const progress = Math.min(currentDuration / minSeconds, 1);
     const remaining = Math.max(minSeconds - currentDuration, 0);
     const meetsMinimum = currentDuration >= minSeconds;
@@ -42,9 +72,25 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
     // For recording in progress, check if we can stop
     const canStop = isRecording && meetsMinimum;
 
+    // Check if no cough detected (for cough recordings only, not ambient)
+    const isAmbientRecording = recordingKey === 'recordingBackground';
+    const noCoughDetected = !isAmbientRecording && 
+        isRecorded && 
+        !isRecording && 
+        !analysis?.loading && 
+        analysis?.result && 
+        !analysis.result.coughDetected;
+
     let cardStyle = styles.recordingCard;
     if (isRecording) cardStyle = styles.recordingCardRecording;
-    if (isRecorded && meetsMinimum) cardStyle = styles.recordingCardDone;
+    if (isRecorded && meetsMinimum) {
+        // Use red background if no cough detected (cough recordings only)
+        if (noCoughDetected) {
+            cardStyle = styles.recordingCardNoCough;
+        } else {
+            cardStyle = styles.recordingCardDone;
+        }
+    }
     if (isTooShort) cardStyle = styles.recordingCardError;
 
     const formatTime = (seconds: number) => {
@@ -125,25 +171,26 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
                         <View style={{
                             flexDirection: 'row',
                             alignItems: 'center',
-                            backgroundColor: analysis.result.coughDetected ? '#FEF2F2' : '#F0FDF4',
+                            // Cough detected = GREEN (good!), No cough = RED (bad, needs redo)
+                            backgroundColor: analysis.result.coughDetected ? '#F0FDF4' : '#FEF2F2',
                             paddingHorizontal: 12,
                             paddingVertical: 6,
                             borderRadius: 16,
                             borderWidth: 1,
-                            borderColor: analysis.result.coughDetected ? '#FECACA' : '#BBF7D0'
+                            borderColor: analysis.result.coughDetected ? '#BBF7D0' : '#FECACA'
                         }}>
                             <Ionicons
-                                name={analysis.result.coughDetected ? "alert-circle" : "checkmark-circle"}
+                                name={analysis.result.coughDetected ? "checkmark-circle" : "close-circle"}
                                 size={18}
-                                color={analysis.result.coughDetected ? "#EF4444" : "#22C55E"}
+                                color={analysis.result.coughDetected ? "#22C55E" : "#EF4444"}
                                 style={{ marginRight: 6 }}
                             />
                             <Text style={{
-                                color: analysis.result.coughDetected ? "#B91C1C" : "#15803D",
+                                color: analysis.result.coughDetected ? "#15803D" : "#B91C1C",
                                 fontWeight: '600',
                                 fontSize: 14
                             }}>
-                                {analysis.result.coughDetected ? "Cough Detected" : "No Cough Detected"}
+                                {analysis.result.coughDetected ? "✓ Cough Detected" : "✗ No Cough Detected"}
                                 {analysis.result.confidence && ` (${(analysis.result.confidence * 100).toFixed(0)}%)`}
                             </Text>
                         </View>
@@ -232,6 +279,14 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         borderWidth: 1,
         borderColor: '#BBF7D0',
+    },
+    recordingCardNoCough: {
+        backgroundColor: '#FEF2F2',
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#FECACA',
     },
     recordingCardError: {
         backgroundColor: '#FEF2F2',

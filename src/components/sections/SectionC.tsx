@@ -69,8 +69,23 @@ export const SectionC: React.FC<SectionCProps> = ({
                                 style={styles.durationInputFull}
                                 placeholder="Duration in days"
                                 keyboardType="numeric"
+                                maxLength={3}
                                 value={current.duration}
-                                onChangeText={(text) => updateSymptom(symptom.key, { duration: text })}
+                                onChangeText={(text) => {
+                                    // Only allow digits
+                                    const digitsOnly = text.replace(/\D/g, '');
+                                    if (digitsOnly === '') {
+                                        updateSymptom(symptom.key, { duration: '' });
+                                        return;
+                                    }
+                                    // Cap at 120
+                                    const num = parseInt(digitsOnly, 10);
+                                    if (num > 120) {
+                                        updateSymptom(symptom.key, { duration: '120' });
+                                    } else {
+                                        updateSymptom(symptom.key, { duration: digitsOnly });
+                                    }
+                                }}
                             />
                         )}
                     </View>

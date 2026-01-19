@@ -17,6 +17,11 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
     // Section A: Individual & Location Details
     if (!formData.mobileNumber || formData.mobileNumber.trim() === '') {
         errors.push({ field: 'mobileNumber', message: 'Mobile Number is required', section: 'A' });
+    } else {
+        const digitsOnly = formData.mobileNumber.replace(/\D/g, '');
+        if (digitsOnly.length !== 10) {
+            errors.push({ field: 'mobileNumber', message: 'Mobile Number must be exactly 10 digits', section: 'A' });
+        }
     }
     if (!formData.participantId || formData.participantId.trim() === '') {
         errors.push({ field: 'participantId', message: 'Participant ID is required', section: 'A' });
@@ -26,6 +31,11 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
     }
     if (!formData.age || formData.age.trim() === '' || isNaN(parseInt(formData.age))) {
         errors.push({ field: 'age', message: 'Age is required and must be a number', section: 'A' });
+    } else {
+        const ageNum = parseInt(formData.age, 10);
+        if (ageNum < 1 || ageNum > 125) {
+            errors.push({ field: 'age', message: 'Age must be between 1 and 125', section: 'A' });
+        }
     }
     if (!formData.gender) {
         errors.push({ field: 'gender', message: 'Gender is required', section: 'A' });
@@ -92,9 +102,14 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
         if (!symptom || symptom.present === null || symptom.present === undefined) {
             errors.push({ field: `symptoms.${key}`, message: `${symptomMap[key]} is required (Yes/No)`, section: 'C' });
         } else if (symptom.present === true) {
-            // If Yes, duration is required
+            // If Yes, duration is required and must be 1-120
             if (!symptom.duration || symptom.duration.trim() === '' || isNaN(parseInt(symptom.duration))) {
                 errors.push({ field: `symptoms.${key}.duration`, message: `Duration (in days) is required for ${symptomMap[key]}`, section: 'C' });
+            } else {
+                const durationNum = parseInt(symptom.duration, 10);
+                if (durationNum < 1 || durationNum > 120) {
+                    errors.push({ field: `symptoms.${key}.duration`, message: `Duration for ${symptomMap[key]} must be between 1 and 120 days`, section: 'C' });
+                }
             }
         }
     }

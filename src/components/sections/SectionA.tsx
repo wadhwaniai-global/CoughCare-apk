@@ -29,8 +29,13 @@ export const SectionA: React.FC<SectionAProps> = ({
                 style={styles.input}
                 placeholder="0XX XXX XXXX"
                 keyboardType="phone-pad"
+                maxLength={10}
                 value={formData.mobileNumber}
-                onChangeText={(text) => updateField('mobileNumber', text)}
+                onChangeText={(text) => {
+                    // Only allow digits, max 10
+                    const digitsOnly = text.replace(/\D/g, '').slice(0, 10);
+                    updateField('mobileNumber', digitsOnly);
+                }}
             />
 
             <Text style={styles.label}>Full Name *</Text>
@@ -48,8 +53,23 @@ export const SectionA: React.FC<SectionAProps> = ({
                         style={styles.input}
                         placeholder="Years"
                         keyboardType="numeric"
+                        maxLength={3}
                         value={formData.age}
-                        onChangeText={(text) => updateField('age', text)}
+                        onChangeText={(text) => {
+                            // Only allow digits
+                            const digitsOnly = text.replace(/\D/g, '');
+                            if (digitsOnly === '') {
+                                updateField('age', '');
+                                return;
+                            }
+                            // Cap at 125
+                            const num = parseInt(digitsOnly, 10);
+                            if (num > 125) {
+                                updateField('age', '125');
+                            } else {
+                                updateField('age', digitsOnly);
+                            }
+                        }}
                     />
                 </View>
                 <View style={[styles.col, { marginLeft: 8 }]}>
