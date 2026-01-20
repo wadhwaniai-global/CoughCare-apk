@@ -14,6 +14,9 @@ export interface ValidationError {
 export const validateForm = (formData: ParticipantFormData, recordedDurations?: Record<string, number>): ValidationError[] => {
     const errors: ValidationError[] = [];
 
+    // Helper regex for alphanumeric check (letters, numbers, spaces)
+    const isAlphanumeric = (text: string) => /^[a-zA-Z0-9\s]*$/.test(text);
+
     // Section A: Individual & Location Details
     if (!formData.mobileNumber || formData.mobileNumber.trim() === '') {
         errors.push({ field: 'mobileNumber', message: 'Mobile Number is required', section: 'A' });
@@ -28,7 +31,10 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
     }
     if (!formData.fullName || formData.fullName.trim() === '') {
         errors.push({ field: 'fullName', message: 'Full Name is required', section: 'A' });
+    } else if (!isAlphanumeric(formData.fullName)) {
+        errors.push({ field: 'fullName', message: 'Full Name must contain only letters and numbers', section: 'A' });
     }
+
     if (!formData.age || formData.age.trim() === '' || isNaN(parseInt(formData.age))) {
         errors.push({ field: 'age', message: 'Age is required and must be a number', section: 'A' });
     } else {
@@ -48,13 +54,19 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
     }
     if (!formData.district || formData.district.trim() === '') {
         errors.push({ field: 'district', message: 'District is required', section: 'A' });
+    } else if (!isAlphanumeric(formData.district)) {
+        errors.push({ field: 'district', message: 'District must contain only letters and numbers', section: 'A' });
     }
+
     if (!formData.facility || formData.facility.trim() === '') {
         errors.push({ field: 'facility', message: 'Facility / Site is required', section: 'A' });
     }
     if (!formData.dataCollectorName || formData.dataCollectorName.trim() === '') {
         errors.push({ field: 'dataCollectorName', message: 'Data Collector Name is required', section: 'A' });
+    } else if (!isAlphanumeric(formData.dataCollectorName)) {
+        errors.push({ field: 'dataCollectorName', message: 'Data Collector Name must contain only letters and numbers', section: 'A' });
     }
+
     if (formData.consentObtained !== true) {
         errors.push({ field: 'consentObtained', message: 'Consent must be obtained (Yes) to proceed', section: 'A' });
     }
@@ -81,6 +93,19 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
     }
     if (formData.previousTb === null || formData.previousTb === undefined) {
         errors.push({ field: 'previousTb', message: 'Previous TB Diagnosis/Treatment is required', section: 'B' });
+    } else if (formData.previousTb === true) {
+        const currentYear = new Date().getFullYear();
+        // Optional: Year of last TB treatment
+        if (formData.tbYear && formData.tbYear.trim() !== '') {
+            if (isNaN(parseInt(formData.tbYear))) {
+                errors.push({ field: 'tbYear', message: 'Year of last TB treatment must be a number', section: 'B' });
+            } else {
+                const year = parseInt(formData.tbYear, 10);
+                if (year < 1980 || year > currentYear) {
+                    errors.push({ field: 'tbYear', message: `Year of last TB treatment must be between 1980 and ${currentYear}`, section: 'B' });
+                }
+            }
+        }
     }
 
     // Section C: Symptoms - All symptoms are mandatory (Yes/No), duration required if Yes
@@ -146,7 +171,7 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
 // Helper function to format validation errors for display
 export const formatValidationErrors = (errors: ValidationError[]): string => {
     if (errors.length === 0) return '';
-    
+
     const sectionErrors: Record<string, ValidationError[]> = {
         'A': [],
         'B': [],
@@ -160,7 +185,7 @@ export const formatValidationErrors = (errors: ValidationError[]): string => {
 
     // Create a summary first
     let message = `Please complete ${errors.length} required field(s):\n\n`;
-    
+
     const sectionNames: Record<string, string> = {
         'A': 'Section A - Individual & Location Details',
         'B': 'Section B - Comorbidities & Vulnerability',

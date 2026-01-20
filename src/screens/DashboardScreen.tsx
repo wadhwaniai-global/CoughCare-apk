@@ -89,9 +89,9 @@ const DashboardScreen = () => {
                     // Dynamic import with error handling
                     const netInfoModule = await import('@react-native-community/netinfo');
                     const NetInfo = netInfoModule.default || netInfoModule;
-                    
+
                     if (!isMounted) return;
-                    
+
                     // Set up listener
                     unsubscribe = NetInfo.addEventListener(state => {
                         if (isMounted) {
@@ -198,11 +198,11 @@ const DashboardScreen = () => {
                         styles.onlineBadge,
                         !isOnline && { backgroundColor: '#64748B' }
                     ]}>
-                        <Ionicons 
-                            name={isOnline ? "wifi" : "wifi-outline"} 
-                            size={16} 
-                            color="white" 
-                            style={{ marginRight: 4 }} 
+                        <Ionicons
+                            name={isOnline ? "wifi" : "wifi-outline"}
+                            size={16}
+                            color="white"
+                            style={{ marginRight: 4 }}
                         />
                         <Text style={styles.onlineText}>{isOnline ? 'Online' : 'Offline'}</Text>
                     </View>
@@ -312,26 +312,28 @@ const DashboardScreen = () => {
                                     navigation.navigate('ViewRecord', { participantId: item.id });
                                 }}
                             >
-                                <View style={styles.caseHeader}>
-                                    <View>
-                                        <Text style={styles.caseName}>{item.name}</Text>
+                                <View style={[styles.caseHeader, { justifyContent: 'flex-start' }]}>
+                                    <View style={{ flex: 1, marginRight: 8 }}>
+                                        <Text style={styles.caseName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
                                         <Text style={styles.caseId}>{item.phone}</Text>
                                     </View>
-                                    <View style={[
-                                        styles.statusBadge,
-                                        item.recordStatus === 'pending' ? { backgroundColor: '#FEF3C7' } :
-                                            item.recordStatus === 'synced' ? { backgroundColor: '#DCFCE7' } :
-                                                { backgroundColor: '#E0E7FF' }
-                                    ]}>
-                                        <Text style={[
-                                            styles.statusText,
-                                            item.recordStatus === 'pending' ? { color: '#D97706' } :
-                                                item.recordStatus === 'synced' ? { color: '#16A34A' } :
-                                                    { color: '#6366F1' }
+                                    <View style={{ flexShrink: 0 }}>
+                                        <View style={[
+                                            styles.statusBadge,
+                                            item.recordStatus === 'pending' ? { backgroundColor: '#FEF3C7' } :
+                                                item.recordStatus === 'synced' ? { backgroundColor: '#DCFCE7' } :
+                                                    { backgroundColor: '#E0E7FF' }
                                         ]}>
-                                            {item.recordStatus === 'pending' ? 'Pending' :
-                                                item.recordStatus === 'synced' ? 'Synced' : 'Draft'}
-                                        </Text>
+                                            <Text style={[
+                                                styles.statusText,
+                                                item.recordStatus === 'pending' ? { color: '#D97706' } :
+                                                    item.recordStatus === 'synced' ? { color: '#16A34A' } :
+                                                        { color: '#6366F1' }
+                                            ]}>
+                                                {item.recordStatus === 'pending' ? 'Pending' :
+                                                    item.recordStatus === 'synced' ? 'Synced' : 'Draft'}
+                                            </Text>
+                                        </View>
                                     </View>
                                 </View>
                                 <View style={styles.caseFooter}>

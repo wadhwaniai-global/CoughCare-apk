@@ -21,6 +21,7 @@ interface RecordingCardProps {
     onReRecord: () => void;
     onUseSample?: () => void;
     onNoCoughDetected?: () => void;
+    error?: string;
 }
 
 export const RecordingCard: React.FC<RecordingCardProps> = ({
@@ -37,6 +38,7 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
     onReRecord,
     onUseSample,
     onNoCoughDetected,
+    error,
 }) => {
     // Track if we've already shown the no-cough popup for this analysis
     const [hasShownNoCoughPopup, setHasShownNoCoughPopup] = React.useState(false);
@@ -74,11 +76,11 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
 
     // Check if no cough detected (for cough recordings only, not ambient)
     const isAmbientRecording = recordingKey === 'recordingBackground';
-    const noCoughDetected = !isAmbientRecording && 
-        isRecorded && 
-        !isRecording && 
-        !analysis?.loading && 
-        analysis?.result && 
+    const noCoughDetected = !isAmbientRecording &&
+        isRecorded &&
+        !isRecording &&
+        !analysis?.loading &&
+        analysis?.result &&
         !analysis.result.coughDetected;
 
     let cardStyle = styles.recordingCard;
@@ -91,7 +93,7 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
             cardStyle = styles.recordingCardDone;
         }
     }
-    if (isTooShort) cardStyle = styles.recordingCardError;
+    if (isTooShort || error) cardStyle = styles.recordingCardError;
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -204,6 +206,16 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
                     <Ionicons name="warning" size={18} color="#F59E0B" style={{ marginRight: 8 }} />
                     <Text style={styles.errorBannerText}>
                         Recording too short. Please record again (minimum {minSeconds} seconds).
+                    </Text>
+                </View>
+            )}
+
+            {/* Validation Error Message */}
+            {error && !isTooShort && (
+                <View style={styles.errorBanner}>
+                    <Ionicons name="alert-circle" size={18} color="#EF4444" style={{ marginRight: 8 }} />
+                    <Text style={[styles.errorBannerText, { color: '#B91C1C' }]}>
+                        {error}
                     </Text>
                 </View>
             )}

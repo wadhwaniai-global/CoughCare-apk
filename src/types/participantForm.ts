@@ -31,6 +31,13 @@ export interface ParticipantFormData {
     recording2: string | null;
     recording3: string | null;
     recordingBackground: string | null;
+    // Section E: Diagnostic Testing
+    testResult: string | null;
+    testDateCollection: string;
+    testDateResult: string;
+    testType: string | null;
+    testSite: string;
+    testNotes: string;
 }
 
 export interface AnalysisResult {

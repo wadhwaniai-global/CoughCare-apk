@@ -35,6 +35,13 @@ export const useParticipantForm = () => {
         recording2: null,
         recording3: null,
         recordingBackground: null,
+        // Section E
+        testResult: null,
+        testDateCollection: '',
+        testDateResult: '',
+        testType: null,
+        testSite: '',
+        testNotes: '',
     });
 
     const updateFormData = (updates: Partial<ParticipantFormData>) => {

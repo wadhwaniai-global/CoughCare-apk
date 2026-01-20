@@ -14,6 +14,7 @@ interface AccordionSectionProps {
     children: React.ReactNode;
     disabled?: boolean;
     disabledMessage?: string;
+    onLayout?: (event: any) => void;
 }
 
 export const AccordionSection: React.FC<AccordionSectionProps> = ({
@@ -23,7 +24,8 @@ export const AccordionSection: React.FC<AccordionSectionProps> = ({
     onToggle,
     children,
     disabled = false,
-    disabledMessage
+    disabledMessage,
+    onLayout
 }) => {
     const handleToggle = () => {
         if (!disabled) {
@@ -32,9 +34,12 @@ export const AccordionSection: React.FC<AccordionSectionProps> = ({
     };
 
     return (
-        <View style={[styles.sectionContainer, isExpanded && { zIndex: 20 }, disabled && styles.sectionDisabled]}>
-            <TouchableOpacity 
-                style={[styles.accordionHeader, disabled && styles.accordionHeaderDisabled]} 
+        <View
+            style={[styles.sectionContainer, isExpanded && { zIndex: 20 }, disabled && styles.sectionDisabled]}
+            onLayout={onLayout}
+        >
+            <TouchableOpacity
+                style={[styles.accordionHeader, disabled && styles.accordionHeaderDisabled]}
                 onPress={handleToggle}
                 disabled={disabled}
             >

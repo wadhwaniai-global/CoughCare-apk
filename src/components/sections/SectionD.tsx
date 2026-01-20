@@ -2,11 +2,13 @@
  * Section D: Cough & Audio Recording
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Platform, Alert } from 'react-native';
 import { Asset } from 'expo-asset';
+import { Ionicons } from '@expo/vector-icons';
 import { RecordingCard } from '../forms/RecordingCard';
 import { ParticipantFormData, AnalysisResult } from '../../types/participantForm';
+import { CustomAlert } from '../ui/CustomAlert';
 
 interface SectionDProps {
     formData: ParticipantFormData;
@@ -19,6 +21,7 @@ interface SectionDProps {
     onStopRecording: (key: string) => Promise<string | null>;
     onClearRecording: (key: string) => void;
     onUseSample: (key: string) => Promise<void>;
+    errors?: Record<string, string>;
 }
 
 export const SectionD: React.FC<SectionDProps> = ({
@@ -32,7 +35,18 @@ export const SectionD: React.FC<SectionDProps> = ({
     onStopRecording,
     onClearRecording,
     onUseSample,
+    errors = {},
 }) => {
+    // Custom Alert State
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        title: '',
+        message: '',
+        listItems: [] as string[],
+        buttons: [] as any[],
+        icon: 'alert-circle' as keyof typeof Ionicons.glyphMap,
+        iconColor: '#EF4444'
+    });
     const handleUseSample = async (key: string) => {
         await onUseSample(key);
     };
@@ -42,17 +56,21 @@ export const SectionD: React.FC<SectionDProps> = ({
         const minSeconds = key === 'recordingBackground' ? 10 : 5;
         // Get current duration - if actively recording this key, use recordingDuration, otherwise use recorded duration
         const currentDuration = activeRecordingKey === key ? recordingDuration : (recordedDurations[key] || 0);
-        
+
         // Validate duration before stopping (safety check - button should already be disabled)
         if (activeRecordingKey === key && currentDuration < minSeconds) {
-            Alert.alert(
-                'Recording Too Short',
-                `Please record for at least ${minSeconds} seconds. Current duration: ${currentDuration} seconds.`,
-                [{ text: 'OK' }]
-            );
+            setAlertConfig({
+                visible: true,
+                title: 'Recording Too Short',
+                message: `Please record for at least ${minSeconds} seconds. Current duration: ${currentDuration} seconds.`,
+                listItems: [],
+                buttons: [{ text: 'OK', onPress: () => setAlertConfig(prev => ({ ...prev, visible: false })) }],
+                icon: 'time',
+                iconColor: '#EF4444'
+            });
             return;
         }
-        
+
         const uri = await onStopRecording(key);
         if (uri) {
             updateField(key as keyof ParticipantFormData, uri);
@@ -65,21 +83,29 @@ export const SectionD: React.FC<SectionDProps> = ({
     };
 
     const handleNoCoughDetected = (key: string) => {
-        Alert.alert(
-            'No Cough Detected',
-            'We could not detect a clear cough sound in your recording. Please re-record and make sure to cough clearly into the microphone.',
-            [
+        setAlertConfig({
+            visible: true,
+            title: 'No Cough Detected',
+            message: 'We could not detect a clear cough sound in your recording. Please re-record and make sure to cough clearly into the microphone.',
+            listItems: [],
+            buttons: [
                 {
                     text: 'Re-record',
-                    onPress: () => handleReRecord(key),
+                    onPress: () => {
+                        handleReRecord(key);
+                        setAlertConfig(prev => ({ ...prev, visible: false }));
+                    },
                     style: 'default',
                 },
                 {
                     text: 'Keep Recording',
+                    onPress: () => setAlertConfig(prev => ({ ...prev, visible: false })),
                     style: 'cancel',
                 },
-            ]
-        );
+            ],
+            icon: 'warning',
+            iconColor: '#F59E0B'
+        });
     };
 
     return (
@@ -105,6 +131,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onReRecord={() => handleReRecord('recording1')}
                 onUseSample={() => handleUseSample('recording1')}
                 onNoCoughDetected={() => handleNoCoughDetected('recording1')}
+                error={errors['recording1']}
             />
 
             <RecordingCard
@@ -121,6 +148,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onReRecord={() => handleReRecord('recording2')}
                 onUseSample={() => handleUseSample('recording2')}
                 onNoCoughDetected={() => handleNoCoughDetected('recording2')}
+                error={errors['recording2']}
             />
 
             <RecordingCard
@@ -137,6 +165,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onReRecord={() => handleReRecord('recording3')}
                 onUseSample={() => handleUseSample('recording3')}
                 onNoCoughDetected={() => handleNoCoughDetected('recording3')}
+                error={errors['recording3']}
             />
 
             <RecordingCard
@@ -152,6 +181,20 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onStopRecording={() => handleStopRecording('recordingBackground')}
                 onReRecord={() => handleReRecord('recordingBackground')}
                 onUseSample={() => handleUseSample('recordingBackground')}
+                error={errors['recordingBackground']}
+            />
+
+
+            {/* Custom Alert */}
+            <CustomAlert
+                visible={alertConfig.visible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                listItems={alertConfig.listItems}
+                buttons={alertConfig.buttons}
+                onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
+                icon={alertConfig.icon}
+                iconColor={alertConfig.iconColor}
             />
         </>
     );
@@ -170,6 +213,12 @@ const styles = StyleSheet.create({
         color: '#1E40AF',
         fontSize: 14,
         lineHeight: 20,
+    },
+    errorText: {
+        color: '#EF4444',
+        fontSize: 12,
+        marginTop: 4,
+        marginLeft: 4,
     },
 });
 

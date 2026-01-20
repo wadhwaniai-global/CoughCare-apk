@@ -23,11 +23,13 @@ import { saveParticipant, saveRecording, getDB } from '../services/DatabaseServi
 import { useParticipantForm } from '../hooks/useParticipantForm';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { validateForm, formatValidationErrors } from '../utils/formValidation';
+import { ParticipantFormData } from '../types/participantForm';
 import { AccordionSection } from '../components/forms/AccordionSection';
 import { SectionA } from '../components/sections/SectionA';
 import { SectionB } from '../components/sections/SectionB';
 import { SectionC } from '../components/sections/SectionC';
 import { SectionD } from '../components/sections/SectionD';
+import { CustomAlert } from '../components/ui/CustomAlert';
 
 if (Platform.OS === 'android') {
     if (UIManager.setLayoutAnimationEnabledExperimental) {
@@ -44,8 +46,20 @@ const NewParticipantScreen = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showValidationModal, setShowValidationModal] = useState(false);
     const [validationErrors, setValidationErrors] = useState<string>('');
+    const [inlineErrors, setInlineErrors] = useState<Record<string, string>>({});
     const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [successMessage, setSuccessMessage] = useState('Participant saved successfully!');
+
+    // Custom Alert State
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        title: '',
+        message: '',
+        listItems: [] as string[],
+        buttons: [] as any[],
+        icon: 'alert-circle' as keyof typeof Ionicons.glyphMap,
+        iconColor: '#EF4444'
+    });
 
     // Use custom hooks
     const { formData, updateField, updateSymptom } = useParticipantForm();
@@ -63,6 +77,41 @@ const NewParticipantScreen = () => {
     const toggleSection = (section: string) => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         setExpandedSection(expandedSection === section ? null : section);
+    };
+
+    const scrollViewRef = React.useRef<ScrollView>(null);
+    const [sectionLayouts, setSectionLayouts] = useState<Record<string, number>>({});
+
+    const onSectionLayout = (section: string, event: any) => {
+        const layout = event.nativeEvent.layout;
+        setSectionLayouts(prev => ({ ...prev, [section]: layout.y }));
+    };
+
+    const handleUpdateField = <K extends keyof ParticipantFormData>(field: K, value: ParticipantFormData[K]) => {
+        updateField(field, value);
+        // Clear error for this field if it exists
+        if (inlineErrors[field as string]) {
+            setInlineErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[field as string];
+                return newErrors;
+            });
+        }
+    };
+
+    const handleUpdateSymptom = (key: string, updates: { present?: boolean | null; duration?: string }) => {
+        updateSymptom(key, updates);
+        // Clear errors related to this symptom
+        setInlineErrors(prev => {
+            const newErrors = { ...prev };
+            if (updates.present !== undefined) {
+                delete newErrors[`symptoms.${key}`];
+            }
+            if (updates.duration !== undefined) {
+                delete newErrors[`symptoms.${key}.duration`];
+            }
+            return newErrors;
+        });
     };
 
     // Close sections B, C, D if consent is revoked
@@ -84,7 +133,7 @@ const NewParticipantScreen = () => {
             }
 
             if (uri) {
-                updateField(key as keyof typeof formData, uri);
+                handleUpdateField(key as keyof typeof formData, uri);
                 // Trigger analysis for sample audio using the hook's method
                 await analyzeAudioManually(key, uri);
             }
@@ -169,7 +218,7 @@ const NewParticipantScreen = () => {
             }
 
             console.log('Draft saved successfully!');
-            
+
             // Show success message
             setSuccessMessage('Draft saved successfully!');
             if (Platform.OS === 'web') {
@@ -195,45 +244,47 @@ const NewParticipantScreen = () => {
         console.log('Submit button clicked');
         console.log('Form data:', formData);
         console.log('Recorded durations:', recordedDurations);
-        
+
         // Validate form with recorded durations
         const errors = validateForm(formData, recordedDurations);
         console.log('Validation errors:', errors);
-        
+
+        // Transform errors to Record<string, string> for inline display
+        const errorRecord: Record<string, string> = {};
+        errors.forEach(err => {
+            errorRecord[err.field] = err.message;
+        });
+        setInlineErrors(errorRecord);
+
         if (errors.length > 0) {
             const errorMessage = formatValidationErrors(errors);
             console.log('Showing validation error alert:', errorMessage);
-            
-            // Use Modal for web, Alert for native
-            if (Platform.OS === 'web') {
-                setValidationErrors(errorMessage);
-                setShowValidationModal(true);
-                // Auto-expand first error section
-                const firstErrorSection = errors[0]?.section;
-                if (firstErrorSection) {
-                    setExpandedSection(firstErrorSection);
+
+            // Auto-expand first error section and scroll to it
+            const firstErrorSection = errors[0]?.section;
+            if (firstErrorSection) {
+                setExpandedSection(firstErrorSection);
+                // Scroll to section
+                const y = sectionLayouts[firstErrorSection];
+                if (y !== undefined && scrollViewRef.current) {
+                    scrollViewRef.current.scrollTo({ y, animated: true });
                 }
-            } else {
-                Alert.alert(
-                    "Missing Required Fields",
-                    errorMessage,
-                    [
-                        {
-                            text: "OK",
-                            style: "default",
-                            onPress: () => {
-                                console.log('User acknowledged validation errors');
-                                // Optionally scroll to first error section
-                                const firstErrorSection = errors[0]?.section;
-                                if (firstErrorSection) {
-                                    setExpandedSection(firstErrorSection);
-                                }
-                            }
-                        }
-                    ],
-                    { cancelable: true }
-                );
             }
+
+            // Show Custom Alert
+            const errorList = errors.map(e => e.message);
+            setAlertConfig({
+                visible: true,
+                title: 'Missing Required Fields',
+                message: `Please complete ${errors.length} required field(s):`,
+                listItems: errorList,
+                buttons: [{
+                    text: 'OK',
+                    onPress: () => setAlertConfig(prev => ({ ...prev, visible: false }))
+                }],
+                icon: 'alert-circle',
+                iconColor: '#EF4444'
+            });
             return;
         }
 
@@ -296,7 +347,17 @@ const NewParticipantScreen = () => {
                 test_site: null,
                 test_notes: null,
                 status: 'pending', // Ready for sync
-                analysis_result: primaryResult ? JSON.stringify(primaryResult) : null
+                analysis_result: primaryResult ? JSON.stringify(primaryResult) : null,
+                // Section E fields
+                test_done: formData.testResult ? (formData.testResult === 'Pending' ? 'Not yet' : 'Yes') : null, // Map to existing schema if possible, or store as JSON? 
+                // Wait, schema has test_done, test_type, test_date_collection, test_date_result, test_result, test_site, test_notes
+                // Let's map correctly based on DatabaseService schema
+                test_type: formData.testType || null,
+                test_date_collection: formData.testDateCollection || null,
+                test_date_result: formData.testDateResult || null,
+                test_result: formData.testResult || null,
+                test_site: formData.testSite || null,
+                test_notes: formData.testNotes || null
             });
 
             // Save Recordings - Delete existing recordings for this participant first to prevent duplicates
@@ -309,7 +370,7 @@ const NewParticipantScreen = () => {
             ];
 
             console.log('Saving recordings...');
-            
+
             // Delete existing recordings for this participant to prevent duplicates
             const database = await getDB();
             try {
@@ -336,7 +397,7 @@ const NewParticipantScreen = () => {
             }
 
             console.log('Submission successful!');
-            
+
             // Use Modal for web, Alert for native
             setSuccessMessage('Participant saved successfully!');
             if (Platform.OS === 'web') {
@@ -356,11 +417,15 @@ const NewParticipantScreen = () => {
         } catch (error) {
             console.error("Submission failed:", error);
             const errorMessage = error instanceof Error ? error.message : String(error);
-            Alert.alert(
-                "Error", 
-                `Could not submit case. ${errorMessage}\n\nPlease check the console for more details.`,
-                [{ text: "OK" }]
-            );
+            setAlertConfig({
+                visible: true,
+                title: 'Error',
+                message: `Could not submit case. ${errorMessage}\n\nPlease check the console for more details.`,
+                listItems: [],
+                buttons: [{ text: "OK", onPress: () => setAlertConfig(prev => ({ ...prev, visible: false })) }],
+                icon: 'alert-circle',
+                iconColor: '#EF4444'
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -382,19 +447,25 @@ const NewParticipantScreen = () => {
                 </View>
             </View>
 
-            <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 100 }}>
+            <ScrollView
+                style={styles.content}
+                contentContainerStyle={{ paddingBottom: 100 }}
+                ref={scrollViewRef}
+            >
                 {/* Section A */}
                 <AccordionSection
                     title="A. Individual & Location Details"
                     section="A"
                     isExpanded={expandedSection === 'A'}
                     onToggle={() => toggleSection('A')}
+                    onLayout={(e) => onSectionLayout('A', e)}
                 >
                     <SectionA
                         formData={formData}
-                        updateField={updateField}
+                        updateField={handleUpdateField}
                         expandedDropdown={expandedDropdown}
                         setExpandedDropdown={setExpandedDropdown}
+                        errors={inlineErrors}
                     />
                 </AccordionSection>
 
@@ -405,12 +476,14 @@ const NewParticipantScreen = () => {
                     isExpanded={expandedSection === 'B'}
                     onToggle={() => toggleSection('B')}
                     disabled={formData.consentObtained !== true}
+                    onLayout={(e) => onSectionLayout('B', e)}
                 >
                     <SectionB
                         formData={formData}
-                        updateField={updateField}
+                        updateField={handleUpdateField}
                         expandedDropdown={expandedDropdown}
                         setExpandedDropdown={setExpandedDropdown}
+                        errors={inlineErrors}
                     />
                 </AccordionSection>
 
@@ -421,10 +494,12 @@ const NewParticipantScreen = () => {
                     isExpanded={expandedSection === 'C'}
                     onToggle={() => toggleSection('C')}
                     disabled={formData.consentObtained !== true}
+                    onLayout={(e) => onSectionLayout('C', e)}
                 >
                     <SectionC
                         formData={formData}
-                        updateSymptom={updateSymptom}
+                        updateSymptom={handleUpdateSymptom}
+                        errors={inlineErrors}
                     />
                 </AccordionSection>
 
@@ -435,10 +510,11 @@ const NewParticipantScreen = () => {
                     isExpanded={expandedSection === 'D'}
                     onToggle={() => toggleSection('D')}
                     disabled={formData.consentObtained !== true}
+                    onLayout={(e) => onSectionLayout('D', e)}
                 >
                     <SectionD
                         formData={formData}
-                        updateField={updateField}
+                        updateField={handleUpdateField}
                         activeRecordingKey={activeRecordingKey}
                         recordingDuration={recordingDuration}
                         recordedDurations={recordedDurations}
@@ -447,6 +523,7 @@ const NewParticipantScreen = () => {
                         onStopRecording={stopRecording}
                         onClearRecording={clearRecording}
                         onUseSample={handleUseSample}
+                        errors={inlineErrors}
                     />
                 </AccordionSection>
             </ScrollView>
@@ -517,7 +594,7 @@ const NewParticipantScreen = () => {
                                 {successMessage}
                             </Text>
                             <Text style={[styles.modalText, { marginTop: 12, fontSize: 12, color: '#64748B' }]}>
-                                {successMessage.includes('Draft') 
+                                {successMessage.includes('Draft')
                                     ? 'You can continue editing this form later from the Drafts section.'
                                     : 'The participant data has been saved and will appear on the dashboard.'}
                             </Text>
@@ -537,7 +614,7 @@ const NewParticipantScreen = () => {
 
             {/* Footer */}
             <View style={styles.footer}>
-                <TouchableOpacity 
+                <TouchableOpacity
                     style={styles.draftBtn}
                     onPress={handleSaveDraft}
                     disabled={isSubmitting}
@@ -566,7 +643,20 @@ const NewParticipantScreen = () => {
                     </Text>
                 </TouchableOpacity>
             </View>
-        </SafeAreaView>
+
+
+            {/* Custom Alert */}
+            <CustomAlert
+                visible={alertConfig.visible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                listItems={alertConfig.listItems}
+                buttons={alertConfig.buttons}
+                onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
+                icon={alertConfig.icon}
+                iconColor={alertConfig.iconColor}
+            />
+        </SafeAreaView >
     );
 };
 

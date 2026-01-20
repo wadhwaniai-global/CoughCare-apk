@@ -1,7 +1,7 @@
 export default {
   expo: {
     name: "Cough Against TB",
-    owner: "aakashwaig",
+    owner: "jainrishi606",
     slug: "coughcare",
     version: "1.0.0",
     orientation: "portrait",
@@ -61,7 +61,7 @@ export default {
     ],
     extra: {
       eas: {
-        projectId: "02293b0f-a184-4e1c-b4d2-9da490ba8abb"
+        projectId: "ab5cf821-cee3-4e57-b05e-d022ee9bcef1"
       },
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || "https://cough-pilot.wadhwaniaiglobal.com",
       logoVersion: process.env.EXPO_PUBLIC_LOGO_VERSION || "1",

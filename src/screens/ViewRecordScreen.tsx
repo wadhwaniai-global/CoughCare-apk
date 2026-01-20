@@ -20,6 +20,8 @@ import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navig
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { getParticipantById, getRecordingsByParticipantId, saveParticipant, Participant, Recording } from '../services/DatabaseService';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { CustomAlert } from '../components/ui/CustomAlert';
 import { Dropdown } from '../components/forms/Dropdown';
 
 type ViewRecordScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ViewRecord'>;
@@ -37,6 +39,10 @@ const ViewRecordScreen = () => {
     const [saving, setSaving] = useState(false);
     const [expandedDropdown, setExpandedDropdown] = useState<string | null>(null);
 
+    // Date picker states
+    const [showCollectionPicker, setShowCollectionPicker] = useState(false);
+    const [showResultPicker, setShowResultPicker] = useState(false);
+
     // Form data for test results
     const [testFormData, setTestFormData] = useState({
         testDone: null as string | null,
@@ -46,6 +52,18 @@ const ViewRecordScreen = () => {
         testResult: null as string | null,
         testSite: null as string | null,
         testNotes: '',
+    });
+    const [testFormErrors, setTestFormErrors] = useState<Record<string, string>>({});
+
+    // Custom Alert State
+    const [alertConfig, setAlertConfig] = useState({
+        visible: false,
+        title: '',
+        message: '',
+        listItems: [] as string[],
+        buttons: [] as any[],
+        icon: 'alert-circle' as keyof typeof Ionicons.glyphMap,
+        iconColor: '#EF4444'
     });
 
     useEffect(() => {
@@ -162,25 +180,55 @@ const ViewRecordScreen = () => {
         return null;
     };
 
+    const handleDateChange = (event: any, selectedDate?: Date, field?: 'dateCollection' | 'dateResult') => {
+        if (field === 'dateCollection') setShowCollectionPicker(false);
+        if (field === 'dateResult') setShowResultPicker(false);
+
+        if (selectedDate && field) {
+            const day = selectedDate.getDate().toString().padStart(2, '0');
+            const month = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
+            const year = selectedDate.getFullYear();
+            setTestFormData(prev => ({ ...prev, [field]: `${day}/${month}/${year}` }));
+        }
+    };
+
     const handleSaveTestResults = async () => {
         if (!participant) return;
 
         // Validation
+        const errors: Record<string, string> = {};
+        const errorList: string[] = [];
+
         if (!testFormData.testDone) {
-            Alert.alert('Validation Error', 'Please select "Was a test done?"');
+            errors.testDone = 'Please select if a test was done';
+            errorList.push('Was a test done? is required');
+        } else if (testFormData.testDone === 'Yes') {
+            if (!testFormData.testType) {
+                errors.testType = 'Test Type is required';
+                errorList.push('Test Type is required');
+            }
+            if (!testFormData.testResult) {
+                errors.testResult = 'TB Diagnosis Result is required';
+                errorList.push('TB Diagnosis Result is required');
+            }
+        }
+
+        if (Object.keys(errors).length > 0) {
+            setTestFormErrors(errors);
+            setAlertConfig({
+                visible: true,
+                title: 'Missing Required Fields',
+                message: 'Please complete the following required fields:',
+                listItems: errorList,
+                buttons: [{ text: 'OK', onPress: () => setAlertConfig(prev => ({ ...prev, visible: false })) }],
+                icon: 'alert-circle',
+                iconColor: '#EF4444'
+            });
             return;
         }
 
-        if (testFormData.testDone === 'Yes') {
-            if (!testFormData.testType) {
-                Alert.alert('Validation Error', 'Test Type is required when test is done');
-                return;
-            }
-            if (!testFormData.testResult) {
-                Alert.alert('Validation Error', 'TB Diagnosis Result is required when test is done');
-                return;
-            }
-        }
+        // Clear errors
+        setTestFormErrors({});
 
         try {
             setSaving(true);
@@ -469,11 +517,11 @@ const ViewRecordScreen = () => {
                             // Edit Form
                             <View style={styles.testFormContainer}>
                                 <Dropdown
-                                    label="Was a test done?"
+                                    label="Was a test done? *"
                                     value={testFormData.testDone}
                                     options={['Yes', 'No', 'Not yet']}
-                                    onSelect={(val) => {
-                                        const value = val === 'Select' ? null : val;
+                                    onSelect={(val: string) => {
+                                        const value = val; // No 'Select' option anymore
                                         if (val === 'No' || val === 'Not yet') {
                                             setTestFormData({
                                                 ...testFormData,
@@ -482,111 +530,163 @@ const ViewRecordScreen = () => {
                                                 testResult: null,
                                                 testSite: null,
                                             });
+                                            // Clear errors when switching to No/Not yet
+                                            setTestFormErrors({});
                                         } else {
                                             setTestFormData({ ...testFormData, testDone: value });
+                                            // Clear specific error
+                                            if (testFormErrors.testDone) {
+                                                setTestFormErrors(prev => {
+                                                    const newErrors = { ...prev };
+                                                    delete newErrors.testDone;
+                                                    return newErrors;
+                                                });
+                                            }
                                         }
                                     }}
                                     isExpanded={expandedDropdown === 'testDone'}
                                     onToggle={() => setExpandedDropdown(expandedDropdown === 'testDone' ? null : 'testDone')}
                                     placeholder="Select"
+                                    error={testFormErrors.testDone}
                                 />
 
                                 {testFormData.testDone === 'Yes' && (
                                     <>
                                         <Dropdown
-                                            label="Test Type"
+                                            label="Test Type *"
                                             value={testFormData.testType}
                                             options={[
-                                                'Select test type',
                                                 'GeneXpert',
                                                 'Smear Microscopy',
                                                 'Culture',
                                                 'Chest X-Ray (CXR)',
                                                 'Other'
                                             ]}
-                                            onSelect={(val) => {
-                                                setTestFormData({ ...testFormData, testType: val === 'Select test type' ? null : val });
+                                            onSelect={(val: string) => {
+                                                setTestFormData({ ...testFormData, testType: val });
+                                                if (testFormErrors.testType) {
+                                                    setTestFormErrors(prev => {
+                                                        const newErrors = { ...prev };
+                                                        delete newErrors.testType;
+                                                        return newErrors;
+                                                    });
+                                                }
                                             }}
                                             isExpanded={expandedDropdown === 'testType'}
                                             onToggle={() => setExpandedDropdown(expandedDropdown === 'testType' ? null : 'testType')}
                                             placeholder="Select test type"
+                                            error={testFormErrors.testType}
                                         />
 
                                         <View style={styles.formGroup}>
                                             <Text style={styles.formLabel}>Date of Specimen Collection</Text>
-                                            <TextInput
-                                                style={styles.formInput}
-                                                placeholder="DD/MM/YYYY"
-                                                value={testFormData.dateCollection}
-                                                onChangeText={(text) => {
-                                                    let cleaned = text.replace(/\D/g, '');
-                                                    let formatted = cleaned;
-                                                    if (cleaned.length > 2) {
-                                                        formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
-                                                    }
-                                                    if (cleaned.length > 4) {
-                                                        formatted = formatted.slice(0, 5) + '/' + cleaned.slice(4, 8);
-                                                    }
-                                                    setTestFormData({ ...testFormData, dateCollection: formatted });
-                                                }}
-                                                keyboardType="numeric"
-                                                maxLength={10}
-                                            />
+                                            <View style={styles.dateContainer}>
+                                                <TextInput
+                                                    style={[styles.formInput, styles.dateInput]}
+                                                    placeholder="DD/MM/YYYY"
+                                                    value={testFormData.dateCollection}
+                                                    onChangeText={(text) => {
+                                                        let cleaned = text.replace(/\D/g, '');
+                                                        let formatted = cleaned;
+                                                        if (cleaned.length > 2) {
+                                                            formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
+                                                        }
+                                                        if (cleaned.length > 4) {
+                                                            formatted = formatted.slice(0, 5) + '/' + cleaned.slice(4, 8);
+                                                        }
+                                                        setTestFormData({ ...testFormData, dateCollection: formatted });
+                                                    }}
+                                                    keyboardType="numeric"
+                                                    maxLength={10}
+                                                />
+                                                <TouchableOpacity onPress={() => setShowCollectionPicker(true)} style={styles.dateIconBtn}>
+                                                    <Ionicons name="calendar-outline" size={24} color="#64748B" />
+                                                </TouchableOpacity>
+                                            </View>
                                         </View>
+                                        {showCollectionPicker && (
+                                            <DateTimePicker
+                                                value={new Date()}
+                                                mode="date"
+                                                display="default"
+                                                maximumDate={new Date()}
+                                                onChange={(e, date) => handleDateChange(e, date, 'dateCollection')}
+                                            />
+                                        )}
 
                                         <View style={styles.formGroup}>
                                             <Text style={styles.formLabel}>Date of Result</Text>
-                                            <TextInput
-                                                style={styles.formInput}
-                                                placeholder="DD/MM/YYYY"
-                                                value={testFormData.dateResult}
-                                                onChangeText={(text) => {
-                                                    let cleaned = text.replace(/\D/g, '');
-                                                    let formatted = cleaned;
-                                                    if (cleaned.length > 2) {
-                                                        formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
-                                                    }
-                                                    if (cleaned.length > 4) {
-                                                        formatted = formatted.slice(0, 5) + '/' + cleaned.slice(4, 8);
-                                                    }
-                                                    setTestFormData({ ...testFormData, dateResult: formatted });
-                                                }}
-                                                keyboardType="numeric"
-                                                maxLength={10}
-                                            />
+                                            <View style={styles.dateContainer}>
+                                                <TextInput
+                                                    style={[styles.formInput, styles.dateInput]}
+                                                    placeholder="DD/MM/YYYY"
+                                                    value={testFormData.dateResult}
+                                                    onChangeText={(text) => {
+                                                        let cleaned = text.replace(/\D/g, '');
+                                                        let formatted = cleaned;
+                                                        if (cleaned.length > 2) {
+                                                            formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
+                                                        }
+                                                        if (cleaned.length > 4) {
+                                                            formatted = formatted.slice(0, 5) + '/' + cleaned.slice(4, 8);
+                                                        }
+                                                        setTestFormData({ ...testFormData, dateResult: formatted });
+                                                    }}
+                                                    keyboardType="numeric"
+                                                    maxLength={10}
+                                                />
+                                                <TouchableOpacity onPress={() => setShowResultPicker(true)} style={styles.dateIconBtn}>
+                                                    <Ionicons name="calendar-outline" size={24} color="#64748B" />
+                                                </TouchableOpacity>
+                                            </View>
                                         </View>
+                                        {showResultPicker && (
+                                            <DateTimePicker
+                                                value={new Date()}
+                                                mode="date"
+                                                display="default"
+                                                maximumDate={new Date()}
+                                                onChange={(e, date) => handleDateChange(e, date, 'dateResult')}
+                                            />
+                                        )}
 
                                         <Dropdown
-                                            label="TB Diagnosis Result"
+                                            label="TB Diagnosis Result *"
                                             value={testFormData.testResult}
                                             options={[
-                                                'Select result',
-                                                'TB Positive',
-                                                'TB Negative',
-                                                'RIF Resistant',
-                                                'Indeterminate',
-                                                'Pending'
+                                                'Positive',
+                                                'Negative',
+                                                'Pending',
+                                                'Inconclusive',
+                                                'Not done'
                                             ]}
-                                            onSelect={(val) => {
-                                                setTestFormData({ ...testFormData, testResult: val === 'Select result' ? null : val });
+                                            onSelect={(val: string) => {
+                                                setTestFormData({ ...testFormData, testResult: val });
+                                                if (testFormErrors.testResult) {
+                                                    setTestFormErrors(prev => {
+                                                        const newErrors = { ...prev };
+                                                        delete newErrors.testResult;
+                                                        return newErrors;
+                                                    });
+                                                }
                                             }}
                                             isExpanded={expandedDropdown === 'testResult'}
                                             onToggle={() => setExpandedDropdown(expandedDropdown === 'testResult' ? null : 'testResult')}
                                             placeholder="Select result"
+                                            error={testFormErrors.testResult}
                                         />
 
                                         <Dropdown
                                             label="Site of Disease"
                                             value={testFormData.testSite}
                                             options={[
-                                                'Select site',
                                                 'Pulmonary',
                                                 'Extra-pulmonary',
                                                 'Both',
                                                 'Unknown'
                                             ]}
-                                            onSelect={(val) => {
-                                                setTestFormData({ ...testFormData, testSite: val === 'Select site' ? null : val });
+                                            onSelect={(val: string) => {
+                                                setTestFormData({ ...testFormData, testSite: val });
                                             }}
                                             isExpanded={expandedDropdown === 'testSite'}
                                             onToggle={() => setExpandedDropdown(expandedDropdown === 'testSite' ? null : 'testSite')}
@@ -680,6 +780,17 @@ const ViewRecordScreen = () => {
                     </View>
                 )
             }
+            {/* Custom Alert */}
+            <CustomAlert
+                visible={alertConfig.visible}
+                title={alertConfig.title}
+                message={alertConfig.message}
+                listItems={alertConfig.listItems}
+                buttons={alertConfig.buttons}
+                onClose={() => setAlertConfig(prev => ({ ...prev, visible: false }))}
+                icon={alertConfig.icon}
+                iconColor={alertConfig.iconColor}
+            />
         </SafeAreaView >
     );
 };
@@ -800,6 +911,21 @@ const styles = StyleSheet.create({
         color: '#1E293B',
         fontWeight: '500',
         textAlign: 'right',
+    },
+    dateContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    dateInput: {
+        flex: 1,
+    },
+    dateIconBtn: {
+        marginLeft: 8,
+        padding: 10,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
     },
     highlightBadge: {
         backgroundColor: '#DCFCE7',

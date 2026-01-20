@@ -14,6 +14,7 @@ interface DropdownProps {
     isExpanded: boolean;
     onToggle: () => void;
     placeholder?: string;
+    error?: string;
 }
 
 export const Dropdown: React.FC<DropdownProps> = ({
@@ -23,13 +24,14 @@ export const Dropdown: React.FC<DropdownProps> = ({
     onSelect,
     isExpanded,
     onToggle,
-    placeholder = "Select"
+    placeholder = "Select",
+    error
 }) => {
     return (
         <View style={{ marginBottom: 16 }}>
             <Text style={styles.label}>{label}</Text>
             <TouchableOpacity
-                style={styles.dropdown}
+                style={[styles.dropdown, error ? { borderColor: '#EF4444', borderWidth: 1 } : {}]}
                 onPress={onToggle}
             >
                 <Text style={value ? styles.inputText : styles.placeholderText}>
@@ -37,6 +39,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
                 </Text>
                 <Ionicons name="chevron-down" size={20} color="#64748B" />
             </TouchableOpacity>
+            {error && <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4 }}>{error}</Text>}
 
             <Modal
                 visible={isExpanded}

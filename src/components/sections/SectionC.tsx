@@ -3,12 +3,13 @@
  */
 
 import React from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Platform, ToastAndroid, Alert } from 'react-native';
 import { ParticipantFormData } from '../../types/participantForm';
 
 interface SectionCProps {
     formData: ParticipantFormData;
     updateSymptom: (key: string, updates: { present?: boolean | null; duration?: string }) => void;
+    errors?: Record<string, string>;
 }
 
 const SYMPTOMS = [
@@ -25,7 +26,16 @@ const SYMPTOMS = [
 export const SectionC: React.FC<SectionCProps> = ({
     formData,
     updateSymptom,
+    errors = {},
 }) => {
+    const showToast = (message: string) => {
+        if (Platform.OS === 'android') {
+            ToastAndroid.show(message, ToastAndroid.SHORT);
+        } else {
+            Alert.alert('Notice', message);
+        }
+    };
+
     return (
         <>
             <Text style={styles.helperText}>Select all that apply and specify duration (days)</Text>
@@ -63,6 +73,7 @@ export const SectionC: React.FC<SectionCProps> = ({
                                 </TouchableOpacity>
                             </View>
                         </View>
+                        {errors[`symptoms.${symptom.key}`] && <Text style={styles.errorText}>{errors[`symptoms.${symptom.key}`]}</Text>}
 
                         {current.present === true && (
                             <TextInput
@@ -78,16 +89,26 @@ export const SectionC: React.FC<SectionCProps> = ({
                                         updateSymptom(symptom.key, { duration: '' });
                                         return;
                                     }
-                                    // Cap at 120
+
                                     const num = parseInt(digitsOnly, 10);
+
+                                    if (num === 0) {
+                                        showToast('Duration must be at least 1 day');
+                                        updateSymptom(symptom.key, { duration: '' });
+                                        return;
+                                    }
+
                                     if (num > 120) {
-                                        updateSymptom(symptom.key, { duration: '120' });
+                                        showToast('Duration cannot exceed 120 days');
+                                        updateSymptom(symptom.key, { duration: '' });
                                     } else {
                                         updateSymptom(symptom.key, { duration: digitsOnly });
                                     }
                                 }}
+                                multiline={false}
                             />
                         )}
+                        {errors[`symptoms.${symptom.key}.duration`] && <Text style={styles.errorText}>{errors[`symptoms.${symptom.key}.duration`]}</Text>}
                     </View>
                 );
             })}
@@ -155,6 +176,11 @@ const styles = StyleSheet.create({
         padding: 8,
         backgroundColor: 'white',
         fontSize: 14,
+    },
+    errorText: {
+        color: '#EF4444',
+        fontSize: 12,
+        marginTop: 4,
     },
 });
 
