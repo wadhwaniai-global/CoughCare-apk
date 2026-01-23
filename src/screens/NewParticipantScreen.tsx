@@ -19,7 +19,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Asset } from 'expo-asset';
-import { saveParticipant, saveRecording, getDB } from '../services/DatabaseService';
+import { saveParticipant, saveRecording, getDB, getParticipantById } from '../services/DatabaseService';
 import { useParticipantForm } from '../hooks/useParticipantForm';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { validateForm, formatValidationErrors } from '../utils/formValidation';
@@ -148,11 +148,34 @@ const NewParticipantScreen = () => {
             console.log('Save Draft button clicked');
             setIsSubmitting(true);
 
+            // Check for existing participant with same ID
+            if (formData.participantId) {
+                const existing = await getParticipantById(formData.participantId);
+                // If existing record is found and it's not a draft we are currently editing (which is hard to know without original ID),
+                // but here we are creating NEW participant. So any existence is bad unless we are updating the SAME draft.
+                // However, this screen seems to be for NEW participant only. 
+                // If we want to support editing drafts, we should pass the ID in route params.
+                // For now, assume strict uniqueness for NEW participant screen.
+                if (existing) {
+                    setAlertConfig({
+                        visible: true,
+                        title: 'Error',
+                        message: 'Participant ID already exists. Please use a unique ID.',
+                        listItems: [],
+                        buttons: [{ text: 'OK', onPress: () => setAlertConfig(prev => ({ ...prev, visible: false })) }],
+                        icon: 'alert-circle',
+                        iconColor: '#EF4444'
+                    });
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
             // Save current form data as draft (no validation required)
             await saveParticipant({
                 participant_id: formData.participantId || '',
                 mobile_number: formData.mobileNumber || '',
-                full_name: formData.fullName || '',
+                full_name: formData.participantId || '',
                 age: parseInt(formData.age) || 0,
                 gender: formData.gender || '',
                 address: formData.address || null,
@@ -312,12 +335,30 @@ const NewParticipantScreen = () => {
                 primaryResult = analysisResults['recording1'].result;
             }
 
+            // Check for existing participant with same ID
+            if (formData.participantId) {
+                const existing = await getParticipantById(formData.participantId);
+                if (existing) {
+                    setAlertConfig({
+                        visible: true,
+                        title: 'Error',
+                        message: 'Participant ID already exists. Please use a unique ID.',
+                        listItems: [],
+                        buttons: [{ text: 'OK', onPress: () => setAlertConfig(prev => ({ ...prev, visible: false })) }],
+                        icon: 'alert-circle',
+                        iconColor: '#EF4444'
+                    });
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
             // Save to DB - Ensure all fields are properly stored (null for missing, not undefined)
             console.log('Saving participant to database...');
             await saveParticipant({
                 participant_id: formData.participantId || '',
                 mobile_number: formData.mobileNumber || '',
-                full_name: formData.fullName || '',
+                full_name: formData.participantId || '',
                 age: parseInt(formData.age) || 0,
                 gender: formData.gender || '',
                 address: formData.address || null,

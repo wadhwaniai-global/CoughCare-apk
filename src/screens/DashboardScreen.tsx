@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, SafeAreaView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, StatusBar, SafeAreaView, Platform, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,6 +28,16 @@ const DashboardScreen = () => {
     const [isSyncing, setIsSyncing] = useState(false);
     const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
     const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+
+    const [searchQuery, setSearchQuery] = useState('');
+
+    const filteredCases = recentCases.filter(item => {
+        const query = searchQuery.toLowerCase();
+        return (
+            (item.phone && item.phone.includes(query)) ||
+            (item.id && item.id.toLowerCase().includes(query))
+        );
+    });
 
     const loadData = async () => {
         try {
@@ -298,12 +308,31 @@ const DashboardScreen = () => {
                 {/* Recent Cases */}
                 <Text style={styles.sectionTitle}>Recent Cases</Text>
 
-                {recentCases.length === 0 ? (
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                    <Ionicons name="search" size={20} color="#94A3B8" style={{ marginRight: 8 }} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search by Phone or Participant ID..."
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholderTextColor="#94A3B8"
+                    />
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')}>
+                            <Ionicons name="close-circle" size={20} color="#94A3B8" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {filteredCases.length === 0 ? (
                     <View style={{ padding: 20, alignItems: 'center' }}>
-                        <Text style={{ color: '#64748B' }}>No recent cases found.</Text>
+                        <Text style={{ color: '#64748B' }}>
+                            {recentCases.length === 0 ? "No recent cases found." : "No matching records found."}
+                        </Text>
                     </View>
                 ) : (
-                    recentCases.map((item, index) => {
+                    filteredCases.map((item, index) => {
                         return (
                             <TouchableOpacity
                                 key={index}
@@ -314,7 +343,7 @@ const DashboardScreen = () => {
                             >
                                 <View style={[styles.caseHeader, { justifyContent: 'flex-start' }]}>
                                     <View style={{ flex: 1, marginRight: 8 }}>
-                                        <Text style={styles.caseName} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
+                                        <Text style={styles.caseName} numberOfLines={1} ellipsizeMode="tail">{item.id}</Text>
                                         <Text style={styles.caseId}>{item.phone}</Text>
                                     </View>
                                     <View style={{ flexShrink: 0 }}>
@@ -635,6 +664,27 @@ const styles = StyleSheet.create({
     footerBtnSubtext: {
         fontSize: 12,
         color: '#EA580C',
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'white',
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        marginBottom: 20,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.05,
+        shadowRadius: 2,
+        elevation: 2,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    searchInput: {
+        flex: 1,
+        fontSize: 16,
+        color: '#1E293B',
     },
 });
 

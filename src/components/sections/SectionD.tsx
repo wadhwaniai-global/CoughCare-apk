@@ -176,7 +176,6 @@ export const SectionD: React.FC<SectionDProps> = ({
                 isRecording={activeRecordingKey === 'recordingBackground'}
                 currentDuration={activeRecordingKey === 'recordingBackground' ? recordingDuration : (recordedDurations['recordingBackground'] || 0)}
                 minSeconds={10}
-                analysis={analysisResults['recordingBackground']}
                 onStartRecording={() => onStartRecording('recordingBackground')}
                 onStopRecording={() => handleStopRecording('recordingBackground')}
                 onReRecord={() => handleReRecord('recordingBackground')}

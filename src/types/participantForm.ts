@@ -6,7 +6,7 @@ export interface ParticipantFormData {
     participantId: string;
     dataCollectorName: string;
     mobileNumber: string;
-    fullName: string;
+
     age: string;
     gender: string | null;
     address: string;

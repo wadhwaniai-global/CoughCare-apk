@@ -28,12 +28,10 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
     }
     if (!formData.participantId || formData.participantId.trim() === '') {
         errors.push({ field: 'participantId', message: 'Participant ID is required', section: 'A' });
+    } else if (!/^\d+$/.test(formData.participantId)) {
+        errors.push({ field: 'participantId', message: 'Participant ID must contain only numbers', section: 'A' });
     }
-    if (!formData.fullName || formData.fullName.trim() === '') {
-        errors.push({ field: 'fullName', message: 'Full Name is required', section: 'A' });
-    } else if (!isAlphanumeric(formData.fullName)) {
-        errors.push({ field: 'fullName', message: 'Full Name must contain only letters and numbers', section: 'A' });
-    }
+
 
     if (!formData.age || formData.age.trim() === '' || isNaN(parseInt(formData.age))) {
         errors.push({ field: 'age', message: 'Age is required and must be a number', section: 'A' });

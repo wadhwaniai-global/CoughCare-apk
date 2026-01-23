@@ -23,22 +23,28 @@ export const SectionB: React.FC<SectionBProps> = ({
     setExpandedDropdown,
     errors = {},
 }) => {
-    const handleYearBlur = () => {
-        if (!formData.tbYear || formData.tbYear.trim() === '') return;
+    const showToast = (message: string) => {
+        if (Platform.OS === 'android') {
+            ToastAndroid.show(message, ToastAndroid.SHORT);
+        } else {
+            Alert.alert('Notice', message);
+        }
+    };
 
+    const handleYearChange = (text: string) => {
+        const digitsOnly = text.replace(/\D/g, '');
         const currentYear = new Date().getFullYear();
-        const year = parseInt(formData.tbYear, 10);
 
-        if (isNaN(year) || year < 1980 || year > currentYear) {
-            const message = `Year must be between 1980 and ${currentYear}`;
-
-            if (Platform.OS === 'android') {
-                ToastAndroid.show(message, ToastAndroid.SHORT);
+        if (digitsOnly.length === 4) {
+            const year = parseInt(digitsOnly, 10);
+            if (year < 1980 || year > currentYear) {
+                showToast(`Year must be between 1980 and ${currentYear}`);
+                updateField('tbYear', ''); // Clear if invalid, similar to Age
             } else {
-                Alert.alert('Invalid Year', message);
+                updateField('tbYear', digitsOnly);
             }
-
-            updateField('tbYear', '');
+        } else {
+            updateField('tbYear', digitsOnly);
         }
     };
 
@@ -128,8 +134,7 @@ export const SectionB: React.FC<SectionBProps> = ({
                         keyboardType="numeric"
                         maxLength={4}
                         value={formData.tbYear}
-                        onChangeText={(text) => updateField('tbYear', text.replace(/[^0-9]/g, ''))}
-                        onBlur={handleYearBlur}
+                        onChangeText={handleYearChange}
                         multiline={false}
                     />
 

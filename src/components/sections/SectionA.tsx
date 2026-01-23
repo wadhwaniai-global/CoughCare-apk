@@ -81,8 +81,32 @@ export const SectionA: React.FC<SectionAProps> = ({
         updateField('dateOfScreening', formatted);
     };
 
+    const handleNumericChange = (field: keyof ParticipantFormData, text: string, maxLength: number = 1000) => {
+        const validText = text.replace(/[^0-9]/g, '');
+        if (text !== validText) {
+            showToast('Only numeric characters are allowed');
+        }
+        if (validText.length >= maxLength) {
+            showToast(`Maximum character limit (${maxLength}) reached`);
+            updateField(field, validText.slice(0, maxLength));
+        } else {
+            updateField(field, validText);
+        }
+    };
+
     return (
         <>
+            <Text style={styles.label}>Participant ID *</Text>
+            <TextInput
+                style={[styles.input, errors['participantId'] && styles.inputError]}
+                placeholder="Enter Participant ID"
+                value={formData.participantId}
+                onChangeText={(text) => handleNumericChange('participantId', text)}
+                keyboardType="numeric"
+                multiline={false}
+            />
+            {errors['participantId'] && <Text style={styles.errorText}>{errors['participantId']}</Text>}
+
             <Text style={styles.label}>Mobile Number *</Text>
             <TextInput
                 style={[styles.input, errors['mobileNumber'] && styles.inputError]}
@@ -102,16 +126,7 @@ export const SectionA: React.FC<SectionAProps> = ({
             />
             {errors['mobileNumber'] && <Text style={styles.errorText}>{errors['mobileNumber']}</Text>}
 
-            <Text style={styles.label}>Full Name *</Text>
-            <TextInput
-                style={[styles.input, errors['fullName'] && styles.inputError]}
-                placeholder="Enter full name"
-                value={formData.fullName}
-                maxLength={100}
-                onChangeText={(text) => handleAlphanumericChange('fullName', text)}
-                multiline={false}
-            />
-            {errors['fullName'] && <Text style={styles.errorText}>{errors['fullName']}</Text>}
+
 
             <View style={styles.row}>
                 <View style={[styles.col, { marginRight: 8 }]}>
@@ -297,6 +312,15 @@ const styles = StyleSheet.create({
     },
     inputError: {
         borderColor: '#EF4444',
+        borderWidth: 1,
+    },
+    readOnlyInput: {
+        backgroundColor: '#F1F5F9',
+        justifyContent: 'center',
+    },
+    readOnlyText: {
+        color: '#64748B',
+        fontWeight: '600',
     },
     row: {
         flexDirection: 'row',

@@ -61,7 +61,7 @@ export const initDatabase = async () => {
     if (db) {
         return;
     }
-    
+
     // If initialization is in progress, wait for it
     if (initPromise) {
         return initPromise;
@@ -130,7 +130,7 @@ export const initDatabase = async () => {
       );
     `);
             console.log('Database initialized successfully (v2)');
-            
+
             // Migrate existing database to add new sync columns if they don't exist
             await migrateDatabase();
         } catch (error) {
@@ -148,12 +148,12 @@ export const initDatabase = async () => {
  */
 const migrateDatabase = async () => {
     if (!db) return;
-    
+
     try {
         // Check if columns exist by querying table info
         const tableInfo = await db.getAllAsync(`PRAGMA table_info(participants)`);
         const columnNames = (tableInfo as any[]).map((col: any) => col.name);
-        
+
         // Add new columns if they don't exist (using try-catch for each to handle if already exists)
         const migrations = [
             { name: 'file_ids', sql: `ALTER TABLE participants ADD COLUMN file_ids TEXT` },
@@ -161,7 +161,7 @@ const migrateDatabase = async () => {
             { name: 'last_sync_attempt', sql: `ALTER TABLE participants ADD COLUMN last_sync_attempt TEXT` },
             { name: 'server_participant_id', sql: `ALTER TABLE participants ADD COLUMN server_participant_id TEXT` },
         ];
-        
+
         for (const migration of migrations) {
             if (!columnNames.includes(migration.name)) {
                 try {
@@ -192,11 +192,11 @@ export const getDB = async () => {
             await initPromise;
         }
     }
-    
+
     if (!db) {
         throw new Error('Database initialization failed');
     }
-    
+
     return db;
 };
 
@@ -388,6 +388,22 @@ export const cleanupDuplicateRecordings = async () => {
     }
 };
 
+export const getNextParticipantId = async (): Promise<string> => {
+    const database = await getDB();
+    try {
+        const result = await database.getFirstAsync<{ max_id: number }>(
+            'SELECT MAX(CAST(participant_id AS INTEGER)) as max_id FROM participants'
+        );
+        const nextId = (result?.max_id || 1000) + 1;
+        return nextId.toString();
+    } catch (error) {
+        console.error("Error generating next participant ID:", error);
+        return '1001'; // Fallback
+    }
+};
+
+
+
 // Helper to format value for display (show "N/A" for null/undefined)
 const formatForDisplay = (value: any): string => {
     if (value === null || value === undefined || value === '') {
@@ -401,7 +417,7 @@ export const viewDatabaseContents = async () => {
     const database = await getDB();
     try {
         console.log('\n========== DATABASE CONTENTS ==========');
-        
+
         // Get all participants
         const participants = await database.getAllAsync<Participant>(
             `SELECT * FROM participants ORDER BY created_at DESC`
@@ -464,7 +480,7 @@ export const viewDatabaseContents = async () => {
         console.log(`   Total: ${stats.total}`);
 
         console.log('\n========================================\n');
-        
+
         return {
             participants,
             recordings,
@@ -482,7 +498,7 @@ export const getStats = async () => {
         const pending = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'pending'`);
         const drafts = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'draft'`);
         const total = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants`);
-        
+
         return {
             pending: pending?.count || 0,
             drafts: drafts?.count || 0,

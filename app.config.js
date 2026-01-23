@@ -1,9 +1,8 @@
 export default {
   expo: {
     name: "Cough Against TB",
-    owner: "jainrishi606",
-    slug: "coughcare",
-    version: "1.0.0",
+    owner: "jainrishi610",
+    slug: "cough-against-tb",
     orientation: "portrait",
     icon: "./public/logo.png",
     userInterfaceStyle: "light",
@@ -12,6 +11,10 @@ export default {
       resizeMode: "contain",
       backgroundColor: "#158B95"
     },
+    updates: {
+      url: "https://u.expo.dev/76ba7571-ee87-48f5-965c-c73fc36c59f2"
+    },
+    runtimeVersion: "1.0.0",
     // Fix for Expo SDK 54 autolinking issues with native modules
     autolinking: {
       legacy_shallowReactNativeLinking: true,
@@ -61,7 +64,7 @@ export default {
     ],
     extra: {
       eas: {
-        projectId: "ab5cf821-cee3-4e57-b05e-d022ee9bcef1"
+        projectId: "76ba7571-ee87-48f5-965c-c73fc36c59f2"
       },
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || "https://cough-pilot.wadhwaniaiglobal.com",
       logoVersion: process.env.EXPO_PUBLIC_LOGO_VERSION || "1",

@@ -94,7 +94,7 @@ export default function CoughRecorderScreen() {
           return next;
         });
       }, 1000);
-      
+
       console.log('[CoughRecorder] Recording started successfully');
     } catch (error: any) {
       console.error('[CoughRecorder] Error accessing microphone:', error);
@@ -249,15 +249,15 @@ export default function CoughRecorderScreen() {
           } catch (requireError) {
             throw new Error('Sample audio asset not found. Make sure the file is in assets/audio/ folder.');
           }
-          
+
           // Load from bundled assets using expo-asset
           const asset = Asset.fromModule(sampleAsset);
           await asset.downloadAsync();
-          
+
           if (!asset.localUri) {
             throw new Error('Failed to load sample audio asset - localUri is null');
           }
-          
+
           // Copy to cache for easier access
           const cacheDir = FileSystem.cacheDirectory;
           const localUri = `${cacheDir}${sampleFile}`;
