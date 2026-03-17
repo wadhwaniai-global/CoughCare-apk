@@ -72,3 +72,11 @@ uploaded_audio/
 
 # Models - Explicitly include ONNX
 !*.onnx
+
+# Build artifacts
+*.apk
+*.aab
+
+# Android signing - sensitive
+*.keystore
+credentials.json

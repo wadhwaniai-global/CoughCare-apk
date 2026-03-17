@@ -1,5 +1,5 @@
 diff --git a/node_modules/ffmpeg-kit-react-native/android/build.gradle b/node_modules/ffmpeg-kit-react-native/android/build.gradle
-index 2909280..1a8bff7 100644
+index 2909280..da89fa0 100644
 --- a/node_modules/ffmpeg-kit-react-native/android/build.gradle
 +++ b/node_modules/ffmpeg-kit-react-native/android/build.gradle
 @@ -33,7 +33,7 @@ android {
@@ -11,19 +11,11 @@ index 2909280..1a8bff7 100644
      targetSdkVersion 33
      versionCode 602
      versionName "6.0.2"
-@@ -54,6 +54,7 @@ android {
- }
- 
- repositories {
-+  flatDir { dirs "$rootDir/libs" }
-   mavenCentral()
-   google()
- 
-@@ -125,5 +126,6 @@ repositories {
+@@ -125,5 +125,6 @@ repositories {
  
  dependencies {
    api 'com.facebook.react:react-native:+'
 -  implementation 'com.arthenica:ffmpeg-kit-' + safePackageName(safeExtGet('ffmpegKitPackage', 'https')) + ':' + safePackageVersion(safeExtGet('ffmpegKitPackage', 'https'))
-+  // Use self-hosted AAR since original binaries are retired
-+  implementation(name: 'ffmpeg-kit-full-gpl', ext: 'aar')
++  implementation files("${rootDir}/libs/ffmpeg-kit-full-gpl.aar")
++  implementation 'com.arthenica:smart-exception-java:0.2.1'
  }

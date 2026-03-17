@@ -1,7 +1,7 @@
 export default {
   expo: {
     name: "Cough Against TB",
-    owner: "jainrishi610",
+    owner: "aakashwaig",
     slug: "cough-against-tb",
     orientation: "portrait",
     icon: "./public/logo.png",
@@ -12,7 +12,7 @@ export default {
       backgroundColor: "#158B95"
     },
     updates: {
-      url: "https://u.expo.dev/76ba7571-ee87-48f5-965c-c73fc36c59f2"
+      url: "https://u.expo.dev/94b301ec-6dca-4343-801e-a657ea5024eb"
     },
     runtimeVersion: "1.0.0",
     // Fix for Expo SDK 54 autolinking issues with native modules
@@ -64,7 +64,7 @@ export default {
     ],
     extra: {
       eas: {
-        projectId: "76ba7571-ee87-48f5-965c-c73fc36c59f2"
+        projectId: "94b301ec-6dca-4343-801e-a657ea5024eb"
       },
       apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || "https://cough-pilot.wadhwaniaiglobal.com",
       logoVersion: process.env.EXPO_PUBLIC_LOGO_VERSION || "1",

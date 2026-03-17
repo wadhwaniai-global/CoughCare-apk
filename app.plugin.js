@@ -1,6 +1,36 @@
 const { withDangerousMod } = require('@expo/config-plugins');
 const fs = require('fs');
 const path = require('path');
+const https = require('https');
+const http = require('http');
+
+/**
+ * Download a file from a URL to a destination path.
+ * Follows redirects automatically.
+ */
+function downloadFile(url, dest) {
+  return new Promise((resolve, reject) => {
+    const protocol = url.startsWith('https') ? https : http;
+    const file = fs.createWriteStream(dest);
+    protocol.get(url, (response) => {
+      if (response.statusCode === 301 || response.statusCode === 302) {
+        file.close();
+        fs.unlinkSync(dest);
+        downloadFile(response.headers.location, dest).then(resolve).catch(reject);
+        return;
+      }
+      if (response.statusCode !== 200) {
+        file.close();
+        fs.unlinkSync(dest);
+        reject(new Error(`HTTP ${response.statusCode} for ${url}`));
+        return;
+      }
+      response.pipe(file);
+      file.on('finish', () => file.close(resolve));
+      file.on('error', (err) => { fs.unlinkSync(dest); reject(err); });
+    }).on('error', (err) => { fs.unlinkSync(dest); reject(err); });
+  });
+}
 
 /**
  * Expo config plugin to add OnnxruntimePackage to MainApplication.kt
@@ -23,6 +53,19 @@ function withOnnxRuntimePlugin(config) {
         packagePath,
         'MainApplication.kt'
       );
+
+      // Download ffmpeg-kit-full-gpl.aar to android/libs/ if not present
+      const libsDir = path.join(config.modRequest.platformProjectRoot, 'libs');
+      const aarPath = path.join(libsDir, 'ffmpeg-kit-full-gpl.aar');
+      if (!fs.existsSync(aarPath)) {
+        if (!fs.existsSync(libsDir)) fs.mkdirSync(libsDir, { recursive: true });
+        const aarUrl = 'https://github.com/NooruddinLakhani/ffmpeg-kit-full-gpl/releases/download/v1.0.0/ffmpeg-kit-full-gpl.aar';
+        console.log('[FFmpeg Plugin] Downloading ffmpeg-kit-full-gpl.aar (~57MB)...');
+        await downloadFile(aarUrl, aarPath);
+        console.log('[FFmpeg Plugin] Downloaded ffmpeg-kit-full-gpl.aar to', aarPath);
+      } else {
+        console.log('[FFmpeg Plugin] ffmpeg-kit-full-gpl.aar already present at', aarPath);
+      }
 
       console.log('[ONNX Plugin] Looking for MainApplication.kt at:', mainApplicationPath);
 
