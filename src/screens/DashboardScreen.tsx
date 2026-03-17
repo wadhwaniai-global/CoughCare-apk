@@ -240,7 +240,7 @@ const DashboardScreen = () => {
                 </View>
             </View>
 
-            <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 20 }}>
+            <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 80 }}>
                 {/* Stats Cards */}
                 <View style={styles.statsContainer}>
                     <View style={styles.statCard}>
