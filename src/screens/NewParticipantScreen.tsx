@@ -15,11 +15,12 @@ import {
     Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { Asset } from 'expo-asset';
-import { saveParticipant, saveRecording, getDB, getParticipantById } from '../services/DatabaseService';
+import { saveParticipant, saveRecording, getDB, getParticipantById, getRecordingsByParticipantId } from '../services/DatabaseService';
 import { useParticipantForm } from '../hooks/useParticipantForm';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { validateForm, formatValidationErrors } from '../utils/formValidation';
@@ -38,9 +39,14 @@ if (Platform.OS === 'android') {
 }
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'NewParticipant'>;
+type NewParticipantRouteProp = RouteProp<RootStackParamList, 'NewParticipant'>;
 
 const NewParticipantScreen = () => {
     const navigation = useNavigation<NavigationProp>();
+    const route = useRoute<NewParticipantRouteProp>();
+    const draftId = route.params?.draftId;
+    const [isEditingDraft] = useState(!!draftId);
+    const insets = useSafeAreaInsets();
     const [expandedSection, setExpandedSection] = useState<string | null>('A');
     const [expandedDropdown, setExpandedDropdown] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,7 +68,9 @@ const NewParticipantScreen = () => {
     });
 
     // Use custom hooks
-    const { formData, updateField, updateSymptom } = useParticipantForm();
+    const { formData, setFormData, updateField, updateSymptom } = useParticipantForm(
+        draftId ? { participantId: draftId } : undefined
+    );
     const {
         activeRecordingKey,
         recordingDuration,
@@ -72,7 +80,69 @@ const NewParticipantScreen = () => {
         stopRecording,
         clearRecording,
         analyzeAudioManually,
+        initRecordedDurations,
     } = useAudioRecording();
+
+    React.useEffect(() => {
+        if (!draftId) return;
+        const loadDraft = async () => {
+            try {
+                const participant = await getParticipantById(draftId);
+                if (!participant) return;
+
+                setFormData(prev => ({
+                    ...prev,
+                    participantId: participant.participant_id,
+                    dataCollectorName: participant.data_collector_name || '',
+                    mobileNumber: participant.mobile_number || '',
+                    age: participant.age ? String(participant.age) : '',
+                    gender: participant.gender || null,
+                    address: participant.address || '',
+                    dateOfScreening: participant.date_of_screening || new Date().toLocaleDateString(),
+                    region: participant.region || null,
+                    district: participant.district || '',
+                    facility: participant.facility || '',
+                    community: participant.community || '',
+                    consentObtained: participant.consent_obtained === 1 ? true : participant.consent_obtained === 0 ? false : null,
+                    diabetesStatus: participant.diabetes_status || null,
+                    hivStatus: participant.hiv_status || null,
+                    covidStatus: participant.covid_status || null,
+                    tobaccoUse: participant.tobacco_use === 1 ? true : participant.tobacco_use === 0 ? false : null,
+                    tobaccoDuration: participant.tobacco_duration || null,
+                    alcoholUse: participant.alcohol_use === 1 ? true : participant.alcohol_use === 0 ? false : null,
+                    alcoholDuration: participant.alcohol_duration || null,
+                    previousTb: participant.previous_tb === 1 ? true : participant.previous_tb === 0 ? false : null,
+                    tbYear: participant.last_tb_year || '',
+                    tbTreatmentStatus: participant.tb_treatment_completed || null,
+                    symptoms: participant.symptoms ? JSON.parse(participant.symptoms) : {},
+                }));
+
+                const recordings = await getRecordingsByParticipantId(draftId);
+                const recordingMap: Record<string, string> = {};
+                const durationMap: Record<string, number> = {};
+                for (const rec of recordings) {
+                    const formKey = rec.recording_type === 'cough_1' ? 'recording1'
+                        : rec.recording_type === 'cough_2' ? 'recording2'
+                        : rec.recording_type === 'cough_3' ? 'recording3'
+                        : rec.recording_type === 'background' ? 'recordingBackground'
+                        : null;
+                    if (formKey && rec.file_path) {
+                        recordingMap[formKey] = rec.file_path;
+                        if (rec.duration) durationMap[formKey] = rec.duration;
+                    }
+                }
+                if (Object.keys(recordingMap).length > 0) {
+                    setFormData(prev => ({ ...prev, ...recordingMap }));
+                }
+                if (Object.keys(durationMap).length > 0) {
+                    initRecordedDurations(durationMap);
+                }
+            } catch (error) {
+                console.error('Error loading draft:', error);
+            }
+        };
+        loadDraft();
+    }, [draftId]);
 
     const toggleSection = (section: string) => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -148,14 +218,9 @@ const NewParticipantScreen = () => {
             console.log('Save Draft button clicked');
             setIsSubmitting(true);
 
-            // Check for existing participant with same ID
-            if (formData.participantId) {
+            // Check for existing participant with same ID (skip when editing a draft)
+            if (formData.participantId && !isEditingDraft) {
                 const existing = await getParticipantById(formData.participantId);
-                // If existing record is found and it's not a draft we are currently editing (which is hard to know without original ID),
-                // but here we are creating NEW participant. So any existence is bad unless we are updating the SAME draft.
-                // However, this screen seems to be for NEW participant only. 
-                // If we want to support editing drafts, we should pass the ID in route params.
-                // For now, assume strict uniqueness for NEW participant screen.
                 if (existing) {
                     setAlertConfig({
                         visible: true,
@@ -335,8 +400,8 @@ const NewParticipantScreen = () => {
                 primaryResult = analysisResults['recording1'].result;
             }
 
-            // Check for existing participant with same ID
-            if (formData.participantId) {
+            // Check for existing participant with same ID (skip when editing a draft)
+            if (formData.participantId && !isEditingDraft) {
                 const existing = await getParticipantById(formData.participantId);
                 if (existing) {
                     setAlertConfig({
@@ -483,14 +548,14 @@ const NewParticipantScreen = () => {
                     <Ionicons name="arrow-back" size={24} color="white" />
                 </TouchableOpacity>
                 <View>
-                    <Text style={styles.appBarTitle}>New Participant</Text>
-                    <Text style={styles.appBarSubtitle}>Complete all sections</Text>
+                    <Text style={styles.appBarTitle}>{isEditingDraft ? 'Edit Draft' : 'New Participant'}</Text>
+                    <Text style={styles.appBarSubtitle}>{isEditingDraft ? 'Continue editing your draft' : 'Complete all sections'}</Text>
                 </View>
             </View>
 
             <ScrollView
                 style={styles.content}
-                contentContainerStyle={{ paddingBottom: 100 }}
+                contentContainerStyle={{ paddingBottom: 100 + insets.bottom * 2 }}
                 ref={scrollViewRef}
             >
                 {/* Section A */}
@@ -654,7 +719,7 @@ const NewParticipantScreen = () => {
             </Modal>
 
             {/* Footer */}
-            <View style={styles.footer}>
+            <View style={[styles.footer, { paddingBottom: 16 + insets.bottom * 2 }]}>
                 <TouchableOpacity
                     style={styles.draftBtn}
                     onPress={handleSaveDraft}

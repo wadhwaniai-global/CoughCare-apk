@@ -67,6 +67,32 @@ function withOnnxRuntimePlugin(config) {
         console.log('[FFmpeg Plugin] ffmpeg-kit-full-gpl.aar already present at', aarPath);
       }
 
+      // Increase JVM memory and disable lint to prevent OutOfMemoryError: Metaspace
+      const gradlePropsPath = path.join(config.modRequest.platformProjectRoot, 'gradle.properties');
+      if (fs.existsSync(gradlePropsPath)) {
+        let gradleProps = fs.readFileSync(gradlePropsPath, 'utf8');
+        if (!gradleProps.includes('MaxMetaspaceSize')) {
+          gradleProps += '\norg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m\n';
+          gradleProps += 'android.defaults.buildfeatures.buildconfig=true\n';
+        }
+        fs.writeFileSync(gradlePropsPath, gradleProps);
+        console.log('[Build Plugin] Updated gradle.properties with increased JVM memory');
+      }
+
+      // Disable lintVitalRelease in app/build.gradle to avoid OOM during lint
+      const appBuildGradlePath = path.join(config.modRequest.platformProjectRoot, 'app/build.gradle');
+      if (fs.existsSync(appBuildGradlePath)) {
+        let buildGradle = fs.readFileSync(appBuildGradlePath, 'utf8');
+        if (!buildGradle.includes('checkReleaseBuilds false')) {
+          buildGradle = buildGradle.replace(
+            /android\s*\{/,
+            'android {\n    lintOptions {\n        checkReleaseBuilds false\n        abortOnError false\n    }'
+          );
+          fs.writeFileSync(appBuildGradlePath, buildGradle);
+          console.log('[Build Plugin] Disabled lint release checks in app/build.gradle');
+        }
+      }
+
       console.log('[ONNX Plugin] Looking for MainApplication.kt at:', mainApplicationPath);
 
       if (fs.existsSync(mainApplicationPath)) {
