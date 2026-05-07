@@ -174,6 +174,10 @@ export const useAudioRecording = () => {
         await analyzeAudio(key, uri);
     };
 
+    const initRecordedDurations = (durations: Record<string, number>) => {
+        setRecordedDurations(prev => ({ ...prev, ...durations }));
+    };
+
     return {
         activeRecordingKey,
         recordingDuration,
@@ -183,5 +187,6 @@ export const useAudioRecording = () => {
         stopRecording,
         clearRecording,
         analyzeAudioManually,
+        initRecordedDurations,
     };
 };

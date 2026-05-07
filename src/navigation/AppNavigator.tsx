@@ -22,7 +22,7 @@ import AddTestResultsScreen from '../screens/AddTestResultsScreen';
 export type RootStackParamList = {
   Login: undefined;
   Dashboard: undefined;
-  NewParticipant: undefined;
+  NewParticipant: { draftId?: string } | undefined;
   ViewRecord: { participantId: string };
   PendingResults: undefined;
   ViewDrafts: undefined;

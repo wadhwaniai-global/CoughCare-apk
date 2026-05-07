@@ -6,7 +6,7 @@ import { useState, useEffect } from 'react';
 import { ParticipantFormData } from '../types/participantForm';
 import { getNextParticipantId } from '../services/DatabaseService';
 
-export const useParticipantForm = () => {
+export const useParticipantForm = (initialData?: Partial<ParticipantFormData>) => {
     const [formData, setFormData] = useState<ParticipantFormData>({
         participantId: '',
         dataCollectorName: '',
@@ -43,9 +43,11 @@ export const useParticipantForm = () => {
         testType: null,
         testSite: '',
         testNotes: '',
+        ...initialData,
     });
 
     useEffect(() => {
+        if (initialData?.participantId) return;
         const initId = async () => {
             const id = await getNextParticipantId();
             setFormData(prev => ({ ...prev, participantId: id }));

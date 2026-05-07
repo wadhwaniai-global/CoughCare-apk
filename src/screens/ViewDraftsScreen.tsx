@@ -95,7 +95,7 @@ const ViewDraftsScreen = () => {
                                 key={participant.participant_id}
                                 style={styles.recordCard}
                                 onPress={() => {
-                                    navigation.navigate('ViewRecord', { participantId: participant.participant_id });
+                                    navigation.navigate('NewParticipant', { draftId: participant.participant_id });
                                 }}
                             >
                                 <View style={styles.cardHeader}>
