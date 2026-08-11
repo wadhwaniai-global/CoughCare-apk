@@ -33,6 +33,7 @@ export const useParticipantForm = (
         previousTb: null,
         tbYear: '',
         tbTreatmentStatus: null,
+        recurringTb: null,
         symptoms: {},
         recording1: null,
         recording2: null,

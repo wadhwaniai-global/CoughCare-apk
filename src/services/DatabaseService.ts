@@ -25,11 +25,13 @@ export interface Participant {
     covid_status: string;
     tobacco_use: number; // 0 or 1
     tobacco_duration?: string | null;
-    alcohol_use: number; // 0 or 1
+    alcohol_use: number; // 0 or 1 (Occasional counts as 1)
+    alcohol_use_frequency?: string | null; // 'Yes' | 'Occasional' | 'No'
     alcohol_duration?: string | null;
     previous_tb: number; // 0 or 1
     last_tb_year?: string | null;
     tb_treatment_completed?: string | null;
+    recurring_tb?: number | null; // 0 or 1, null if unanswered
     symptoms: string; // JSON string
     test_done?: string | null; // Yes, No, Not yet
     test_type?: string | null;
@@ -97,10 +99,12 @@ export const initDatabase = async () => {
         tobacco_use INTEGER NOT NULL,
         tobacco_duration TEXT,
         alcohol_use INTEGER NOT NULL,
+        alcohol_use_frequency TEXT,
         alcohol_duration TEXT,
         previous_tb INTEGER NOT NULL,
         last_tb_year TEXT,
         tb_treatment_completed TEXT,
+        recurring_tb INTEGER,
         symptoms TEXT NOT NULL, -- JSON
         test_done TEXT,
         test_type TEXT,
@@ -162,6 +166,8 @@ const migrateDatabase = async () => {
             { name: 'sync_attempts', sql: `ALTER TABLE participants ADD COLUMN sync_attempts INTEGER DEFAULT 0` },
             { name: 'last_sync_attempt', sql: `ALTER TABLE participants ADD COLUMN last_sync_attempt TEXT` },
             { name: 'server_participant_id', sql: `ALTER TABLE participants ADD COLUMN server_participant_id TEXT` },
+            { name: 'alcohol_use_frequency', sql: `ALTER TABLE participants ADD COLUMN alcohol_use_frequency TEXT` },
+            { name: 'recurring_tb', sql: `ALTER TABLE participants ADD COLUMN recurring_tb INTEGER` },
         ];
 
         for (const migration of migrations) {
@@ -234,10 +240,12 @@ export const saveParticipant = async (participant: Participant) => {
             tobacco_use: normalizeValue(participant.tobacco_use, 0),
             tobacco_duration: normalizeValue(participant.tobacco_duration, null),
             alcohol_use: normalizeValue(participant.alcohol_use, 0),
+            alcohol_use_frequency: normalizeValue(participant.alcohol_use_frequency, null),
             alcohol_duration: normalizeValue(participant.alcohol_duration, null),
             previous_tb: normalizeValue(participant.previous_tb, 0),
             last_tb_year: normalizeValue(participant.last_tb_year, null),
             tb_treatment_completed: normalizeValue(participant.tb_treatment_completed, null),
+            recurring_tb: normalizeValue(participant.recurring_tb, null),
             symptoms: normalizeValue(participant.symptoms, '{}'),
             test_done: normalizeValue(participant.test_done, null),
             test_type: normalizeValue(participant.test_type, null),
@@ -255,10 +263,11 @@ export const saveParticipant = async (participant: Participant) => {
                 participant_id, mobile_number, full_name, age, gender, address, date_of_screening,
                 region, district, facility, community, data_collector_name, consent_obtained,
                 diabetes_status, hiv_status, covid_status, tobacco_use, tobacco_duration,
-                alcohol_use, alcohol_duration, previous_tb, last_tb_year, tb_treatment_completed,
+                alcohol_use, alcohol_use_frequency, alcohol_duration, previous_tb, last_tb_year,
+                tb_treatment_completed, recurring_tb,
                 symptoms, test_done, test_type, test_date_collection, test_date_result,
                 test_result, test_site, test_notes, status, analysis_result
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 normalizedParticipant.participant_id,
                 normalizedParticipant.mobile_number,
@@ -279,10 +288,12 @@ export const saveParticipant = async (participant: Participant) => {
                 normalizedParticipant.tobacco_use,
                 normalizedParticipant.tobacco_duration,
                 normalizedParticipant.alcohol_use,
+                normalizedParticipant.alcohol_use_frequency,
                 normalizedParticipant.alcohol_duration,
                 normalizedParticipant.previous_tb,
                 normalizedParticipant.last_tb_year,
                 normalizedParticipant.tb_treatment_completed,
+                normalizedParticipant.recurring_tb,
                 normalizedParticipant.symptoms,
                 normalizedParticipant.test_done,
                 normalizedParticipant.test_type,
@@ -463,8 +474,8 @@ export const viewDatabaseContents = async () => {
             console.log(`   HIV: ${formatForDisplay(p.hiv_status)}`);
             console.log(`   COVID: ${formatForDisplay(p.covid_status)}`);
             console.log(`   Tobacco Use: ${p.tobacco_use ? 'Yes' : 'No'}, Duration: ${formatForDisplay(p.tobacco_duration)}`);
-            console.log(`   Alcohol Use: ${p.alcohol_use ? 'Yes' : 'No'}, Duration: ${formatForDisplay(p.alcohol_duration)}`);
-            console.log(`   Previous TB: ${p.previous_tb ? 'Yes' : 'No'}, Year: ${formatForDisplay(p.last_tb_year)}, Completed: ${formatForDisplay(p.tb_treatment_completed)}`);
+            console.log(`   Alcohol Use: ${p.alcohol_use_frequency || (p.alcohol_use ? 'Yes' : 'No')}, Duration: ${formatForDisplay(p.alcohol_duration)}`);
+            console.log(`   Previous TB: ${p.previous_tb ? 'Yes' : 'No'}, Year: ${formatForDisplay(p.last_tb_year)}, Completed: ${formatForDisplay(p.tb_treatment_completed)}, Recurring: ${p.recurring_tb == null ? 'N/A' : p.recurring_tb === 1 ? 'Yes' : 'No'}`);
             console.log(`   Symptoms: ${formatForDisplay(p.symptoms)}`);
             console.log(`   Test Done: ${formatForDisplay(p.test_done)}, Type: ${formatForDisplay(p.test_type)}`);
             console.log(`   Test Result: ${formatForDisplay(p.test_result)}, Site: ${formatForDisplay(p.test_site)}`);

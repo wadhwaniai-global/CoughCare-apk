@@ -6,7 +6,8 @@ import React from 'react';
 import { View, Text, TextInput, StyleSheet, ToastAndroid, Platform, Alert } from 'react-native';
 import { Dropdown } from '../forms/Dropdown';
 import { RadioButtonGroup } from '../forms/RadioButtonGroup';
-import { ParticipantFormData } from '../../types/participantForm';
+import { OptionButtonGroup } from '../forms/OptionButtonGroup';
+import { AlcoholUse, ParticipantFormData } from '../../types/participantForm';
 
 interface SectionBProps {
     formData: ParticipantFormData;
@@ -99,14 +100,18 @@ export const SectionB: React.FC<SectionBProps> = ({
             )}
             {errors['tobaccoDuration'] && <Text style={styles.errorText}>{errors['tobaccoDuration']}</Text>}
 
-            <RadioButtonGroup
+            <OptionButtonGroup
                 label="Alcohol Use"
                 value={formData.alcoholUse}
-                onSelect={(val) => updateField('alcoholUse', val)}
+                options={['Yes', 'Occasional', 'No']}
+                onSelect={(val) => {
+                    updateField('alcoholUse', val as AlcoholUse);
+                    if (val === 'No') updateField('alcoholDuration', null);
+                }}
             />
             {errors['alcoholUse'] && <Text style={styles.errorText}>{errors['alcoholUse']}</Text>}
 
-            {formData.alcoholUse === true && (
+            {(formData.alcoholUse === 'Yes' || formData.alcoholUse === 'Occasional') && (
                 <Dropdown
                     label="Duration"
                     value={formData.alcoholDuration}
@@ -146,6 +151,13 @@ export const SectionB: React.FC<SectionBProps> = ({
                         isExpanded={expandedDropdown === 'tbTreatment'}
                         onToggle={() => setExpandedDropdown(expandedDropdown === 'tbTreatment' ? null : 'tbTreatment')}
                     />
+
+                    <RadioButtonGroup
+                        label="Recurring TB"
+                        value={formData.recurringTb}
+                        onSelect={(val) => updateField('recurringTb', val)}
+                    />
+                    {errors['recurringTb'] && <Text style={styles.errorText}>{errors['recurringTb']}</Text>}
                 </>
             )}
         </>

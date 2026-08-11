@@ -506,7 +506,7 @@ const ViewRecordScreen = () => {
                             {participant.tobacco_use === 1 && participant.tobacco_duration && (
                                 <InfoRow label="Tobacco Duration" value={formatValue(participant.tobacco_duration)} />
                             )}
-                            <InfoRow label="Alcohol Use" value={formatValue(participant.alcohol_use)} />
+                            <InfoRow label="Alcohol Use" value={formatValue(participant.alcohol_use_frequency ?? participant.alcohol_use)} />
                             {participant.alcohol_use === 1 && participant.alcohol_duration && (
                                 <InfoRow label="Alcohol Duration" value={formatValue(participant.alcohol_duration)} />
                             )}
@@ -516,6 +516,9 @@ const ViewRecordScreen = () => {
                             )}
                             {participant.previous_tb === 1 && participant.tb_treatment_completed && (
                                 <InfoRow label="TB Treatment Completed" value={formatValue(participant.tb_treatment_completed)} />
+                            )}
+                            {participant.previous_tb === 1 && participant.recurring_tb != null && (
+                                <InfoRow label="Recurring TB" value={formatValue(participant.recurring_tb)} />
                             )}
                         </View>
                     </View>

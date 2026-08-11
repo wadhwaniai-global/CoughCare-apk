@@ -67,8 +67,11 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
     }
     if (formData.alcoholUse === null || formData.alcoholUse === undefined) {
         errors.push({ field: 'alcoholUse', message: 'Alcohol Use is required', section: 'B' });
-    } else if (formData.alcoholUse === true && (!formData.alcoholDuration || formData.alcoholDuration.trim() === '')) {
-        errors.push({ field: 'alcoholDuration', message: 'Alcohol Use Duration is required when Alcohol Use is Yes', section: 'B' });
+    } else if (
+        (formData.alcoholUse === 'Yes' || formData.alcoholUse === 'Occasional') &&
+        (!formData.alcoholDuration || formData.alcoholDuration.trim() === '')
+    ) {
+        errors.push({ field: 'alcoholDuration', message: 'Alcohol Use Duration is required when Alcohol Use is Yes or Occasional', section: 'B' });
     }
     if (formData.previousTb === null || formData.previousTb === undefined) {
         errors.push({ field: 'previousTb', message: 'Previous TB Diagnosis/Treatment is required', section: 'B' });

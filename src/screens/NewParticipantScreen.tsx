@@ -24,7 +24,7 @@ import { saveParticipant, saveRecording, getDB, getParticipantById, getRecording
 import { useParticipantForm } from '../hooks/useParticipantForm';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { validateForm, formatValidationErrors } from '../utils/formValidation';
-import { ParticipantFormData } from '../types/participantForm';
+import { AlcoholUse, ParticipantFormData } from '../types/participantForm';
 import { AccordionSection } from '../components/forms/AccordionSection';
 import { SectionA } from '../components/sections/SectionA';
 import { SectionB } from '../components/sections/SectionB';
@@ -115,11 +115,13 @@ const NewParticipantScreen = () => {
                     covidStatus: participant.covid_status || null,
                     tobaccoUse: participant.tobacco_use === 1 ? true : participant.tobacco_use === 0 ? false : null,
                     tobaccoDuration: participant.tobacco_duration || null,
-                    alcoholUse: participant.alcohol_use === 1 ? true : participant.alcohol_use === 0 ? false : null,
+                    alcoholUse: (participant.alcohol_use_frequency as AlcoholUse)
+                        ?? (participant.alcohol_use === 1 ? 'Yes' : participant.alcohol_use === 0 ? 'No' : null),
                     alcoholDuration: participant.alcohol_duration || null,
                     previousTb: participant.previous_tb === 1 ? true : participant.previous_tb === 0 ? false : null,
                     tbYear: participant.last_tb_year || '',
                     tbTreatmentStatus: participant.tb_treatment_completed || null,
+                    recurringTb: participant.recurring_tb === 1 ? true : participant.recurring_tb === 0 ? false : null,
                     symptoms: participant.symptoms ? JSON.parse(participant.symptoms) : {},
                 }));
 
@@ -269,11 +271,13 @@ const NewParticipantScreen = () => {
                 covid_status: formData.covidStatus || '',
                 tobacco_use: formData.tobaccoUse ? 1 : 0,
                 tobacco_duration: formData.tobaccoDuration || null,
-                alcohol_use: formData.alcoholUse ? 1 : 0,
+                alcohol_use: formData.alcoholUse === 'Yes' || formData.alcoholUse === 'Occasional' ? 1 : 0,
+                alcohol_use_frequency: formData.alcoholUse || null,
                 alcohol_duration: formData.alcoholDuration || null,
                 previous_tb: formData.previousTb ? 1 : 0,
                 last_tb_year: formData.tbYear || null,
                 tb_treatment_completed: formData.tbTreatmentStatus || null,
+                recurring_tb: formData.recurringTb === null ? null : formData.recurringTb ? 1 : 0,
                 symptoms: JSON.stringify(formData.symptoms || {}),
                 test_done: null,
                 test_type: null,
@@ -459,11 +463,13 @@ const NewParticipantScreen = () => {
                 covid_status: formData.covidStatus || '',
                 tobacco_use: formData.tobaccoUse ? 1 : 0,
                 tobacco_duration: formData.tobaccoDuration || null,
-                alcohol_use: formData.alcoholUse ? 1 : 0,
+                alcohol_use: formData.alcoholUse === 'Yes' || formData.alcoholUse === 'Occasional' ? 1 : 0,
+                alcohol_use_frequency: formData.alcoholUse || null,
                 alcohol_duration: formData.alcoholDuration || null,
                 previous_tb: formData.previousTb ? 1 : 0,
                 last_tb_year: formData.tbYear || null,
                 tb_treatment_completed: formData.tbTreatmentStatus || null,
+                recurring_tb: formData.recurringTb === null ? null : formData.recurringTb ? 1 : 0,
                 symptoms: JSON.stringify(formData.symptoms || {}),
                 test_done: null,
                 test_type: null,
