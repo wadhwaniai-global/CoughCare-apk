@@ -1,4 +1,6 @@
 import * as SQLite from 'expo-sqlite';
+import type { UserProfile } from './AuthService';
+import { getRegionCode, getFacilityCode } from '../utils/participantIdCodes';
 
 let db: SQLite.SQLiteDatabase | null = null;
 let initPromise: Promise<void> | null = null;
@@ -388,17 +390,40 @@ export const cleanupDuplicateRecordings = async () => {
     }
 };
 
-export const getNextParticipantId = async (): Promise<string> => {
+export const getNextParticipantId = async (profile: UserProfile | null): Promise<string> => {
     const database = await getDB();
     try {
-        const result = await database.getFirstAsync<{ max_id: number }>(
-            'SELECT MAX(CAST(participant_id AS INTEGER)) as max_id FROM participants'
+        const regionCode = getRegionCode(profile?.region);
+        const facilityCode = getFacilityCode(profile?.facility);
+
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const dateStr = `${yyyy}${mm}${dd}`;
+
+        // Pattern: GHA-{regionCode}{facilityCode}{dateStr}{4-digit seq}
+        const prefix = `GHA-${regionCode}${facilityCode}${dateStr}`;
+        const rows = await database.getAllAsync<{ participant_id: string }>(
+            `SELECT participant_id FROM participants WHERE participant_id LIKE ?`,
+            [`${prefix}%`]
         );
-        const nextId = (result?.max_id || 1000) + 1;
-        return nextId.toString();
+
+        let maxSeq = 0;
+        const seqRegex = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d{4})$`);
+        for (const row of rows) {
+            const m = row.participant_id.match(seqRegex);
+            if (m) {
+                const n = parseInt(m[1], 10);
+                if (!isNaN(n) && n > maxSeq) maxSeq = n;
+            }
+        }
+        const nextSeq = String(maxSeq + 1).padStart(4, '0');
+        return `${prefix}${nextSeq}`;
     } catch (error) {
         console.error("Error generating next participant ID:", error);
-        return '1001'; // Fallback
+        // Fallback: timestamp-based unique ID to avoid collision
+        return `GHA-00000000000000${Date.now()}`.slice(0, 23);
     }
 };
 

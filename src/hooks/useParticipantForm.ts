@@ -5,21 +5,23 @@
 import { useState, useEffect } from 'react';
 import { ParticipantFormData } from '../types/participantForm';
 import { getNextParticipantId } from '../services/DatabaseService';
+import type { UserProfile } from '../services/AuthService';
 
-export const useParticipantForm = (initialData?: Partial<ParticipantFormData>) => {
+export const useParticipantForm = (
+    initialData?: Partial<ParticipantFormData>,
+    profile?: UserProfile | null,
+) => {
     const [formData, setFormData] = useState<ParticipantFormData>({
         participantId: '',
-        dataCollectorName: '',
         mobileNumber: '',
 
         age: '',
         gender: null,
         address: '',
         dateOfScreening: new Date().toLocaleDateString(),
-        region: null,
-        district: '',
-        facility: '',
         community: '',
+        gpsLatitude: null,
+        gpsLongitude: null,
         consentObtained: null,
         diabetesStatus: null,
         hivStatus: null,
@@ -49,11 +51,11 @@ export const useParticipantForm = (initialData?: Partial<ParticipantFormData>) =
     useEffect(() => {
         if (initialData?.participantId) return;
         const initId = async () => {
-            const id = await getNextParticipantId();
+            const id = await getNextParticipantId(profile ?? null);
             setFormData(prev => ({ ...prev, participantId: id }));
         };
         initId();
-    }, []);
+    }, [profile]);
 
     const updateFormData = (updates: Partial<ParticipantFormData>) => {
         setFormData(prev => ({ ...prev, ...updates }));

@@ -4,17 +4,15 @@
 
 export interface ParticipantFormData {
     participantId: string;
-    dataCollectorName: string;
     mobileNumber: string;
 
     age: string;
     gender: string | null;
     address: string;
     dateOfScreening: string;
-    region: string | null;
-    district: string;
-    facility: string;
     community: string;
+    gpsLatitude: string | null;
+    gpsLongitude: string | null;
     consentObtained: boolean | null;
     diabetesStatus: string | null;
     hivStatus: string | null;

@@ -4,12 +4,13 @@
  */
 
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { authService, LoginCredentials } from '../services/AuthService';
+import { authService, LoginCredentials, UserProfile } from '../services/AuthService';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   username: string | null;
+  profile: UserProfile | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -33,6 +34,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [username, setUsername] = useState<string | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
 
   /**
    * Check authentication status on mount
@@ -41,13 +43,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const authenticated = await authService.isAuthenticated();
       const storedUsername = await authService.getUsername();
-      
+      const storedProfile = await authService.getProfile();
+
       setIsAuthenticated(authenticated);
       setUsername(storedUsername);
+      setProfile(storedProfile);
     } catch (error) {
       console.error('[AuthContext] Error checking auth:', error);
       setIsAuthenticated(false);
       setUsername(null);
+      setProfile(null);
     } finally {
       setIsLoading(false);
     }
@@ -59,13 +64,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (credentials: LoginCredentials) => {
     try {
       setIsLoading(true);
-      await authService.login(credentials);
+      const response = await authService.login(credentials);
       setIsAuthenticated(true);
       setUsername(credentials.username);
+      setProfile(response.profile ?? null);
     } catch (error) {
       console.error('[AuthContext] Login error:', error);
       setIsAuthenticated(false);
       setUsername(null);
+      setProfile(null);
       throw error; // Re-throw to let UI handle error
     } finally {
       setIsLoading(false);
@@ -81,11 +88,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       await authService.logout();
       setIsAuthenticated(false);
       setUsername(null);
+      setProfile(null);
     } catch (error) {
       console.error('[AuthContext] Logout error:', error);
       // Still clear state even if logout fails
       setIsAuthenticated(false);
       setUsername(null);
+      setProfile(null);
     } finally {
       setIsLoading(false);
     }
@@ -100,6 +109,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated,
     isLoading,
     username,
+    profile,
     login,
     logout,
     checkAuth,

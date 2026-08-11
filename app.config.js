@@ -14,7 +14,7 @@ export default {
     updates: {
       url: "https://u.expo.dev/94b301ec-6dca-4343-801e-a657ea5024eb"
     },
-    runtimeVersion: "1.0.0",
+    runtimeVersion: "1.1.0",
     // Fix for Expo SDK 54 autolinking issues with native modules
     autolinking: {
       legacy_shallowReactNativeLinking: true,
@@ -42,7 +42,9 @@ export default {
       },
       package: "com.coughcare.app",
       permissions: [
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
       ]
     },
     web: {
@@ -53,6 +55,20 @@ export default {
         "expo-av",
         {
           microphonePermission: "Allow CoughCare to access your microphone to record cough sounds."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          locationWhenInUsePermission: "Allow CoughCare to record participant GPS location."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          android: {
+            usesCleartextTraffic: true
+          }
         }
       ],
       "expo-dev-client",

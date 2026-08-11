@@ -23,6 +23,27 @@ export const SectionA: React.FC<SectionAProps> = ({
     errors = {},
 }) => {
     const [showDatePicker, setShowDatePicker] = useState(false);
+    const [isCapturingGps, setIsCapturingGps] = useState(false);
+
+    const handleCaptureGps = async () => {
+        try {
+            setIsCapturingGps(true);
+            const Location = await import('expo-location');
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                showToast('Location permission denied');
+                return;
+            }
+            const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+            updateField('gpsLatitude', pos.coords.latitude.toFixed(6));
+            updateField('gpsLongitude', pos.coords.longitude.toFixed(6));
+        } catch (e) {
+            console.error('[SectionA] GPS capture failed:', e);
+            showToast('Failed to capture GPS location');
+        } finally {
+            setIsCapturingGps(false);
+        }
+    };
 
     const showToast = (message: string) => {
         if (Platform.OS === 'android') {
@@ -97,14 +118,11 @@ export const SectionA: React.FC<SectionAProps> = ({
     return (
         <>
             <Text style={styles.label}>Participant ID *</Text>
-            <TextInput
-                style={[styles.input, errors['participantId'] && styles.inputError]}
-                placeholder="Enter Participant ID"
-                value={formData.participantId}
-                onChangeText={(text) => handleNumericChange('participantId', text)}
-                keyboardType="numeric"
-                multiline={false}
-            />
+            <View style={[styles.input, styles.readOnlyInput]}>
+                <Text style={styles.readOnlyText}>
+                    {formData.participantId || 'Generating…'}
+                </Text>
+            </View>
             {errors['participantId'] && <Text style={styles.errorText}>{errors['participantId']}</Text>}
 
             <Text style={styles.label}>Mobile Number *</Text>
@@ -215,43 +233,6 @@ export const SectionA: React.FC<SectionAProps> = ({
                 />
             )}
 
-            <Dropdown
-                label="Region *"
-                value={formData.region}
-                options={[
-                    'Ashanti', 'Bono', 'Bono East', 'Ahafo', 'Central', 'Eastern',
-                    'Greater Accra', 'Northern', 'North East', 'Savannah', 'Oti',
-                    'Upper East', 'Upper West', 'Volta', 'Western', 'Western North'
-                ]}
-                onSelect={(val) => updateField('region', val)}
-                isExpanded={expandedDropdown === 'region'}
-                onToggle={() => setExpandedDropdown(expandedDropdown === 'region' ? null : 'region')}
-                placeholder="Select Region"
-            />
-            {errors['region'] && <Text style={styles.errorText}>{errors['region']}</Text>}
-
-            <Text style={styles.label}>District *</Text>
-            <TextInput
-                style={[styles.input, errors['district'] && styles.inputError]}
-                placeholder="Enter district"
-                value={formData.district}
-                maxLength={1000}
-                onChangeText={(text) => handleAlphanumericChange('district', text)}
-                multiline={false}
-            />
-            {errors['district'] && <Text style={styles.errorText}>{errors['district']}</Text>}
-
-            <Text style={styles.label}>Facility / Site *</Text>
-            <TextInput
-                style={[styles.input, errors['facility'] && styles.inputError]}
-                placeholder="Enter facility name"
-                value={formData.facility}
-                maxLength={1000}
-                onChangeText={(text) => handleTextChange('facility', text)}
-                multiline={false}
-            />
-            {errors['facility'] && <Text style={styles.errorText}>{errors['facility']}</Text>}
-
             <Text style={styles.label}>Community Name (Optional)</Text>
             <TextInput
                 style={styles.input}
@@ -262,16 +243,24 @@ export const SectionA: React.FC<SectionAProps> = ({
                 multiline={false}
             />
 
-            <Text style={styles.label}>Data Collector Name *</Text>
-            <TextInput
-                style={[styles.input, errors['dataCollectorName'] && styles.inputError]}
-                placeholder="Enter your name"
-                value={formData.dataCollectorName}
-                maxLength={1000}
-                onChangeText={(text) => handleAlphanumericChange('dataCollectorName', text)}
-                multiline={false}
-            />
-            {errors['dataCollectorName'] && <Text style={styles.errorText}>{errors['dataCollectorName']}</Text>}
+            <Text style={styles.label}>GPS Coordinates *</Text>
+            <View style={styles.gpsRow}>
+                <View style={[styles.gpsReadout, errors['gpsCoordinates'] && styles.inputError]}>
+                    <Ionicons name="location-outline" size={18} color="#64748B" style={{ marginRight: 6 }} />
+                    <Text style={styles.gpsText} numberOfLines={1}>
+                        {formData.gpsLatitude && formData.gpsLongitude
+                            ? `${formData.gpsLatitude}, ${formData.gpsLongitude}`
+                            : 'Not captured'}
+                    </Text>
+                </View>
+                <TouchableOpacity onPress={handleCaptureGps} style={styles.gpsButton} disabled={isCapturingGps}>
+                    <Ionicons name="locate" size={16} color="white" style={{ marginRight: 4 }} />
+                    <Text style={styles.gpsButtonText}>
+                        {isCapturingGps ? 'Capturing…' : formData.gpsLatitude ? 'Re-capture' : 'Capture'}
+                    </Text>
+                </TouchableOpacity>
+            </View>
+            {errors['gpsCoordinates'] && <Text style={styles.errorText}>{errors['gpsCoordinates']}</Text>}
 
             <View style={[styles.consentContainer, (formData.consentObtained === false || errors['consentObtained']) && styles.consentContainerError]}>
                 <Text style={styles.label}>Consent Obtained *</Text>
@@ -321,6 +310,40 @@ const styles = StyleSheet.create({
     readOnlyText: {
         color: '#64748B',
         fontWeight: '600',
+    },
+    gpsRow: {
+        flexDirection: 'row',
+        gap: 8,
+        alignItems: 'center',
+    },
+    gpsReadout: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        borderRadius: 8,
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        backgroundColor: '#F8FAFC',
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    gpsText: {
+        color: '#1E293B',
+        fontSize: 14,
+        flex: 1,
+    },
+    gpsButton: {
+        backgroundColor: '#2563EB',
+        paddingVertical: 12,
+        paddingHorizontal: 14,
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    gpsButtonText: {
+        color: 'white',
+        fontWeight: '600',
+        fontSize: 14,
     },
     row: {
         flexDirection: 'row',

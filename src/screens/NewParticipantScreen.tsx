@@ -31,6 +31,7 @@ import { SectionB } from '../components/sections/SectionB';
 import { SectionC } from '../components/sections/SectionC';
 import { SectionD } from '../components/sections/SectionD';
 import { CustomAlert } from '../components/ui/CustomAlert';
+import { useAuth } from '../contexts/AuthContext';
 
 if (Platform.OS === 'android') {
     if (UIManager.setLayoutAnimationEnabledExperimental) {
@@ -47,6 +48,7 @@ const NewParticipantScreen = () => {
     const draftId = route.params?.draftId;
     const [isEditingDraft] = useState(!!draftId);
     const insets = useSafeAreaInsets();
+    const { profile } = useAuth();
     const [expandedSection, setExpandedSection] = useState<string | null>('A');
     const [expandedDropdown, setExpandedDropdown] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,7 +71,8 @@ const NewParticipantScreen = () => {
 
     // Use custom hooks
     const { formData, setFormData, updateField, updateSymptom } = useParticipantForm(
-        draftId ? { participantId: draftId } : undefined
+        draftId ? { participantId: draftId } : undefined,
+        profile,
     );
     const {
         activeRecordingKey,
@@ -90,19 +93,22 @@ const NewParticipantScreen = () => {
                 const participant = await getParticipantById(draftId);
                 if (!participant) return;
 
+                // Parse GPS tag out of the packed address field
+                const rawAddress = participant.address || '';
+                const gpsMatch = rawAddress.match(/\[GPS:([-\d.]+),([-\d.]+)\]/);
+                const cleanAddress = rawAddress.replace(/\n?\[GPS:[-\d.]+,[-\d.]+\]/, '').trim();
+
                 setFormData(prev => ({
                     ...prev,
                     participantId: participant.participant_id,
-                    dataCollectorName: participant.data_collector_name || '',
                     mobileNumber: participant.mobile_number || '',
                     age: participant.age ? String(participant.age) : '',
                     gender: participant.gender || null,
-                    address: participant.address || '',
+                    address: cleanAddress,
                     dateOfScreening: participant.date_of_screening || new Date().toLocaleDateString(),
-                    region: participant.region || null,
-                    district: participant.district || '',
-                    facility: participant.facility || '',
                     community: participant.community || '',
+                    gpsLatitude: gpsMatch ? gpsMatch[1] : null,
+                    gpsLongitude: gpsMatch ? gpsMatch[2] : null,
                     consentObtained: participant.consent_obtained === 1 ? true : participant.consent_obtained === 0 ? false : null,
                     diabetesStatus: participant.diabetes_status || null,
                     hivStatus: participant.hiv_status || null,
@@ -236,6 +242,13 @@ const NewParticipantScreen = () => {
                 }
             }
 
+            // Pack GPS into address field (no schema migration)
+            const gpsTag = formData.gpsLatitude && formData.gpsLongitude
+                ? `[GPS:${formData.gpsLatitude},${formData.gpsLongitude}]`
+                : '';
+            const addressForDb = [formData.address, gpsTag].filter(Boolean).join('\n') || null;
+            const collectorName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
+
             // Save current form data as draft (no validation required)
             await saveParticipant({
                 participant_id: formData.participantId || '',
@@ -243,13 +256,13 @@ const NewParticipantScreen = () => {
                 full_name: formData.participantId || '',
                 age: parseInt(formData.age) || 0,
                 gender: formData.gender || '',
-                address: formData.address || null,
+                address: addressForDb,
                 date_of_screening: formData.dateOfScreening || new Date().toISOString().split('T')[0],
-                region: formData.region || '',
-                district: formData.district || '',
-                facility: formData.facility || '',
+                region: profile?.region || '',
+                district: profile?.district || '',
+                facility: profile?.facility || '',
                 community: formData.community || null,
-                data_collector_name: formData.dataCollectorName || '',
+                data_collector_name: collectorName,
                 consent_obtained: formData.consentObtained ? 1 : 0,
                 diabetes_status: formData.diabetesStatus || '',
                 hiv_status: formData.hivStatus || '',
@@ -418,6 +431,13 @@ const NewParticipantScreen = () => {
                 }
             }
 
+            // Pack GPS into address field (no schema migration)
+            const submitGpsTag = formData.gpsLatitude && formData.gpsLongitude
+                ? `[GPS:${formData.gpsLatitude},${formData.gpsLongitude}]`
+                : '';
+            const submitAddressForDb = [formData.address, submitGpsTag].filter(Boolean).join('\n') || null;
+            const submitCollectorName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
+
             // Save to DB - Ensure all fields are properly stored (null for missing, not undefined)
             console.log('Saving participant to database...');
             await saveParticipant({
@@ -426,13 +446,13 @@ const NewParticipantScreen = () => {
                 full_name: formData.participantId || '',
                 age: parseInt(formData.age) || 0,
                 gender: formData.gender || '',
-                address: formData.address || null,
+                address: submitAddressForDb,
                 date_of_screening: formData.dateOfScreening || new Date().toISOString().split('T')[0],
-                region: formData.region || '',
-                district: formData.district || '',
-                facility: formData.facility || '',
+                region: profile?.region || '',
+                district: profile?.district || '',
+                facility: profile?.facility || '',
                 community: formData.community || null,
-                data_collector_name: formData.dataCollectorName || '',
+                data_collector_name: submitCollectorName,
                 consent_obtained: formData.consentObtained ? 1 : 0,
                 diabetes_status: formData.diabetesStatus || '',
                 hiv_status: formData.hivStatus || '',
@@ -549,7 +569,13 @@ const NewParticipantScreen = () => {
                 </TouchableOpacity>
                 <View>
                     <Text style={styles.appBarTitle}>{isEditingDraft ? 'Edit Draft' : 'New Participant'}</Text>
-                    <Text style={styles.appBarSubtitle}>{isEditingDraft ? 'Continue editing your draft' : 'Complete all sections'}</Text>
+                    {profile ? (
+                        <Text style={styles.appBarSubtitle} numberOfLines={1}>
+                            {profile.first_name} {profile.last_name} · {profile.facility}
+                        </Text>
+                    ) : (
+                        <Text style={styles.appBarSubtitle}>{isEditingDraft ? 'Continue editing your draft' : 'Complete all sections'}</Text>
+                    )}
                 </View>
             </View>
 

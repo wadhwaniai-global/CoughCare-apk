@@ -14,9 +14,6 @@ export interface ValidationError {
 export const validateForm = (formData: ParticipantFormData, recordedDurations?: Record<string, number>): ValidationError[] => {
     const errors: ValidationError[] = [];
 
-    // Helper regex for alphanumeric check (letters, numbers, spaces)
-    const isAlphanumeric = (text: string) => /^[a-zA-Z0-9\s]*$/.test(text);
-
     // Section A: Individual & Location Details
     if (!formData.mobileNumber || formData.mobileNumber.trim() === '') {
         errors.push({ field: 'mobileNumber', message: 'Mobile Number is required', section: 'A' });
@@ -28,8 +25,6 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
     }
     if (!formData.participantId || formData.participantId.trim() === '') {
         errors.push({ field: 'participantId', message: 'Participant ID is required', section: 'A' });
-    } else if (!/^\d+$/.test(formData.participantId)) {
-        errors.push({ field: 'participantId', message: 'Participant ID must contain only numbers', section: 'A' });
     }
 
 
@@ -47,22 +42,8 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
     if (!formData.dateOfScreening || formData.dateOfScreening.trim() === '') {
         errors.push({ field: 'dateOfScreening', message: 'Date of Screening is required', section: 'A' });
     }
-    if (!formData.region) {
-        errors.push({ field: 'region', message: 'Region is required', section: 'A' });
-    }
-    if (!formData.district || formData.district.trim() === '') {
-        errors.push({ field: 'district', message: 'District is required', section: 'A' });
-    } else if (!isAlphanumeric(formData.district)) {
-        errors.push({ field: 'district', message: 'District must contain only letters and numbers', section: 'A' });
-    }
-
-    if (!formData.facility || formData.facility.trim() === '') {
-        errors.push({ field: 'facility', message: 'Facility / Site is required', section: 'A' });
-    }
-    if (!formData.dataCollectorName || formData.dataCollectorName.trim() === '') {
-        errors.push({ field: 'dataCollectorName', message: 'Data Collector Name is required', section: 'A' });
-    } else if (!isAlphanumeric(formData.dataCollectorName)) {
-        errors.push({ field: 'dataCollectorName', message: 'Data Collector Name must contain only letters and numbers', section: 'A' });
+    if (!formData.gpsLatitude || !formData.gpsLongitude) {
+        errors.push({ field: 'gpsCoordinates', message: 'GPS Coordinates are required - tap Capture GPS', section: 'A' });
     }
 
     if (formData.consentObtained !== true) {

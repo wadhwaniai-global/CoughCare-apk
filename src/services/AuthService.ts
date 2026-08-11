@@ -36,6 +36,17 @@ const getApiBaseUrl = (): string => {
 const API_BASE_URL = getApiBaseUrl();
 const ACCESS_TOKEN_KEY = 'access_token';
 const USERNAME_KEY = 'username';
+const PROFILE_KEY = 'user_profile';
+
+export interface UserProfile {
+  first_name: string;
+  last_name: string;
+  facility: string;
+  region: string;
+  district: string;
+  country: string;
+  user_type: string;
+}
 
 // Helper to use SecureStore if available, otherwise AsyncStorage
 const secureStorage = {
@@ -78,6 +89,7 @@ export interface LoginResponse {
   access_token: string;
   token_type?: string;
   expires_in?: number;
+  profile?: UserProfile;
 }
 
 export interface LoginCredentials {
@@ -117,6 +129,9 @@ class AuthService {
       if (data.access_token) {
         await secureStorage.setItem(ACCESS_TOKEN_KEY, data.access_token);
         await secureStorage.setItem(USERNAME_KEY, credentials.username);
+        if (data.profile) {
+          await secureStorage.setItem(PROFILE_KEY, JSON.stringify(data.profile));
+        }
         console.log('[AuthService] Login successful, token stored');
       } else {
         throw new Error('No access token received from server');
@@ -148,10 +163,32 @@ class AuthService {
     try {
       await secureStorage.deleteItem(ACCESS_TOKEN_KEY);
       await secureStorage.deleteItem(USERNAME_KEY);
+      await secureStorage.deleteItem(PROFILE_KEY);
     } catch (error) {
       console.error('[AuthService] Logout error:', error);
       // Continue even if deletion fails
     }
+  }
+
+  /**
+   * Get stored user profile
+   */
+  async getProfile(): Promise<UserProfile | null> {
+    try {
+      const raw = await secureStorage.getItem(PROFILE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as UserProfile;
+    } catch (error) {
+      console.error('[AuthService] Error getting profile:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Store user profile
+   */
+  async setProfile(profile: UserProfile): Promise<void> {
+    await secureStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
   }
 
   /**

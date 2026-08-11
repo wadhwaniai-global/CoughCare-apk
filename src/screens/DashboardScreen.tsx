@@ -20,7 +20,7 @@ import { Alert } from 'react-native';
 const DashboardScreen = () => {
     const navigation = useNavigation<DashboardScreenNavigationProp>();
     const route = useRoute<DashboardScreenRouteProp>();
-    const { logout, username } = useAuth();
+    const { logout, username, profile } = useAuth();
 
     const [stats, setStats] = useState({ pending: 0, drafts: 0, total: 0 });
     const [isOnline, setIsOnline] = useState(true);
@@ -196,11 +196,24 @@ const DashboardScreen = () => {
 
             {/* Header */}
             <View style={styles.header}>
-                <View>
+                <View style={{ flex: 1 }}>
                     <Text style={styles.headerTitle}>TB Screening</Text>
-                    <Text style={styles.headerSubtitle}>Ghana Data Collection</Text>
-                    {username && (
-                        <Text style={styles.usernameText}>Logged in as: {username}</Text>
+                    {profile ? (
+                        <>
+                            <Text style={styles.headerSubtitle} numberOfLines={1}>
+                                {profile.first_name} {profile.last_name}
+                            </Text>
+                            <Text style={styles.usernameText} numberOfLines={1}>
+                                {profile.facility}
+                            </Text>
+                        </>
+                    ) : (
+                        <>
+                            <Text style={styles.headerSubtitle}>Ghana Data Collection</Text>
+                            {username && (
+                                <Text style={styles.usernameText}>Logged in as: {username}</Text>
+                            )}
+                        </>
                     )}
                 </View>
                 <View style={styles.headerRight}>

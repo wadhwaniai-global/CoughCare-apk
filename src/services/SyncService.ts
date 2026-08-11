@@ -101,6 +101,13 @@ class SyncService {
         ? JSON.parse(participant.analysis_result)
         : null;
 
+      // Parse GPS tag out of packed address field
+      const rawAddress = participant.address || '';
+      const gpsMatch = rawAddress.match(/\[GPS:([-\d.]+),([-\d.]+)\]/);
+      const cleanAddress = rawAddress.replace(/\n?\[GPS:[-\d.]+,[-\d.]+\]/, '').trim() || null;
+      const gps_latitude = gpsMatch ? parseFloat(gpsMatch[1]) : null;
+      const gps_longitude = gpsMatch ? parseFloat(gpsMatch[2]) : null;
+
       // Prepare form_data object with all participant fields
       const formDataObject = {
         participant_id: participant.participant_id,
@@ -108,7 +115,9 @@ class SyncService {
         full_name: participant.full_name,
         age: participant.age,
         gender: participant.gender,
-        address: participant.address,
+        address: cleanAddress,
+        gps_latitude,
+        gps_longitude,
         date_of_screening: participant.date_of_screening,
         region: participant.region,
         district: participant.district,
