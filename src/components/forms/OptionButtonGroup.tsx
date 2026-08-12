@@ -13,6 +13,8 @@ interface OptionButtonGroupProps {
     value: string | null;
     options: string[];
     onSelect: (val: string) => void;
+    /** Relative width per option, matched by index. Defaults to equal widths. */
+    weights?: number[];
 }
 
 export const OptionButtonGroup: React.FC<OptionButtonGroupProps> = ({
@@ -20,6 +22,7 @@ export const OptionButtonGroup: React.FC<OptionButtonGroupProps> = ({
     value,
     options,
     onSelect,
+    weights,
 }) => {
     const getButtonStyle = (selected: boolean) => {
         if (selected) {
@@ -39,13 +42,20 @@ export const OptionButtonGroup: React.FC<OptionButtonGroupProps> = ({
         <View style={{ marginBottom: 16, width: '100%' }}>
             {label && <Text style={styles.label}>{label}</Text>}
             <View style={styles.radioGroup}>
-                {options.map((option) => (
+                {options.map((option, index) => (
                     <TouchableOpacity
                         key={option}
-                        style={getButtonStyle(value === option)}
+                        style={[getButtonStyle(value === option), { flex: weights?.[index] ?? 1 }]}
                         onPress={() => onSelect(option)}
                     >
-                        <Text style={getTextStyle(value === option)}>{option}</Text>
+                        <Text
+                            style={getTextStyle(value === option)}
+                            numberOfLines={1}
+                            adjustsFontSizeToFit
+                            minimumFontScale={0.8}
+                        >
+                            {option}
+                        </Text>
                     </TouchableOpacity>
                 ))}
             </View>
@@ -67,14 +77,15 @@ const styles = StyleSheet.create({
     radioButton: {
         flex: 1,
         backgroundColor: '#F8FAFC',
-        padding: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 8,
         borderRadius: 8,
         borderWidth: 1,
         borderColor: '#CBD5E1',
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: 48,
-        marginHorizontal: 8,
+        marginHorizontal: 4,
     },
     radioButtonActive: {
         borderColor: '#2563EB',

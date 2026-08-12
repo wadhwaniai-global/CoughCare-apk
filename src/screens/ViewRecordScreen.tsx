@@ -26,6 +26,7 @@ import { getParticipantById, getRecordingsByParticipantId, saveParticipant, Part
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { CustomAlert } from '../components/ui/CustomAlert';
 import { Dropdown } from '../components/forms/Dropdown';
+import { formatDateDDMMYYYY, parseDateInput } from '../utils/dateUtils';
 
 type ViewRecordScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ViewRecord'>;
 type ViewRecordScreenRouteProp = RouteProp<RootStackParamList, 'ViewRecord'>;
@@ -171,47 +172,12 @@ const ViewRecordScreen = () => {
         }
     };
 
-    const parseDateInput = (dateString: string): string | null => {
-        if (!dateString || dateString.trim() === '') return null;
-        try {
-            // Parse DD/MM/YYYY format
-            const parts = dateString.split('/');
-            if (parts.length === 3) {
-                const day = parseInt(parts[0]);
-                const month = parseInt(parts[1]);
-                const year = parseInt(parts[2]);
-
-                if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
-
-                // Strict validation
-                if (day < 1 || day > 31) return null;
-                if (month < 1 || month > 12) return null;
-                if (year < 1900 || year > 2100) return null;
-
-                // Check for days in month
-                const daysInMonth = new Date(year, month, 0).getDate();
-                if (day > daysInMonth) return null;
-
-                // Return DD/MM/YYYY format
-                const dayStr = day.toString().padStart(2, '0');
-                const monthStr = month.toString().padStart(2, '0');
-                return `${dayStr}/${monthStr}/${year}`;
-            }
-        } catch {
-            // Invalid date format
-        }
-        return null;
-    };
-
     const handleDateChange = (event: any, selectedDate?: Date, field?: 'dateCollection' | 'dateResult') => {
         if (field === 'dateCollection') setShowCollectionPicker(false);
         if (field === 'dateResult') setShowResultPicker(false);
 
         if (selectedDate && field) {
-            const day = selectedDate.getDate().toString().padStart(2, '0');
-            const month = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
-            const year = selectedDate.getFullYear();
-            setTestFormData(prev => ({ ...prev, [field]: `${day}/${month}/${year}` }));
+            setTestFormData(prev => ({ ...prev, [field]: formatDateDDMMYYYY(selectedDate) }));
         }
     };
 

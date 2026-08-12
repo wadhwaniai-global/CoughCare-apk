@@ -104,6 +104,7 @@ export const SectionB: React.FC<SectionBProps> = ({
                 label="Alcohol Use"
                 value={formData.alcoholUse}
                 options={['Yes', 'Occasional', 'No']}
+                weights={[1, 1.6, 1]}
                 onSelect={(val) => {
                     updateField('alcoholUse', val as AlcoholUse);
                     if (val === 'No') updateField('alcoholDuration', null);

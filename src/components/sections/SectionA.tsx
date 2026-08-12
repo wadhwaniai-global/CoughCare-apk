@@ -5,6 +5,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Dropdown } from '../forms/Dropdown';
 import { RadioButtonGroup } from '../forms/RadioButtonGroup';
 import { ParticipantFormData } from '../../types/participantForm';
+import { formatDateDDMMYYYY } from '../../utils/dateUtils';
 
 
 interface SectionAProps {
@@ -81,11 +82,7 @@ export const SectionA: React.FC<SectionAProps> = ({
     const onDateChange = (event: any, selectedDate?: Date) => {
         setShowDatePicker(false);
         if (selectedDate) {
-            // Format to DD/MM/YYYY
-            const day = selectedDate.getDate().toString().padStart(2, '0');
-            const month = (selectedDate.getMonth() + 1).toString().padStart(2, '0');
-            const year = selectedDate.getFullYear();
-            updateField('dateOfScreening', `${day}/${month}/${year}`);
+            updateField('dateOfScreening', formatDateDDMMYYYY(selectedDate));
         }
     };
 

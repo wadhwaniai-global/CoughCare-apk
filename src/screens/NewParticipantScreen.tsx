@@ -25,6 +25,7 @@ import { useParticipantForm } from '../hooks/useParticipantForm';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { validateForm, formatValidationErrors } from '../utils/formValidation';
 import { AlcoholUse, ParticipantFormData } from '../types/participantForm';
+import { todayDDMMYYYY } from '../utils/dateUtils';
 import { AccordionSection } from '../components/forms/AccordionSection';
 import { SectionA } from '../components/sections/SectionA';
 import { SectionB } from '../components/sections/SectionB';
@@ -105,7 +106,7 @@ const NewParticipantScreen = () => {
                     age: participant.age ? String(participant.age) : '',
                     gender: participant.gender || null,
                     address: cleanAddress,
-                    dateOfScreening: participant.date_of_screening || new Date().toLocaleDateString(),
+                    dateOfScreening: participant.date_of_screening || todayDDMMYYYY(),
                     community: participant.community || '',
                     gpsLatitude: gpsMatch ? gpsMatch[1] : null,
                     gpsLongitude: gpsMatch ? gpsMatch[2] : null,
@@ -259,7 +260,7 @@ const NewParticipantScreen = () => {
                 age: parseInt(formData.age) || 0,
                 gender: formData.gender || '',
                 address: addressForDb,
-                date_of_screening: formData.dateOfScreening || new Date().toISOString().split('T')[0],
+                date_of_screening: formData.dateOfScreening || todayDDMMYYYY(),
                 region: profile?.region || '',
                 district: profile?.district || '',
                 facility: profile?.facility || '',
@@ -451,7 +452,7 @@ const NewParticipantScreen = () => {
                 age: parseInt(formData.age) || 0,
                 gender: formData.gender || '',
                 address: submitAddressForDb,
-                date_of_screening: formData.dateOfScreening || new Date().toISOString().split('T')[0],
+                date_of_screening: formData.dateOfScreening || todayDDMMYYYY(),
                 region: profile?.region || '',
                 district: profile?.district || '',
                 facility: profile?.facility || '',

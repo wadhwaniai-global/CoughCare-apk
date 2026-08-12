@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { ParticipantFormData } from '../types/participantForm';
 import { getNextParticipantId } from '../services/DatabaseService';
 import type { UserProfile } from '../services/AuthService';
+import { todayDDMMYYYY } from '../utils/dateUtils';
 
 export const useParticipantForm = (
     initialData?: Partial<ParticipantFormData>,
@@ -18,7 +19,7 @@ export const useParticipantForm = (
         age: '',
         gender: null,
         address: '',
-        dateOfScreening: new Date().toLocaleDateString(),
+        dateOfScreening: todayDDMMYYYY(),
         community: '',
         gpsLatitude: null,
         gpsLongitude: null,

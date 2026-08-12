@@ -101,14 +101,24 @@ export const useAudioRecording = () => {
 
             if (uri) {
                 setRecordedDurations(prev => ({ ...prev, [key]: finalDuration }));
-                await analyzeAudio(key, uri);
+
+                // The ambient clip is never scored for cough — SectionD renders no
+                // analysis for it — and it is the longest recording in the form
+                // (10s minimum), so running the ONNX pipeline on it is pure cost and
+                // risk. The cough recordings are still awaited: submission reads
+                // analysisResults, so analysis must finish before the form is savable.
+                if (key !== 'recordingBackground') {
+                    await analyzeAudio(key, uri);
+                }
+
                 return uri;
             }
 
             return null;
         } catch (error) {
             console.error('Failed to stop recording', error);
-            Alert.alert('Error', 'Failed to stop recording.');
+            const detail = error instanceof Error ? error.message : String(error);
+            Alert.alert('Error', `Failed to stop recording.\n\n${detail}`);
             return null;
         }
     };
