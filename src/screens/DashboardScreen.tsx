@@ -354,11 +354,7 @@ const DashboardScreen = () => {
                                 key={index}
                                 style={styles.caseCard}
                                 onPress={() => {
-                                    if (item.recordStatus === 'draft') {
-                                        navigation.navigate('NewParticipant', { draftId: item.id });
-                                    } else {
-                                        navigation.navigate('ViewRecord', { participantId: item.id });
-                                    }
+                                    navigation.navigate('ViewRecord', { participantId: item.id });
                                 }}
                             >
                                 <View style={[styles.caseHeader, { justifyContent: 'flex-start' }]}>
