@@ -21,6 +21,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { getParticipantById, getRecordingsByParticipantId, saveParticipant, Participant, Recording } from '../services/DatabaseService';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -34,6 +35,7 @@ type ViewRecordScreenRouteProp = RouteProp<RootStackParamList, 'ViewRecord'>;
 const ViewRecordScreen = () => {
     const navigation = useNavigation<ViewRecordScreenNavigationProp>();
     const route = useRoute<ViewRecordScreenRouteProp>();
+    const insets = useSafeAreaInsets();
     const participantId = route.params?.participantId;
 
     const [participant, setParticipant] = useState<Participant | null>(null);
@@ -883,6 +885,19 @@ const ViewRecordScreen = () => {
                         </View>
                     )
                 }
+
+                {/* Edit Draft Button - Only for draft records */}
+                {participant.status === 'draft' && (
+                    <View style={[styles.footer, { paddingBottom: 12 + insets.bottom * 2 }]}>
+                        <TouchableOpacity
+                            style={styles.editDraftButton}
+                            onPress={() => navigation.navigate('NewParticipant', { draftId: participant.participant_id })}
+                        >
+                            <Ionicons name="create-outline" size={18} color="white" style={{ marginRight: 6 }} />
+                            <Text style={styles.editDraftButtonText}>Edit Draft</Text>
+                        </TouchableOpacity>
+                    </View>
+                )}
             </KeyboardAvoidingView>
             {/* Custom Alert */}
             <CustomAlert
@@ -1108,6 +1123,20 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: '#E2E8F0',
         gap: 12,
+    },
+    editDraftButton: {
+        flex: 1,
+        padding: 12,
+        borderRadius: 8,
+        backgroundColor: '#2563EB',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    editDraftButtonText: {
+        color: 'white',
+        fontSize: 16,
+        fontWeight: '600',
     },
     cancelButton: {
         flex: 1,
