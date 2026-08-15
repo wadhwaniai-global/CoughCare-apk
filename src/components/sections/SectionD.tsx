@@ -98,7 +98,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                     style: 'default',
                 },
                 {
-                    text: 'Keep Recording',
+                    text: 'Keep Anyway',
                     onPress: () => setAlertConfig(prev => ({ ...prev, visible: false })),
                     style: 'cancel',
                 },
