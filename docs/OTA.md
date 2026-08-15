@@ -8,6 +8,57 @@ Everything here was verified end-to-end on 2026-08-15 against the
 
 ---
 
+## 0. Quickstart — first OTA in five minutes
+
+For a new dev who has just cloned the repo.
+
+```bash
+git clone https://github.com/wadhwaniai-global/CoughCare-apk.git
+cd CoughCare-apk
+git checkout feature/ghana-release
+npm install
+
+npx eas-cli login          # once per machine, see §3
+npm run ota:status         # what is currently live
+
+# ...make your JS change, then:
+git commit -am "Fix the thing"
+npm run ota:preview
+```
+
+`npm run ota:preview` runs every preflight check for you — logged in, tree clean,
+typecheck not regressed, runtimeVersion read from `app.config.js` — then
+publishes and prints how to verify. It refuses to publish rather than doing
+something you'd have to roll back.
+
+| Command | Does |
+|---|---|
+| `npm run ota:status` | Shows what is live on each channel |
+| `npm run ota:preview` | Publishes to the testing team |
+| `npm run ota:production` | Publishes to Play Store users |
+| `npm run ota:preview -- "custom message"` | Same, with your own message (defaults to the last commit subject) |
+
+### Test APK
+
+The build the OTA setup targets, already verified receiving updates:
+
+```
+build-1786525949167.apk        # runtimeVersion 1.1.0, channel preview
+```
+
+Install it with `adb install -r build-1786525949167.apk`. Its embedded JS is from
+`d47e6e6`; anything published to `preview` since then arrives over the air, so
+after two launches it is current with the branch.
+
+There is **no** production-channel APK yet — the `production` profile emits an
+AAB, which cannot be sideloaded. To make one for testing:
+
+```bash
+eas build --platform android --profile production-apk --local
+```
+
+---
+
 ## 1. What OTA can and cannot ship
 
 | Change | OTA? |
@@ -98,35 +149,42 @@ maintainer). Publishing an OTA does not touch it.
 
 ## 4. Publish an update
 
-Publish from a **clean working tree**. EAS records the commit hash with the
-update; publishing from a dirty tree records `isGitWorkingTreeDirty: true` and the
-deployed bundle then corresponds to no commit anyone can check out. (An earlier
-update on this project was published dirty and is untraceable.)
+Normally just:
 
 ```bash
-git status --porcelain      # must be empty
-npx tsc --noEmit -p tsconfig.app.json
+npm run ota:preview
+npm run ota:production
 ```
 
-> `tsc --noEmit` alone checks **nothing** — the root `tsconfig.json` has
-> `"files": []`. Always pass `-p tsconfig.app.json`. ~50 pre-existing errors are
-> expected; compare against `main`/`HEAD` rather than expecting zero.
+`scripts/ota-publish.mjs` runs these preflight checks and stops on any of them:
 
-Then, to the testing team:
+| Check | Why it blocks |
+|---|---|
+| Logged in to EAS | Otherwise the publish fails halfway with an opaque error |
+| Working tree clean | EAS records the commit hash; publishing dirty means the deployed bundle matches no commit anyone can check out. An earlier update on this project was published dirty and is untraceable. |
+| Typecheck not regressed | Compares against a recorded baseline (the repo has ~50 pre-existing errors), so you are blocked only by errors *you* added |
+| `runtimeVersion` readable | Echoed so you can confirm which installed apps will receive it |
+
+The commit subject becomes the update message unless you pass one:
 
 ```bash
+npm run ota:preview -- "Fix specimen date validation"
+```
+
+### Doing it by hand
+
+```bash
+git status --porcelain                        # must be empty
+npx tsc --noEmit -p tsconfig.app.json         # NOT plain `tsc --noEmit`
 eas update --branch preview --message "Short description of what changed"
 ```
 
-To production:
+> Plain `tsc --noEmit` checks **nothing** — the root `tsconfig.json` has
+> `"files": []`. `npm run typecheck` passes the right project.
 
-```bash
-eas update --branch production --message "Short description of what changed"
-```
-
-The output gives you the **Android update ID** — keep it, it is what you verify
-against. Note the `runtimeVersion` in the output must match the installed app's,
-or no device will ever receive it.
+Either way, the output gives you the **Android update ID** — keep it, it is what
+you verify against. The `runtimeVersion` in the output must match the installed
+app's, or no device will ever receive it.
 
 ---
 

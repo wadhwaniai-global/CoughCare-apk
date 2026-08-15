@@ -17,14 +17,17 @@
     "build:android": "expo run:android",
     "setup:android": "expo prebuild --clean -p android && expo run:android",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "evaluate": "node evaluate_app_pipeline.js",
     "evaluate:quick": "node evaluate_app_pipeline.js --limit 10",
     "evaluate:compile": "tsc evaluate_app_pipeline.ts --module commonjs --target ES2020 --esModuleInterop --skipLibCheck --resolveJsonModule --moduleResolution node --outDir .",
     "docker:backend": "docker-compose up --build -d backend",
     "docker:backend:logs": "docker-compose logs -f backend",
     "docker:backend:stop": "docker-compose stop backend",
-    "docker:backend:down": "docker-compose down"
+    "docker:backend:down": "docker-compose down",
+    "ota:preview": "node scripts/ota-publish.mjs preview",
+    "ota:production": "node scripts/ota-publish.mjs production",
+    "ota:status": "node scripts/ota-publish.mjs status"
   },
   "dependencies": {
     "@expo-google-fonts/poppins": "^0.4.1",
