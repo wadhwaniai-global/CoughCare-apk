@@ -16,6 +16,7 @@ import { getParticipants, getStats, viewDatabaseContents } from '../services/Dat
 import { syncService, SyncProgress } from '../services/SyncService';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert } from 'react-native';
+import { getBuildInfoLine } from '../utils/buildInfo';
 
 const DashboardScreen = () => {
     const navigation = useNavigation<DashboardScreenNavigationProp>();
@@ -23,6 +24,8 @@ const DashboardScreen = () => {
     const { logout, username, profile } = useAuth();
 
     const [stats, setStats] = useState({ pending: 0, drafts: 0, total: 0 });
+    // Static for the lifetime of the process - the running bundle cannot change mid-session
+    const buildInfoLine = React.useMemo(() => getBuildInfoLine(), []);
     const [isOnline, setIsOnline] = useState(true);
     const [recentCases, setRecentCases] = useState<any[]>([]);
     const [isSyncing, setIsSyncing] = useState(false);
@@ -431,6 +434,9 @@ const DashboardScreen = () => {
                     </TouchableOpacity>
                 </View>
 
+                {/* Build / OTA bundle identifier - lets a tester report exactly what they run */}
+                <Text style={styles.buildInfo}>{buildInfoLine}</Text>
+
             </ScrollView>
         </SafeAreaView>
     );
@@ -677,6 +683,12 @@ const styles = StyleSheet.create({
     footerBtnSubtext: {
         fontSize: 12,
         color: '#EA580C',
+    },
+    buildInfo: {
+        fontSize: 11,
+        color: '#94A3B8',
+        textAlign: 'center',
+        marginTop: 16,
     },
     searchContainer: {
         flexDirection: 'row',

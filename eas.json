@@ -20,6 +20,13 @@
       "android": {
         "buildType": "app-bundle"
       }
+    },
+    "production-apk": {
+      "channel": "production",
+      "credentialsSource": "local",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
