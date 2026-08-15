@@ -68,7 +68,35 @@ fully close and reopen it.
 
 ---
 
-## 3. Publish an update
+## 3. First-time setup (authentication)
+
+**No credential needed to publish an OTA is stored in this repository, by
+design.** Cloning the repo is not enough — you must authenticate to EAS yourself.
+
+1. Ask an owner of the `aakashwaig` Expo account to invite you to the
+   `cough-against-tb` project.
+2. Log in locally:
+
+   ```bash
+   npx eas-cli login
+   npx eas-cli whoami        # should print your username
+   ```
+
+   This writes a session secret to `~/.expo/state.json`. That file is personal —
+   never commit it, paste it, or copy it between machines.
+
+3. For CI, do **not** use a personal login. Create a robot access token in the
+   Expo dashboard (Project → Settings → Access tokens) and expose it as the
+   `EXPO_TOKEN` environment variable in the CI secret store. `eas update` picks
+   it up automatically.
+
+Building an APK additionally needs the Android signing keystore, which is a
+separate concern from OTA — see `credentials.json` (gitignored; ask a
+maintainer). Publishing an OTA does not touch it.
+
+---
+
+## 4. Publish an update
 
 Publish from a **clean working tree**. EAS records the commit hash with the
 update; publishing from a dirty tree records `isGitWorkingTreeDirty: true` and the
@@ -102,7 +130,7 @@ or no device will ever receive it.
 
 ---
 
-## 4. Verify it landed
+## 5. Verify it landed
 
 The app prints its own bundle identity at the bottom of the **login screen** and
 the **dashboard**:
@@ -136,11 +164,11 @@ adb logcat -d | grep onBackgroundUpdateFinished
 Force-stop and relaunch, then read the line on the login screen. It should now
 show the first 8 characters of the update ID you published.
 
-If it still says `embedded`, work through §6.
+If it still says `embedded`, work through §7.
 
 ---
 
-## 5. Roll back
+## 6. Roll back
 
 Fastest and safest: republish a known-good earlier update. It becomes the newest
 update on the branch, so devices pick it up by the normal mechanism.
@@ -162,7 +190,7 @@ phones on their next launch.
 
 ---
 
-## 6. When an update does not arrive
+## 7. When an update does not arrive
 
 Work down this list:
 
@@ -184,7 +212,7 @@ Work down this list:
 
 ---
 
-## 7. Rules of thumb
+## 8. Rules of thumb
 
 - **Bump `runtimeVersion` in `app.config.js` whenever you add or change native
   code**, in the same commit. Forgetting it is the one mistake that can actually
@@ -200,7 +228,7 @@ Work down this list:
 
 ---
 
-## 8. Worked example (the verification run of 2026-08-15)
+## 9. Worked example (the verification run of 2026-08-15)
 
 ```
 $ git status --porcelain                            # clean
