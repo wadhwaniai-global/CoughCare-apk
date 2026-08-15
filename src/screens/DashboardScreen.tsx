@@ -44,10 +44,15 @@ const DashboardScreen = () => {
 
     const loadData = async () => {
         try {
-            const fetchedStats = await getStats();
+            if (!username) {
+                setStats({ pending: 0, drafts: 0, total: 0 });
+                setRecentCases([]);
+                return;
+            }
+            const fetchedStats = await getStats(username);
             setStats(fetchedStats);
 
-            const participants = await getParticipants();
+            const participants = await getParticipants(username);
             const formattedCases = participants.map(p => ({
                 id: p.participant_id,
                 name: p.full_name || 'Unnamed Participant',
@@ -190,7 +195,7 @@ const DashboardScreen = () => {
     useFocusEffect(
         React.useCallback(() => {
             loadData();
-        }, [])
+        }, [username])
     );
 
     return (

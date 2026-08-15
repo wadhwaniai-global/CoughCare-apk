@@ -50,7 +50,7 @@ const NewParticipantScreen = () => {
     const [isEditingDraft] = useState(!!draftId);
     const [isLoadingDraft, setIsLoadingDraft] = useState(!!draftId);
     const insets = useSafeAreaInsets();
-    const { profile } = useAuth();
+    const { profile, username } = useAuth();
     const [expandedSection, setExpandedSection] = useState<string | null>('A');
     const [expandedDropdown, setExpandedDropdown] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -269,6 +269,7 @@ const NewParticipantScreen = () => {
                 facility: profile?.facility || '',
                 community: formData.community || null,
                 data_collector_name: collectorName,
+                created_by: username || null,
                 consent_obtained: formData.consentObtained ? 1 : 0,
                 diabetes_status: formData.diabetesStatus || '',
                 hiv_status: formData.hivStatus || '',
@@ -461,6 +462,7 @@ const NewParticipantScreen = () => {
                 facility: profile?.facility || '',
                 community: formData.community || null,
                 data_collector_name: submitCollectorName,
+                created_by: username || null,
                 consent_obtained: formData.consentObtained ? 1 : 0,
                 diabetes_status: formData.diabetesStatus || '',
                 hiv_status: formData.hivStatus || '',

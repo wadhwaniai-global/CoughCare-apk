@@ -5,6 +5,7 @@
  */
 
 import { apiService } from './ApiService';
+import { authService } from './AuthService';
 import {
   getPendingParticipants,
   getRecordingsByParticipantId,
@@ -300,11 +301,18 @@ class SyncService {
       };
     }
 
+    // Only sync records created by the currently logged-in user
+    const username = await authService.getUsername();
+    if (!username) {
+      console.warn('[SyncService] No logged-in user, skipping sync');
+      return { success: false, synced: 0, failed: 0, errors: ['Not logged in'] };
+    }
+
     this.isSyncing = true;
 
     try {
-      // Get all pending participants
-      const pendingParticipants = await getPendingParticipants();
+      // Get the current user's pending participants
+      const pendingParticipants = await getPendingParticipants(username);
       const total = pendingParticipants.length;
 
       if (total === 0) {

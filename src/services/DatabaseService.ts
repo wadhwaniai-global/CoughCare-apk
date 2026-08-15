@@ -19,6 +19,7 @@ export interface Participant {
     facility: string;
     community?: string | null;
     data_collector_name: string;
+    created_by?: string | null; // Login username that created the record; local-only, never sent to the server
     consent_obtained: number; // 0 or 1
     diabetes_status: string;
     hiv_status: string;
@@ -120,7 +121,8 @@ export const initDatabase = async () => {
         file_ids TEXT, -- JSON array of file IDs from server
         sync_attempts INTEGER DEFAULT 0,
         last_sync_attempt TEXT,
-        server_participant_id TEXT -- Server-side ID after sync
+        server_participant_id TEXT, -- Server-side ID after sync
+        created_by TEXT -- Login username that created the record (local-only)
       );
 
       CREATE TABLE IF NOT EXISTS recordings (
@@ -168,6 +170,7 @@ const migrateDatabase = async () => {
             { name: 'server_participant_id', sql: `ALTER TABLE participants ADD COLUMN server_participant_id TEXT` },
             { name: 'alcohol_use_frequency', sql: `ALTER TABLE participants ADD COLUMN alcohol_use_frequency TEXT` },
             { name: 'recurring_tb', sql: `ALTER TABLE participants ADD COLUMN recurring_tb INTEGER` },
+            { name: 'created_by', sql: `ALTER TABLE participants ADD COLUMN created_by TEXT` },
         ];
 
         for (const migration of migrations) {
@@ -190,15 +193,13 @@ const migrateDatabase = async () => {
 };
 
 export const getDB = async () => {
-    // Wait for initialization if not ready
-    if (!db) {
-        if (!initPromise) {
-            // If no initialization has started, start it now
-            await initDatabase();
-        } else {
-            // Wait for existing initialization
-            await initPromise;
-        }
+    // Always wait for any in-flight initialization to finish: `db` is assigned
+    // before table creation and migrations run, so checking `db` alone lets
+    // queries race ahead of schema changes (e.g. a freshly added column).
+    if (initPromise) {
+        await initPromise;
+    } else if (!db) {
+        await initDatabase();
     }
 
     if (!db) {
@@ -255,7 +256,8 @@ export const saveParticipant = async (participant: Participant) => {
             test_site: normalizeValue(participant.test_site, null),
             test_notes: normalizeValue(participant.test_notes, null),
             status: normalizeValue(participant.status, 'draft'),
-            analysis_result: normalizeValue(participant.analysis_result, null)
+            analysis_result: normalizeValue(participant.analysis_result, null),
+            created_by: normalizeValue(participant.created_by, null)
         };
 
         const result = await database.runAsync(
@@ -266,8 +268,8 @@ export const saveParticipant = async (participant: Participant) => {
                 alcohol_use, alcohol_use_frequency, alcohol_duration, previous_tb, last_tb_year,
                 tb_treatment_completed, recurring_tb,
                 symptoms, test_done, test_type, test_date_collection, test_date_result,
-                test_result, test_site, test_notes, status, analysis_result
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                test_result, test_site, test_notes, status, analysis_result, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 normalizedParticipant.participant_id,
                 normalizedParticipant.mobile_number,
@@ -303,7 +305,8 @@ export const saveParticipant = async (participant: Participant) => {
                 normalizedParticipant.test_site,
                 normalizedParticipant.test_notes,
                 normalizedParticipant.status,
-                normalizedParticipant.analysis_result
+                normalizedParticipant.analysis_result,
+                normalizedParticipant.created_by
             ]
         );
         return result.lastInsertRowId;
@@ -328,10 +331,13 @@ export const saveRecording = async (recording: Recording) => {
     }
 };
 
-export const getParticipants = async (): Promise<Participant[]> => {
+export const getParticipants = async (createdBy: string): Promise<Participant[]> => {
     const database = await getDB();
     try {
-        const rows = await database.getAllAsync<Participant>(`SELECT * FROM participants ORDER BY created_at DESC`);
+        const rows = await database.getAllAsync<Participant>(
+            `SELECT * FROM participants WHERE created_by = ? ORDER BY created_at DESC`,
+            [createdBy]
+        );
         return rows;
     } catch (error) {
         console.error("Error fetching participants:", error);
@@ -508,8 +514,11 @@ export const viewDatabaseContents = async () => {
             console.log(`   Synced: ${r.synced ? 'Yes' : 'No'}`);
         });
 
-        // Get stats
-        const stats = await getStats();
+        // Get stats (all users — this is a debug dump of the whole device DB)
+        const pendingCount = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'pending'`);
+        const draftCount = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'draft'`);
+        const totalCount = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants`);
+        const stats = { pending: pendingCount?.count || 0, drafts: draftCount?.count || 0, total: totalCount?.count || 0 };
         console.log(`\n📊 STATISTICS:`);
         console.log(`   Pending: ${stats.pending}`);
         console.log(`   Drafts: ${stats.drafts}`);
@@ -528,12 +537,12 @@ export const viewDatabaseContents = async () => {
     }
 };
 
-export const getStats = async () => {
+export const getStats = async (createdBy: string) => {
     const database = await getDB();
     try {
-        const pending = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'pending'`);
-        const drafts = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'draft'`);
-        const total = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants`);
+        const pending = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'pending' AND created_by = ?`, [createdBy]);
+        const drafts = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'draft' AND created_by = ?`, [createdBy]);
+        const total = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE created_by = ?`, [createdBy]);
 
         return {
             pending: pending?.count || 0,
@@ -546,11 +555,12 @@ export const getStats = async () => {
     }
 };
 
-export const getPendingParticipants = async (): Promise<Participant[]> => {
+export const getPendingParticipants = async (createdBy: string): Promise<Participant[]> => {
     const database = await getDB();
     try {
         const rows = await database.getAllAsync<Participant>(
-            `SELECT * FROM participants WHERE status = 'pending' ORDER BY created_at DESC`
+            `SELECT * FROM participants WHERE status = 'pending' AND created_by = ? ORDER BY created_at DESC`,
+            [createdBy]
         );
         return rows;
     } catch (error) {
@@ -559,11 +569,12 @@ export const getPendingParticipants = async (): Promise<Participant[]> => {
     }
 };
 
-export const getDraftParticipants = async (): Promise<Participant[]> => {
+export const getDraftParticipants = async (createdBy: string): Promise<Participant[]> => {
     const database = await getDB();
     try {
         const rows = await database.getAllAsync<Participant>(
-            `SELECT * FROM participants WHERE status = 'draft' ORDER BY created_at DESC`
+            `SELECT * FROM participants WHERE status = 'draft' AND created_by = ? ORDER BY created_at DESC`,
+            [createdBy]
         );
         return rows;
     } catch (error) {

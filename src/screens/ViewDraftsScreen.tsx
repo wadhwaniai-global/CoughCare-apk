@@ -18,24 +18,26 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { getDraftParticipants, Participant } from '../services/DatabaseService';
+import { useAuth } from '../contexts/AuthContext';
 
 type ViewDraftsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ViewDrafts'>;
 
 const ViewDraftsScreen = () => {
     const navigation = useNavigation<ViewDraftsScreenNavigationProp>();
+    const { username } = useAuth();
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [loading, setLoading] = useState(true);
 
     useFocusEffect(
         React.useCallback(() => {
             loadData();
-        }, [])
+        }, [username])
     );
 
     const loadData = async () => {
         try {
             setLoading(true);
-            const data = await getDraftParticipants();
+            const data = username ? await getDraftParticipants(username) : [];
             setParticipants(data);
         } catch (error) {
             console.error('Error loading drafts:', error);

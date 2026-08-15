@@ -18,24 +18,26 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { getPendingParticipants, Participant } from '../services/DatabaseService';
+import { useAuth } from '../contexts/AuthContext';
 
 type PendingResultsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PendingResults'>;
 
 const PendingResultsScreen = () => {
     const navigation = useNavigation<PendingResultsScreenNavigationProp>();
+    const { username } = useAuth();
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [loading, setLoading] = useState(true);
 
     useFocusEffect(
         React.useCallback(() => {
             loadData();
-        }, [])
+        }, [username])
     );
 
     const loadData = async () => {
         try {
             setLoading(true);
-            const data = await getPendingParticipants();
+            const data = username ? await getPendingParticipants(username) : [];
             setParticipants(data);
         } catch (error) {
             console.error('Error loading pending results:', error);
