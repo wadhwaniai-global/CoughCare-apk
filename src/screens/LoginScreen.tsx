@@ -20,6 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { FONTS, COLORS } from '../theme';
+import { getBuildInfoLine } from '../utils/buildInfo';
 
 export default function LoginScreen() {
   const { login, isLoading } = useAuth();
@@ -150,6 +151,8 @@ export default function LoginScreen() {
               <Text style={styles.footerText}>
                 Please enter your credentials to access the app
               </Text>
+              {/* Shown pre-login too: support needs the bundle id most when login itself fails */}
+              <Text style={styles.buildInfo}>{getBuildInfoLine()}</Text>
             </View>
           </View>
         </ScrollView>
@@ -282,6 +285,13 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     color: '#6B7280',
     textAlign: 'center',
+  },
+  buildInfo: {
+    fontSize: 11,
+    fontFamily: FONTS.regular,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });
 
