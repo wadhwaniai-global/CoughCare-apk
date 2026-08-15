@@ -48,6 +48,7 @@ const NewParticipantScreen = () => {
     const route = useRoute<NewParticipantRouteProp>();
     const draftId = route.params?.draftId;
     const [isEditingDraft] = useState(!!draftId);
+    const [isLoadingDraft, setIsLoadingDraft] = useState(!!draftId);
     const insets = useSafeAreaInsets();
     const { profile } = useAuth();
     const [expandedSection, setExpandedSection] = useState<string | null>('A');
@@ -148,6 +149,8 @@ const NewParticipantScreen = () => {
                 }
             } catch (error) {
                 console.error('Error loading draft:', error);
+            } finally {
+                setIsLoadingDraft(false);
             }
         };
         loadDraft();
@@ -586,6 +589,13 @@ const NewParticipantScreen = () => {
                 </View>
             </View>
 
+            {isLoadingDraft ? (
+                <View style={styles.draftLoadingContainer}>
+                    <ActivityIndicator size="large" color="#2563EB" />
+                    <Text style={styles.draftLoadingText}>Loading draft...</Text>
+                </View>
+            ) : (<>
+
             <ScrollView
                 style={styles.content}
                 contentContainerStyle={{ paddingBottom: 100 + insets.bottom * 2 }}
@@ -783,6 +793,7 @@ const NewParticipantScreen = () => {
                 </TouchableOpacity>
             </View>
 
+            </>)}
 
             {/* Custom Alert */}
             <CustomAlert
@@ -803,6 +814,16 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F1F5F9',
+    },
+    draftLoadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    draftLoadingText: {
+        marginTop: 12,
+        color: '#64748B',
+        fontSize: 14,
     },
     appBar: {
         backgroundColor: '#2563EB',
