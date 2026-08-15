@@ -12,7 +12,12 @@ export default {
       backgroundColor: "#158B95"
     },
     updates: {
-      url: "https://u.expo.dev/b4a88731-0c6b-4aec-a0f5-451585590fad"
+      url: "https://u.expo.dev/b4a88731-0c6b-4aec-a0f5-451585590fad",
+      // Channel for locally built (gradle) APKs. EAS cloud builds override
+      // this with the channel from their eas.json build profile.
+      requestHeaders: {
+        "expo-channel-name": "preview"
+      }
     },
     runtimeVersion: "1.1.0",
     // Fix for Expo SDK 54 autolinking issues with native modules
