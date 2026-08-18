@@ -34,9 +34,25 @@ something you'd have to roll back.
 | Command | Does |
 |---|---|
 | `npm run ota:status` | Shows what is live on each channel |
-| `npm run ota:preview` | Publishes to the testing team |
-| `npm run ota:production` | Publishes to Play Store users |
-| `npm run ota:preview -- "custom message"` | Same, with your own message (defaults to the last commit subject) |
+| `npm run ota:test` | Publishes to the tester's **CoughCare Test** app only |
+| `npm run ota:preview` | Publishes to the **LIVE FIELD FLEET** (asks for confirmation) |
+| `npm run ota:production` | Dormant channel, reserved for a future Play Store release |
+| `npm run ota:test -- "custom message"` | Same, with your own message (defaults to the last commit subject) |
+
+### ⚠ Channel semantics — do not trust the names
+
+The data collectors were issued APKs hard-bound to the channel named
+`preview` before a separate test channel existed, and reinstalling across a
+scattered field team is not practical. So, permanently:
+
+| Channel | Who actually receives it |
+|---|---|
+| `test` | The tester's **CoughCare Test** app (`com.coughcare.test`, built by `scripts/build-test-apk.sh`) |
+| `preview` | **Every field data collector.** This is the de-facto production channel. |
+| `production` | Nobody today. Reserved for a future Play Store release. |
+
+The workflow is always: publish to `test` → verify on the CoughCare Test app
+→ then `npm run ota:preview` (it makes you type `preview` to confirm).
 
 ### Test APK
 
@@ -84,7 +100,7 @@ kind of change OTA exists for.
 | EAS project | `cough-against-tb`, account `aakashwaig` | `app.config.js` → `extra.eas.projectId` |
 | Update URL | `https://u.expo.dev/94b301ec-6dca-4343-801e-a657ea5024eb` | `app.config.js` → `updates.url` |
 | `runtimeVersion` | `1.1.0` | `app.config.js` |
-| Channels | `preview`, `production` | `eas.json` → per build profile |
+| Channels | `test`, `preview`, `production` — see “Channel semantics” in §0 | `eas.json` → per build profile; local builds: `AndroidManifest.xml` request header |
 | Check policy | `CHECK_ON_LAUNCH=ALWAYS`, `LAUNCH_WAIT_MS=0` | expo-updates default, baked into the APK |
 
 Dashboard: <https://expo.dev/accounts/aakashwaig/projects/cough-against-tb/updates>

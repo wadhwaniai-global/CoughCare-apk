@@ -2,10 +2,15 @@
 /**
  * One-command OTA publish.
  *
- *   npm run ota:preview                 # publish to the testing team
+ *   npm run ota:test                    # publish to the tester's "CoughCare Test" app
+ *   npm run ota:preview                 # publish to the LIVE FIELD FLEET (asks for confirmation)
  *   npm run ota:preview -- "my message" # with an explicit message
- *   npm run ota:production
+ *   npm run ota:production              # dormant channel, reserved for a future Play Store release
  *   npm run ota:status                  # what is live on each channel
+ *
+ * CHANNEL SEMANTICS (do not trust the names): the data collectors' installed
+ * APKs are hard-bound to the channel named "preview", so "preview" IS the
+ * de-facto production channel. Validate on "test" first. See docs/OTA.md.
  *
  * Runs the preflight checks that are easy to forget (logged in? tree clean?
  * typecheck still passing? runtimeVersion right?) and then publishes.
@@ -68,12 +73,13 @@ function loadDotEnv() {
 const channel = process.argv[2];
 const statusOnly = channel === 'status';
 
-if (!statusOnly && !['preview', 'production'].includes(channel)) {
+if (!statusOnly && !['test', 'preview', 'production'].includes(channel)) {
     die(
         `Unknown target ${JSON.stringify(channel)}`,
         '  Usage:\n' +
-        '    npm run ota:preview     [-- "message"]\n' +
-        '    npm run ota:production  [-- "message"]\n' +
+        '    npm run ota:test        [-- "message"]   # tester sandbox (CoughCare Test app)\n' +
+        '    npm run ota:preview     [-- "message"]   # LIVE FIELD FLEET\n' +
+        '    npm run ota:production  [-- "message"]   # dormant, reserved\n' +
         '    npm run ota:status',
     );
 }
@@ -161,12 +167,34 @@ if (errorCount > TSC_BASELINE_ERRORS) {
 ok(errorCount === 0 ? 'No type errors' : `${errorCount} pre-existing errors, none added ${c.dim(`(baseline ${TSC_BASELINE_ERRORS})`)}`);
 
 // --------------------------------------------------------------- publish
-const message = process.argv.slice(3).join(' ').trim() || subject;
+const extraArgs = process.argv.slice(3);
+const skipConfirm = extraArgs.includes('--yes');
+const message = extraArgs.filter((a) => a !== '--yes').join(' ').trim() || subject;
 
 step(`Publishing to ${c.bold(channel)}`);
 console.log(`  ${c.dim(`message: ${message}`)}`);
 if (channel === 'production') {
     warn('This is the production channel — it reaches Play Store users.');
+}
+if (channel === 'preview') {
+    warn('"preview" is the LIVE FIELD CHANNEL — every data collector\'s installed app receives this.');
+    warn('It should already be verified on the "test" channel (CoughCare Test app).');
+    if (!skipConfirm) {
+        if (!process.stdin.isTTY) {
+            die(
+                'Refusing to publish to the live field channel non-interactively.',
+                '  If this is intentional (e.g. CI after test-channel verification):\n\n' +
+                `    ${c.bold('npm run ota:preview -- --yes')}`,
+            );
+        }
+        const { createInterface } = await import('node:readline/promises');
+        const rl = createInterface({ input: process.stdin, output: process.stdout });
+        const answer = await rl.question(`\n  Type ${c.bold('preview')} to confirm the field rollout: `);
+        rl.close();
+        if (answer.trim() !== 'preview') {
+            die('Aborted — nothing was published.');
+        }
+    }
 }
 
 try {

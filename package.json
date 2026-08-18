@@ -25,6 +25,7 @@
     "docker:backend:logs": "docker-compose logs -f backend",
     "docker:backend:stop": "docker-compose stop backend",
     "docker:backend:down": "docker-compose down",
+    "ota:test": "node scripts/ota-publish.mjs test",
     "ota:preview": "node scripts/ota-publish.mjs preview",
     "ota:production": "node scripts/ota-publish.mjs production",
     "ota:status": "node scripts/ota-publish.mjs status"
