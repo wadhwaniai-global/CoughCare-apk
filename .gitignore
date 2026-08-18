@@ -79,4 +79,5 @@ uploaded_audio/
 
 # Android signing - sensitive
 *.keystore
+*.jks
 credentials.json
