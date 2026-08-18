@@ -114,6 +114,7 @@ const ViewRecordScreen = () => {
             return value ? 'Yes' : 'No';
         }
         if (typeof value === 'number') {
+            if (value === -1) return 'Not answered'; // draft sentinel for unanswered yes/no fields
             if (value === 0) return 'No';
             if (value === 1) return 'Yes';
             return value.toString();
@@ -438,7 +439,7 @@ const ViewRecordScreen = () => {
                             <InfoRow label="Screening Date" value={formatValue(participant.date_of_screening)} />
                             <InfoRow
                                 label="Consent"
-                                value={participant.consent_obtained === 1 ? 'Yes' : 'No'}
+                                value={participant.consent_obtained === 1 ? 'Yes' : participant.consent_obtained === 0 ? 'No' : 'Not answered'}
                                 highlight={participant.consent_obtained === 1}
                             />
                         </View>
@@ -857,7 +858,7 @@ const ViewRecordScreen = () => {
                 {/* Cancel and Save Results Buttons - Only show when editing */}
                 {
                     isEditingTestResults && (
-                        <View style={styles.footer}>
+                        <View style={[styles.footer, { paddingBottom: Math.max(12 + insets.bottom * 2, 44) }]}>
                             <TouchableOpacity
                                 style={styles.cancelButton}
                                 onPress={() => {
@@ -888,7 +889,7 @@ const ViewRecordScreen = () => {
 
                 {/* Edit Draft Button - Only for draft records */}
                 {participant.status === 'draft' && (
-                    <View style={[styles.footer, { paddingBottom: 12 + insets.bottom * 2 }]}>
+                    <View style={[styles.footer, { paddingBottom: Math.max(12 + insets.bottom * 2, 44) }]}>
                         <TouchableOpacity
                             style={styles.editDraftButton}
                             onPress={() => navigation.navigate('NewParticipant', { draftId: participant.participant_id })}

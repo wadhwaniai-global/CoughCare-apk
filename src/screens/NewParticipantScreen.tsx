@@ -156,9 +156,19 @@ const NewParticipantScreen = () => {
         loadDraft();
     }, [draftId]);
 
+    // Section that should be scrolled to the top of the viewport once its
+    // post-expansion position is known. Expanding a section collapses the one
+    // above it, which shifts the layout after the scroll offset was set — so
+    // the scroll must happen from onLayout, which fires with the final frame.
+    const pendingScrollSection = React.useRef<string | null>(null);
+
     const toggleSection = (section: string) => {
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-        setExpandedSection(expandedSection === section ? null : section);
+        const opening = expandedSection !== section;
+        setExpandedSection(opening ? section : null);
+        if (opening) {
+            pendingScrollSection.current = section;
+        }
     };
 
     const scrollViewRef = React.useRef<ScrollView>(null);
@@ -167,6 +177,10 @@ const NewParticipantScreen = () => {
     const onSectionLayout = (section: string, event: any) => {
         const layout = event.nativeEvent.layout;
         setSectionLayouts(prev => ({ ...prev, [section]: layout.y }));
+        if (pendingScrollSection.current === section) {
+            pendingScrollSection.current = null;
+            scrollViewRef.current?.scrollTo({ y: Math.max(0, layout.y - 8), animated: true });
+        }
     };
 
     const handleUpdateField = <K extends keyof ParticipantFormData>(field: K, value: ParticipantFormData[K]) => {
@@ -270,16 +284,20 @@ const NewParticipantScreen = () => {
                 community: formData.community || null,
                 data_collector_name: collectorName,
                 created_by: username || null,
-                consent_obtained: formData.consentObtained ? 1 : 0,
+                // Drafts must survive the save/load round trip without inventing
+                // answers: unanswered (null) is stored as -1, which the draft
+                // loader reads back as unanswered (it only maps 1/0 to Yes/No).
+                // The columns are NOT NULL, so null itself cannot be stored.
+                consent_obtained: formData.consentObtained === null ? -1 : formData.consentObtained ? 1 : 0,
                 diabetes_status: formData.diabetesStatus || '',
                 hiv_status: formData.hivStatus || '',
                 covid_status: formData.covidStatus || '',
-                tobacco_use: formData.tobaccoUse ? 1 : 0,
+                tobacco_use: formData.tobaccoUse === null ? -1 : formData.tobaccoUse ? 1 : 0,
                 tobacco_duration: formData.tobaccoDuration || null,
-                alcohol_use: formData.alcoholUse === 'Yes' || formData.alcoholUse === 'Occasional' ? 1 : 0,
+                alcohol_use: formData.alcoholUse === null ? -1 : formData.alcoholUse === 'Yes' || formData.alcoholUse === 'Occasional' ? 1 : 0,
                 alcohol_use_frequency: formData.alcoholUse || null,
                 alcohol_duration: formData.alcoholDuration || null,
-                previous_tb: formData.previousTb ? 1 : 0,
+                previous_tb: formData.previousTb === null ? -1 : formData.previousTb ? 1 : 0,
                 last_tb_year: formData.tbYear || null,
                 tb_treatment_completed: formData.tbTreatmentStatus || null,
                 recurring_tb: formData.recurringTb === null ? null : formData.recurringTb ? 1 : 0,
@@ -373,11 +391,18 @@ const NewParticipantScreen = () => {
             // Auto-expand first error section and scroll to it
             const firstErrorSection = errors[0]?.section;
             if (firstErrorSection) {
-                setExpandedSection(firstErrorSection);
-                // Scroll to section
-                const y = sectionLayouts[firstErrorSection];
-                if (y !== undefined && scrollViewRef.current) {
-                    scrollViewRef.current.scrollTo({ y, animated: true });
+                if (firstErrorSection === expandedSection) {
+                    // Already expanded: layout is current, scroll directly
+                    const y = sectionLayouts[firstErrorSection];
+                    if (y !== undefined && scrollViewRef.current) {
+                        scrollViewRef.current.scrollTo({ y: Math.max(0, y - 8), animated: true });
+                    }
+                } else {
+                    // Expanding shifts the layout; scroll from onLayout once
+                    // the section's final position is known
+                    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                    setExpandedSection(firstErrorSection);
+                    pendingScrollSection.current = firstErrorSection;
                 }
             }
 
@@ -764,7 +789,11 @@ const NewParticipantScreen = () => {
             </Modal>
 
             {/* Footer */}
-            <View style={[styles.footer, { paddingBottom: 16 + insets.bottom * 2 }]}>
+            {/* Keep a minimum clearance above the system navigation area even on
+                devices that report a zero bottom inset (non-edge-to-edge phones
+                with 3-button navigation), where the nav bar sits flush below the
+                window and taps aimed at the footer can hit system buttons. */}
+            <View style={[styles.footer, { paddingBottom: Math.max(16 + insets.bottom * 2, 48) }]}>
                 <TouchableOpacity
                     style={styles.draftBtn}
                     onPress={handleSaveDraft}
