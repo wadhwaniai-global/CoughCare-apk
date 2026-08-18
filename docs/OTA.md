@@ -289,6 +289,16 @@ Work down this list:
    update to apply.
 5. **No network on first launch**, or the device is offline. The check is
    best-effort and silent.
+6. **The channel is blank in the app's build-info line** (`… · rtv 1.1.0 · ·
+   embedded`). The APK's channel meta-data key is wrong or missing, so
+   expo-updates requests updates with no channel and the server never matches
+   a branch. The correct key on this SDK is
+   `expo.modules.updates.UPDATES_CONFIGURATION_REQUEST_HEADERS_KEY` (older
+   docs/EAS builds used `EXPO_UPDATES_REQUEST_HEADERS`, which is silently
+   ignored). The Aug-16 field APKs shipped with the wrong key and can never
+   receive OTAs — they must be replaced once by a corrected APK. Prebuild
+   generates the right key automatically from `updates.requestHeaders` in
+   app.config.js; only hand-edited manifests are at risk.
 
 ---
 
