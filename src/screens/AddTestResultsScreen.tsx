@@ -19,6 +19,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { getParticipantById, saveParticipant, Participant } from '../services/DatabaseService';
 import { Dropdown } from '../components/forms/Dropdown';
@@ -39,6 +40,7 @@ interface TestResultsFormData {
 const AddTestResultsScreen = () => {
     const navigation = useNavigation<AddTestResultsScreenNavigationProp>();
     const route = useRoute<AddTestResultsScreenRouteProp>();
+    const insets = useSafeAreaInsets();
     const participantId = route.params?.participantId;
 
     const [participant, setParticipant] = useState<Participant | null>(null);
@@ -405,8 +407,9 @@ const AddTestResultsScreen = () => {
                 </View>
             </ScrollView>
 
-            {/* Footer Buttons */}
-            < View style={styles.footer} >
+            {/* Footer Buttons - minimum clearance keeps them above the system
+                navigation bar even on devices reporting a zero bottom inset */}
+            <View style={[styles.footer, { paddingBottom: Math.max(12 + insets.bottom * 2, 44) }]}>
                 <TouchableOpacity
                     style={styles.cancelButton}
                     onPress={() => navigation.goBack()}

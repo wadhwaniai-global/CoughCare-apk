@@ -42,12 +42,36 @@ export class AudioRecorder {
         const timestamp = Date.now();
         const uniqueFileName = `cough_recording_${timestamp}.wav`;
         
-        const options = {
-          sampleRate: 16000,  // NON-NEGOTIABLE: 16kHz required by ONNX model
-          channels: 1,         // NON-NEGOTIABLE: Mono (1 channel)
-          bitsPerSample: 16,  // NON-NEGOTIABLE: 16-bit
-          wavFile: uniqueFileName
-        };
+        // Default capture: 16kHz mono using the library's default audio source
+        // (VOICE_RECOGNITION). The inference pipeline resamples any WAV rate to
+        // 16kHz, so the model requirement is met either way.
+        //
+        // Samsung Galaxy A07 (SM-A07x): field testers reproduced broken cough
+        // capture on multiple A07 units — recordings score <=40% while the mic
+        // works fine in calls and Samsung Voice Recorder. Hypothesis: this
+        // model's 16kHz VOICE_RECOGNITION capture path mangles transients
+        // (aggressive DSP / bad downsampling). On A07 we record from the plain
+        // MIC source at the hardware-native 48kHz instead and let the pipeline
+        // do the downsampling.
+        const model: string = (Platform as any).constants?.Model ?? '';
+        const isGalaxyA07 = /^SM-A07/i.test(model);
+        const options = isGalaxyA07
+          ? {
+              sampleRate: 48000,
+              channels: 1,
+              bitsPerSample: 16,
+              audioSource: 1, // MediaRecorder.AudioSource.MIC
+              wavFile: uniqueFileName
+            }
+          : {
+              sampleRate: 16000, // pipeline target rate; resampled anyway if different
+              channels: 1,
+              bitsPerSample: 16,
+              wavFile: uniqueFileName
+            };
+        if (isGalaxyA07) {
+          console.log(`[AudioRecorder] Galaxy A07 detected (${model}) — using 48kHz MIC capture`);
+        }
         
         console.log('[AudioRecorder] Initializing react-native-audio-record with unique filename:', uniqueFileName);
         console.log('[AudioRecorder] Options:', options);
