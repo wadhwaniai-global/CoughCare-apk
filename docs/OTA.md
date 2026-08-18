@@ -210,12 +210,18 @@ The app prints its own bundle identity at the bottom of the **login screen** and
 the **dashboard**:
 
 ```
-v1.0.0 · rtv 1.1.0 · preview · 01a004a4
- │        │           │         └─ first 8 chars of the update ID, or "embedded"
- │        │           └─ channel this binary is bound to
- │        └─ runtimeVersion (OTA compatibility key)
+v1.0.0 #681 · rtv 1.1.0 · preview · 01a004a4
+ │      │      │           │         └─ first 8 chars of the update ID, or "embedded"
+ │      │      │           └─ channel this binary is bound to
+ │      │      └─ runtimeVersion (OTA compatibility key)
+ │      └─ bundle sequence (git commit count at bundle time)
  └─ app version
 ```
+
+The **bundle sequence** is the at-a-glance freshness number, comparable across
+the test and field apps: if CoughCare Test shows `#681` and the field app
+shows `#675`, the field bundle is 6 changes behind; equal numbers mean both
+apps run identical code. (Bundles built before the sequence existed omit it.)
 
 `embedded` means the app is running the JS baked into the APK — no OTA applied.
 Anything else is an update ID you can match against the publish output.

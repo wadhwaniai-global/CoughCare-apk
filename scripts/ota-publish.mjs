@@ -146,7 +146,11 @@ if (dirty) {
 }
 const commit = sh('git rev-parse --short HEAD');
 const subject = sh('git log -1 --pretty=%s');
+// Monotonic bundle sequence, shown as "#<n>" on the app's login screen.
+// Comparable across channels: equal numbers mean identical code.
+const bundleSeq = sh('git rev-list --count HEAD');
 ok(`Clean at ${c.bold(commit)} — ${c.dim(subject)}`);
+ok(`Bundle sequence ${c.bold('#' + bundleSeq)} — the app will display this number`);
 
 // ------------------------------------------------------------- typecheck
 step('Typechecking');
@@ -201,7 +205,9 @@ try {
     execFileSync(
         'npx',
         ['eas-cli', 'update', '--branch', channel, '--message', message, '--non-interactive'],
-        { cwd: ROOT, stdio: 'inherit' },
+        // EXPO_PUBLIC_BUNDLE_SEQ is inlined into the bundle by Metro and shown
+        // on the login screen as "#<n>" (see src/utils/buildInfo.ts).
+        { cwd: ROOT, stdio: 'inherit', env: { ...process.env, EXPO_PUBLIC_BUNDLE_SEQ: bundleSeq } },
     );
 } catch {
     die('Publish failed — see the eas output above.');

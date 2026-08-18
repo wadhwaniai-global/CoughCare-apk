@@ -52,6 +52,9 @@ sed -i '' 's/expo-channel-name\&quot;:\&quot;preview/expo-channel-name\&quot;:\&
 sed -i '' 's|<string name="app_name">Cough Against TB</string>|<string name="app_name">CoughCare Test</string>|' "$STRINGS"
 
 echo "Building CoughCare Test (com.coughcare.test, channel: test)..."
+# Bundle sequence shown as "#<n>" in the app; Metro inlines it during the
+# gradle bundling step (see src/utils/buildInfo.ts).
+export EXPO_PUBLIC_BUNDLE_SEQ="$(git -C "$ROOT" rev-list --count HEAD)"
 "$ROOT/android/gradlew" -p "$ROOT/android" :app:assembleRelease --console=plain
 
 OUT="$HOME/Desktop/CoughCare-TEST-$(date +%Y-%m-%d).apk"
