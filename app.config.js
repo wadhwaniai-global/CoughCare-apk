@@ -3,6 +3,8 @@ export default {
     name: "Cough Against TB",
     owner: "rishi-waig13",
     slug: "cough-against-tb",
+    // Keep in sync with versionName in android/app/build.gradle (gitignored)
+    version: "1.0.2",
     orientation: "portrait",
     icon: "./public/logo.png",
     userInterfaceStyle: "light",
