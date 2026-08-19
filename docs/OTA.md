@@ -135,6 +135,47 @@ fully close and reopen it.
 
 ---
 
+## 2.5 Release signing (from v1.0.2 / 2026-08-19)
+
+Release APKs are signed by a real keystore that lives **outside the repo** in
+a relocatable folder (default `~/coughcare-release-keys`, override with the
+`COUGHCARE_KEYSTORE_DIR` environment variable). The folder contains the
+`.jks`, a `keystore.properties` with the password, and a README. **It must be
+backed up in the org password manager** — losing it means every future APK
+forces uninstall/reinstall on all devices.
+
+⚠ `android/` is gitignored, so **running `expo prebuild` regenerates
+`android/app/build.gradle` and silently drops the signing config**, reverting
+to debug signing — those APKs would be rejected as updates by every installed
+app. After any prebuild, re-add to `android/app/build.gradle`
+`signingConfigs` (and set `signingConfig signingConfigs.release` in
+`buildTypes.release`):
+
+```gradle
+release {
+    def ksDir = new File(System.getenv('COUGHCARE_KEYSTORE_DIR') ?: "${System.getProperty('user.home')}/coughcare-release-keys")
+    def ksPropsFile = new File(ksDir, 'keystore.properties')
+    def wantsRelease = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+    if (ksPropsFile.exists()) {
+        def ksProps = new Properties()
+        ksPropsFile.withInputStream { ksProps.load(it) }
+        def declaredStore = new File(ksProps['storeFile'])
+        storeFile declaredStore.isAbsolute() ? declaredStore : new File(ksDir, ksProps['storeFile'])
+        storePassword ksProps['storePassword']
+        keyAlias ksProps['keyAlias']
+        keyPassword ksProps['keyPassword']
+    } else if (wantsRelease) {
+        throw new GradleException("Release keystore not found at ${ksDir}. Set COUGHCARE_KEYSTORE_DIR or restore the backup.")
+    }
+}
+```
+
+Quick integrity check of any built APK:
+`$ANDROID_HOME/build-tools/<ver>/apksigner verify --print-certs <apk>` — the
+certificate DN must be `CN=CoughCare, OU=WAIG` (not `androiddebugkey`).
+
+---
+
 ## 3. First-time setup (authentication)
 
 **No credential needed to publish an OTA is stored in this repository, by
