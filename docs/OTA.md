@@ -97,13 +97,13 @@ kind of change OTA exists for.
 
 | Setting | Value | Where |
 |---|---|---|
-| EAS project | `cough-against-tb`, account `aakashwaig` | `app.config.js` → `extra.eas.projectId` |
-| Update URL | `https://u.expo.dev/94b301ec-6dca-4343-801e-a657ea5024eb` | `app.config.js` → `updates.url` |
+| EAS project | `cough-against-tb`, org `wadhwani-ai-global` | `app.config.js` → `extra.eas.projectId` |
+| Update URL | `https://u.expo.dev/b4a88731-0c6b-4aec-a0f5-451585590fad` | `app.config.js` → `updates.url` |
 | `runtimeVersion` | `1.1.0` | `app.config.js` |
 | Channels | `test`, `preview`, `production` — see “Channel semantics” in §0 | `eas.json` → per build profile; local builds: `AndroidManifest.xml` request header |
 | Check policy | `CHECK_ON_LAUNCH=ALWAYS`, `LAUNCH_WAIT_MS=0` | expo-updates default, baked into the APK |
 
-Dashboard: <https://expo.dev/accounts/aakashwaig/projects/cough-against-tb/updates>
+Dashboard: <https://expo.dev/accounts/wadhwani-ai-global/projects/cough-against-tb/updates>
 
 ### Build profiles
 
@@ -181,8 +181,8 @@ certificate DN must be `CN=CoughCare, OU=WAIG` (not `androiddebugkey`).
 **No credential needed to publish an OTA is stored in this repository, by
 design.** Cloning the repo is not enough — you must authenticate to EAS yourself.
 
-1. Ask an owner of the `aakashwaig` Expo account to invite you to the
-   `cough-against-tb` project.
+1. Ask an admin of the `wadhwani-ai-global` Expo organization to invite you to the
+   organization (expo.dev → org settings → Members). Developer role suffices to publish.
 2. Log in locally:
 
    ```bash
