@@ -12,29 +12,31 @@ Agreed 2026-08-18. Two batches, matched to how each fix can be delivered
       compromised device to days instead of the study's lifetime. Decide the
       retention window with the study team (e.g. keep 7 days for reference,
       then purge).
-- [ ] **Fail closed when SecureStore is unavailable.** AuthService currently
-      falls back to plaintext AsyncStorage for tokens if SecureStore errors.
-      Prefer refusing to persist the session over storing it in plaintext.
+- [x] **Fail closed when SecureStore is unavailable** (done 2026-08-19).
+      Native token storage no longer falls back to plaintext AsyncStorage;
+      deletes also clear any plaintext copies left by older builds.
 - [ ] **Session-expiry policy.** `refreshToken()` is an unimplemented TODO, so
       an expired session forces an online re-login — a field worker offline
       with an expired token cannot collect data. Needs a deliberate decision
       with the backend team (longer sessions, refresh endpoint, or offline
       grace period).
 
-## Batch 2 — next APK distribution (native/manifest; one reinstall event, bundle everything)
+## Batch 2 — DONE 2026-08-19 (shipped in the v1.0.2 uninstall/reinstall event, pre-launch)
 
-- [ ] **Sign with a real, secret keystore.** Release builds currently use the
-      standard RN debug keystore (publicly known password), so anyone can craft
-      an APK that installs over the field app. Generate a proper keystore,
-      store it outside git (see `.gitignore`: `*.jks` / `*.keystore`), document
-      recovery. NOTE: this changes the app signature — every device must
-      uninstall/reinstall once. That is why it waits for an APK event.
-- [ ] **`android:allowBackup="false"`** — patient data should not be
-      extractable via device backup.
-- [ ] **Remove `usesCleartextTraffic="true"`** — all endpoints are HTTPS; the
-      flag only preserves a downgrade path.
-- [ ] Consider **expo-updates code signing** so OTA bundles are verifiable
-      against a key we hold, not just the Expo account.
+- [x] **Sign with a real, secret keystore.** Releases are now signed by
+      `~/coughcare-release-keys/coughcare-release.jks` (random password in
+      `keystore.properties` alongside it; folder must be backed up to the org
+      password manager — losing it means every future APK forces
+      uninstall/reinstall). The build fails loudly if the keystore folder is
+      missing. Debug builds still use the debug keystore.
+- [x] **`android:allowBackup="false"`** — in the manifest and in
+      app.config.js expo-build-properties so prebuilds regenerate it.
+- [x] **Cleartext traffic disabled in release** — debug keeps it (Metro over
+      HTTP) via android/app/src/debug/AndroidManifest.xml `tools:replace`.
+- [ ] **expo-updates code signing** — deliberately deferred: it adds a second
+      never-lose key, and this project just lost one keystore to personnel
+      churn. Expo-account 2FA (enabled) covers the primary vector. Revisit
+      when key custody has an org-level home.
 
 ## Done / standing
 

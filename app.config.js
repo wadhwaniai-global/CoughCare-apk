@@ -72,7 +72,12 @@ export default {
         "expo-build-properties",
         {
           android: {
-            usesCleartextTraffic: true
+            // Release hardening (2026-08-19): HTTPS only, and patient data
+            // must not be extractable via device backup. Debug builds keep
+            // cleartext via android/app/src/debug/AndroidManifest.xml so
+            // Metro over HTTP still works.
+            usesCleartextTraffic: false,
+            allowBackup: false
           }
         }
       ],

@@ -48,39 +48,42 @@ export interface UserProfile {
   user_type: string;
 }
 
-// Helper to use SecureStore if available, otherwise AsyncStorage
+// Token storage: hardware-backed SecureStore on native, AsyncStorage on web
+// (web has no SecureStore). On native this FAILS CLOSED: if SecureStore is
+// unavailable we refuse to fall back to plaintext AsyncStorage — a failed
+// login is recoverable, tokens on disk in plaintext are not.
 const secureStorage = {
   async getItem(key: string): Promise<string | null> {
-    if (SecureStore && Platform.OS !== 'web') {
-      try {
-        return await SecureStore.getItemAsync(key);
-      } catch (error) {
-        console.warn('[AuthService] SecureStore getItem failed, using AsyncStorage:', error);
-        return await AsyncStorage.getItem(key);
-      }
+    if (Platform.OS === 'web') {
+      return await AsyncStorage.getItem(key);
     }
-    return await AsyncStorage.getItem(key);
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch (error) {
+      console.warn('[AuthService] SecureStore getItem failed; treating as absent:', error);
+      return null;
+    }
   },
   async setItem(key: string, value: string): Promise<void> {
-    if (SecureStore && Platform.OS !== 'web') {
-      try {
-        await SecureStore.setItemAsync(key, value);
-        return;
-      } catch (error) {
-        console.warn('[AuthService] SecureStore setItem failed, using AsyncStorage:', error);
-      }
+    if (Platform.OS === 'web') {
+      await AsyncStorage.setItem(key, value);
+      return;
     }
-    await AsyncStorage.setItem(key, value);
+    // No plaintext fallback — let the caller surface the failure.
+    await SecureStore.setItemAsync(key, value);
   },
   async deleteItem(key: string): Promise<void> {
-    if (SecureStore && Platform.OS !== 'web') {
-      try {
-        await SecureStore.deleteItemAsync(key);
-        return;
-      } catch (error) {
-        console.warn('[AuthService] SecureStore deleteItem failed, using AsyncStorage:', error);
-      }
+    if (Platform.OS === 'web') {
+      await AsyncStorage.removeItem(key);
+      return;
     }
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch (error) {
+      console.warn('[AuthService] SecureStore deleteItem failed:', error);
+    }
+    // Also clear any plaintext copy left behind by older builds that fell
+    // back to AsyncStorage.
     await AsyncStorage.removeItem(key);
   },
 };
