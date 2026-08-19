@@ -56,6 +56,13 @@ export const getBuildInfo = (): BuildInfo => {
     };
 };
 
+/**
+ * True when this app is bound to the tester's `test` channel (the CoughCare
+ * Test app). Used to show an unmissable in-app badge, since the test and
+ * field apps are visually identical once open.
+ */
+export const isTestBuild = (): boolean => getBuildInfo().channel === 'test';
+
 /** One-line summary for display, e.g. "v1.0.0 #681 · rtv 1.1.0 · preview · 019edabd" */
 export const getBuildInfoLine = (): string => {
     const info = getBuildInfo();

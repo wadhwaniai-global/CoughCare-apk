@@ -20,7 +20,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
 import { FONTS, COLORS } from '../theme';
-import { getBuildInfoLine } from '../utils/buildInfo';
+import { getBuildInfoLine, isTestBuild } from '../utils/buildInfo';
 
 export default function LoginScreen() {
   const { login, isLoading } = useAuth();
@@ -71,6 +71,11 @@ export default function LoginScreen() {
               <Ionicons name="medical" size={64} color="#FFFFFF" />
               <Text style={styles.title}>Cough Against TB</Text>
               <Text style={styles.subtitle}>Data Collection App</Text>
+              {isTestBuild() && (
+                <View style={styles.testBadge}>
+                  <Text style={styles.testBadgeText}>TEST BUILD</Text>
+                </View>
+              )}
             </View>
 
             {/* Login Form */}
@@ -203,6 +208,20 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     color: '#6B7280',
     textAlign: 'center',
+  },
+  testBadge: {
+    alignSelf: 'center',
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 14,
+    marginTop: 10,
+  },
+  testBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 1,
   },
   form: {
     marginTop: 8,
