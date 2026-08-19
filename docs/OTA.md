@@ -138,7 +138,7 @@ fully close and reopen it.
 ## 2.5 Release signing (from v1.0.2 / 2026-08-19)
 
 Release APKs are signed by a real keystore that lives **outside the repo** in
-a relocatable folder (default `~/coughcare-release-keys`, override with the
+a relocatable folder (default `~/WAIG/Imp_Stuff/coughcare-release-keys`, override with the
 `COUGHCARE_KEYSTORE_DIR` environment variable). The folder contains the
 `.jks`, a `keystore.properties` with the password, and a README. **It must be
 backed up in the org password manager** — losing it means every future APK
@@ -153,7 +153,7 @@ app. After any prebuild, re-add to `android/app/build.gradle`
 
 ```gradle
 release {
-    def ksDir = new File(System.getenv('COUGHCARE_KEYSTORE_DIR') ?: "${System.getProperty('user.home')}/coughcare-release-keys")
+    def ksDir = new File(System.getenv('COUGHCARE_KEYSTORE_DIR') ?: "${System.getProperty('user.home')}/WAIG/Imp_Stuff/coughcare-release-keys")
     def ksPropsFile = new File(ksDir, 'keystore.properties')
     def wantsRelease = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
     if (ksPropsFile.exists()) {
