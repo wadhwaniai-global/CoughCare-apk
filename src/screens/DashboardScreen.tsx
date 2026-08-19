@@ -16,7 +16,7 @@ import { getParticipants, getStats, viewDatabaseContents } from '../services/Dat
 import { syncService, SyncProgress } from '../services/SyncService';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert } from 'react-native';
-import { getBuildInfoLine, isTestBuild } from '../utils/buildInfo';
+import { getBuildInfoLine } from '../utils/buildInfo';
 
 const DashboardScreen = () => {
     const navigation = useNavigation<DashboardScreenNavigationProp>();
@@ -206,11 +206,6 @@ const DashboardScreen = () => {
             <View style={styles.header}>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.headerTitle}>TB Screening</Text>
-                    {isTestBuild() && (
-                        <View style={styles.testBadge}>
-                            <Text style={styles.testBadgeText}>TEST BUILD</Text>
-                        </View>
-                    )}
                     {profile ? (
                         <>
                             <Text style={styles.headerSubtitle} numberOfLines={1}>
@@ -485,21 +480,6 @@ const styles = StyleSheet.create({
         fontSize: 24,
         fontWeight: 'bold',
         color: 'white',
-    },
-    testBadge: {
-        alignSelf: 'flex-start',
-        backgroundColor: '#F59E0B',
-        paddingHorizontal: 10,
-        paddingVertical: 3,
-        borderRadius: 10,
-        marginTop: 4,
-        marginBottom: 2,
-    },
-    testBadgeText: {
-        color: 'white',
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 1,
     },
     headerSubtitle: {
         fontSize: 14,

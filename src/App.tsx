@@ -1,7 +1,9 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { TestBuildBanner } from './components/ui/TestBuildBanner';
 import AppNavigator from './navigation/AppNavigator';
 import { useAppFonts } from './hooks/useAppFonts';
 import { View, ActivityIndicator, Platform } from 'react-native';
@@ -59,10 +61,14 @@ export default function App() {
   return (
     <AuthProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
-        <NavigationContainer>
-          <StatusBar style="auto" />
-          <AppNavigator />
-        </NavigationContainer>
+        <SafeAreaProvider>
+          <NavigationContainer>
+            <StatusBar style="auto" />
+            <AppNavigator />
+          </NavigationContainer>
+          {/* Overlays every screen in test-channel builds; renders nothing otherwise */}
+          <TestBuildBanner />
+        </SafeAreaProvider>
       </GestureHandlerRootView>
     </AuthProvider>
   );
