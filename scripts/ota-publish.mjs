@@ -204,9 +204,10 @@ if (channel === 'preview') {
 try {
     execFileSync(
         'npx',
-        ['eas-cli', 'update', '--branch', channel, '--message', message, '--non-interactive'],
-        // EXPO_PUBLIC_BUNDLE_SEQ is inlined into the bundle by Metro and shown
-        // on the login screen as "#<n>" (see src/utils/buildInfo.ts).
+        // --clear-cache matters: EXPO_PUBLIC_BUNDLE_SEQ is inlined per-file at
+        // Metro transform time and cached, so without it a publish where
+        // buildInfo.ts didn't change would reuse the previous seq number.
+        ['eas-cli', 'update', '--branch', channel, '--message', message, '--non-interactive', '--clear-cache'],
         { cwd: ROOT, stdio: 'inherit', env: { ...process.env, EXPO_PUBLIC_BUNDLE_SEQ: bundleSeq } },
     );
 } catch {
