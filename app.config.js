@@ -1,7 +1,7 @@
 export default {
   expo: {
     name: "Cough Against TB",
-    owner: "rishi-waig13",
+    owner: "wadhwani-ai-global",
     slug: "cough-against-tb",
     // Keep in sync with versionName in android/app/build.gradle (gitignored)
     version: "1.0.2",
