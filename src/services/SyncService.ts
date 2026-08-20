@@ -6,6 +6,7 @@
 
 import { apiService } from './ApiService';
 import { authService } from './AuthService';
+import { getBuildInfo } from '../utils/buildInfo';
 import {
   getPendingParticipants,
   getRecordingsByParticipantId,
@@ -147,6 +148,14 @@ class SyncService {
         test_site: participant.test_site,
         test_notes: participant.test_notes,
         analysis_result: analysisResult,
+        // Which build produced this form. Both the test and field apps talk to
+        // the same server; app_channel separates their data: "test" = the
+        // CoughCare Test app, "preview" = the field app, "development" = a dev
+        // build. Forms without these keys predate the tagging (all field).
+        // The seq/update id also pin the exact code version for debugging.
+        app_channel: getBuildInfo().channel,
+        app_bundle_seq: getBuildInfo().bundleSeq,
+        app_update_id: getBuildInfo().bundleId,
       };
 
       // Prepare request body according to API contract
