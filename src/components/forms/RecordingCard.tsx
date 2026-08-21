@@ -60,6 +60,9 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
             !analysis?.loading &&
             analysis?.result &&
             !analysis.result.coughDetected &&
+            // an analysis restored from a saved record is old news — the
+            // popup is only for takes recorded just now
+            !analysis.result.restored &&
             !hasShownNoCoughPopup &&
             onNoCoughDetected
         ) {

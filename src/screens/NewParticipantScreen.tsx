@@ -264,6 +264,9 @@ const NewParticipantScreen = () => {
                                     // 0.45 = detection threshold (utils/onnxInference.ts)
                                     coughDetected: rec.confidence > 0.45,
                                     confidence: rec.confidence,
+                                    // suppresses the No-Cough popup: that alert
+                                    // is for fresh takes, not reloaded ones
+                                    restored: true,
                                 },
                             };
                         }
