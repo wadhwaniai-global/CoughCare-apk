@@ -75,6 +75,7 @@
     "@babel/core": "^7.23.0",
     "@expo/config-plugins": "^54.0.4",
     "@types/react": "~19.1.10",
+    "onnxruntime-node": "^1.27.0",
     "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },

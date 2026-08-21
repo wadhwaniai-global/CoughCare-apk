@@ -8,6 +8,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { AnalysisResult } from '../../types/participantForm';
 import { AudioPlayButton } from '../ui/AudioPlayButton';
 
+/** Recordings auto-stop at this length; guards storage and upload size. */
+const MAX_RECORDING_SECONDS = 60;
+
 interface RecordingCardProps {
     title: string;
     subtitle: string;
@@ -71,6 +74,20 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
             setHasShownNoCoughPopup(false);
         }
     }, [isRecorded]);
+
+    // Hard cap: auto-stop any recording at 60 seconds. The ref guards against
+    // the timer ticking again while the async stop is still in flight.
+    const autoStopFired = React.useRef(false);
+    React.useEffect(() => {
+        if (!isRecording) {
+            autoStopFired.current = false;
+            return;
+        }
+        if (currentDuration >= MAX_RECORDING_SECONDS && !autoStopFired.current) {
+            autoStopFired.current = true;
+            onStopRecording();
+        }
+    }, [isRecording, currentDuration, onStopRecording]);
     const progress = Math.min(currentDuration / minSeconds, 1);
     const remaining = Math.max(minSeconds - currentDuration, 0);
     const meetsMinimum = currentDuration >= minSeconds;
@@ -150,7 +167,7 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
                 ]}>
                     {remaining > 0
                         ? `Record at least ${remaining} more seconds`
-                        : "✓ Minimum duration reached"}
+                        : "✓ Minimum reached — auto-stops at 1:00"}
                 </Text>
             )}
 
@@ -251,10 +268,12 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
                     </Text>
                 </TouchableOpacity>
             ) : isRecorded ? (
-                <View style={styles.recordedActionsRow}>
-                    {audioUri ? <AudioPlayButton uri={audioUri} /> : null}
+                <View>
+                    {audioUri ? (
+                        <AudioPlayButton uri={audioUri} durationSeconds={currentDuration} />
+                    ) : null}
                     <TouchableOpacity
-                        style={[styles.reRecordBtn, audioUri ? { flex: 1, marginLeft: 10 } : null]}
+                        style={[styles.reRecordBtn, audioUri ? { marginTop: 10 } : null]}
                         onPress={onReRecord}
                     >
                         <Ionicons name="refresh" size={20} color="white" style={{ marginRight: 8 }} />
@@ -419,12 +438,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
     },
-    recordedActionsRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
     reRecordBtn: {
-        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
