@@ -34,7 +34,7 @@ const isoToDDMMYYYY = (value?: string | null): string => {
     const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
     return m ? `${m[3]}/${m[2]}/${m[1]}` : value;
 };
-import { AlcoholUse, ParticipantFormData } from '../types/participantForm';
+import { AlcoholUse, AnalysisResult, ParticipantFormData } from '../types/participantForm';
 import { todayDDMMYYYY } from '../utils/dateUtils';
 import { AccordionSection } from '../components/forms/AccordionSection';
 import { SectionA } from '../components/sections/SectionA';
@@ -99,6 +99,7 @@ const NewParticipantScreen = () => {
         clearRecording,
         analyzeAudioManually,
         initRecordedDurations,
+        initAnalysisResults,
     } = useAudioRecording();
 
     const SLOT_BY_KEY: Record<string, string> = {
@@ -244,6 +245,7 @@ const NewParticipantScreen = () => {
                 const recordings = await getRecordingsByParticipantId(draftId);
                 const recordingMap: Record<string, string> = {};
                 const durationMap: Record<string, number> = {};
+                const analysisMap: Record<string, AnalysisResult> = {};
                 for (const rec of recordings) {
                     const formKey = rec.recording_type === 'cough_1' ? 'recording1'
                         : rec.recording_type === 'cough_2' ? 'recording2'
@@ -253,6 +255,18 @@ const NewParticipantScreen = () => {
                     if (formKey && rec.file_path) {
                         recordingMap[formKey] = rec.file_path;
                         if (rec.duration) durationMap[formKey] = rec.duration;
+                        // Rebuild analysis state from the stored per-take
+                        // score; otherwise resubmitting saves null confidences
+                        if (rec.confidence != null && formKey !== 'recordingBackground') {
+                            analysisMap[formKey] = {
+                                loading: false,
+                                result: {
+                                    // 0.45 = detection threshold (utils/onnxInference.ts)
+                                    coughDetected: rec.confidence > 0.45,
+                                    confidence: rec.confidence,
+                                },
+                            };
+                        }
                     }
                 }
                 if (Object.keys(recordingMap).length > 0) {
@@ -260,6 +274,9 @@ const NewParticipantScreen = () => {
                 }
                 if (Object.keys(durationMap).length > 0) {
                     initRecordedDurations(durationMap);
+                }
+                if (Object.keys(analysisMap).length > 0) {
+                    initAnalysisResults(analysisMap);
                 }
             } catch (error) {
                 console.error('Error loading draft:', error);

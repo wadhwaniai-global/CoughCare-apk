@@ -188,6 +188,13 @@ export const useAudioRecording = () => {
         setRecordedDurations(prev => ({ ...prev, ...durations }));
     };
 
+    // Seed analysis state when loading a saved record for editing — analysis
+    // is never re-run on load, so without this an edit round-trip saves every
+    // take (and the participant's primary result) with a null confidence.
+    const initAnalysisResults = (results: Record<string, AnalysisResult>) => {
+        setAnalysisResults(prev => ({ ...results, ...prev }));
+    };
+
     return {
         activeRecordingKey,
         recordingDuration,
@@ -198,5 +205,6 @@ export const useAudioRecording = () => {
         clearRecording,
         analyzeAudioManually,
         initRecordedDurations,
+        initAnalysisResults,
     };
 };
