@@ -23,7 +23,7 @@ const DashboardScreen = () => {
     const route = useRoute<DashboardScreenRouteProp>();
     const { logout, username, profile } = useAuth();
 
-    const [stats, setStats] = useState({ pending: 0, awaiting: 0, drafts: 0, total: 0 });
+    const [stats, setStats] = useState({ pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0 });
     // Static for the lifetime of the process - the running bundle cannot change mid-session
     const buildInfoLine = React.useMemo(() => getBuildInfoLine(), []);
     const [isOnline, setIsOnline] = useState(true);
@@ -45,7 +45,7 @@ const DashboardScreen = () => {
     const loadData = async () => {
         try {
             if (!username) {
-                setStats({ pending: 0, awaiting: 0, drafts: 0, total: 0 });
+                setStats({ pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0 });
                 setRecentCases([]);
                 return;
             }
@@ -281,18 +281,23 @@ const DashboardScreen = () => {
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 80 }}>
                 {/* Stats Cards */}
+                {/* Record life cycle order: draft -> awaiting -> pending -> synced */}
                 <View style={styles.statsContainer}>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabel}>Drafts</Text>
+                        <Text style={[styles.statValue, { color: '#64748B' }]}>{stats.drafts}</Text>
+                    </View>
                     <View style={styles.statCard}>
                         <Text style={styles.statLabel}>Awaiting Diagnosis</Text>
                         <Text style={[styles.statValue, { color: '#D97706' }]}>{stats.awaiting}</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={styles.statLabel}>Pending Sync</Text>
-                        <Text style={[styles.statValue, { color: '#EA580C' }]}>{stats.pending}</Text>
+                        <Text style={[styles.statValue, { color: '#0284C7' }]}>{stats.pending}</Text>
                     </View>
                     <View style={styles.statCard}>
-                        <Text style={styles.statLabel}>Drafts</Text>
-                        <Text style={[styles.statValue, { color: '#64748B' }]}>{stats.drafts}</Text>
+                        <Text style={styles.statLabel}>Synced</Text>
+                        <Text style={[styles.statValue, { color: '#16A34A' }]}>{stats.synced}</Text>
                     </View>
                     <View style={styles.statCard}>
                         <Text style={styles.statLabel}>Total</Text>
@@ -442,24 +447,33 @@ const DashboardScreen = () => {
                     })
                 )}
 
-                {/* Footer Actions */}
+                {/* Footer Actions — same life cycle order as the trackers */}
                 <View style={styles.footerActions}>
-                    <TouchableOpacity
-                        style={styles.footerBtn}
-                        onPress={() => navigation.navigate('PendingResults')}
-                    >
-                        <Text style={styles.footerBtnText}>View Pending</Text>
-                        {(stats.pending + stats.awaiting) > 0 && (
-                            <Text style={styles.footerBtnSubtext}>{stats.pending + stats.awaiting} items</Text>
-                        )}
-                    </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.footerBtn}
                         onPress={() => navigation.navigate('ViewDrafts')}
                     >
-                        <Text style={styles.footerBtnText}>View Drafts</Text>
+                        <Text style={styles.footerBtnText}>Drafts</Text>
                         {stats.drafts > 0 && (
                             <Text style={styles.footerBtnSubtext}>{stats.drafts} items</Text>
+                        )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.footerBtn}
+                        onPress={() => navigation.navigate('AwaitingDiagnosis')}
+                    >
+                        <Text style={styles.footerBtnText}>Awaiting Diagnosis</Text>
+                        {stats.awaiting > 0 && (
+                            <Text style={styles.footerBtnSubtext}>{stats.awaiting} items</Text>
+                        )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.footerBtn}
+                        onPress={() => navigation.navigate('PendingResults')}
+                    >
+                        <Text style={styles.footerBtnText}>Pending Sync</Text>
+                        {stats.pending > 0 && (
+                            <Text style={styles.footerBtnSubtext}>{stats.pending} items</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -536,8 +550,8 @@ const styles = StyleSheet.create({
     statCard: {
         backgroundColor: 'white',
         borderRadius: 12,
-        padding: 10,
-        width: '23.5%',
+        padding: 7,
+        width: '18.8%',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
@@ -545,15 +559,15 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     statLabel: {
-        fontSize: 11,
+        fontSize: 10,
         color: '#64748B',
-        marginBottom: 8,
+        marginBottom: 6,
         // Two-line space so long labels (e.g. "Awaiting Diagnosis") don't
         // push their card taller than its siblings
-        minHeight: 28,
+        minHeight: 26,
     },
     statValue: {
-        fontSize: 24,
+        fontSize: 20,
         fontWeight: 'bold',
     },
     newParticipantBtn: {
@@ -712,6 +726,8 @@ const styles = StyleSheet.create({
         color: '#334155',
         fontWeight: '600',
         marginBottom: 4,
+        fontSize: 13,
+        textAlign: 'center',
     },
     footerBtnSubtext: {
         fontSize: 12,

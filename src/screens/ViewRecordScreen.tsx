@@ -403,6 +403,37 @@ const ViewRecordScreen = () => {
         );
     }
 
+    // Synced records are purged on device (server owns the data) — there is
+    // nothing to show beyond the fact that the upload succeeded.
+    if (participant.status === 'synced') {
+        return (
+            <SafeAreaView style={styles.container}>
+                <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                        <Ionicons name="arrow-back" size={24} color="white" />
+                    </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.headerTitle}>View Record</Text>
+                        <Text style={styles.headerSubtitle}>{participant.participant_id}</Text>
+                    </View>
+                    <View style={[styles.statusBadge, { backgroundColor: '#DCFCE7' }]}>
+                        <Text style={[styles.statusBadgeText, { color: '#16A34A' }]}>Synced</Text>
+                    </View>
+                </View>
+                <View style={styles.loadingContainer}>
+                    <Ionicons name="cloud-done" size={64} color="#16A34A" />
+                    <Text style={{ fontSize: 18, fontWeight: '600', color: '#1E293B', marginTop: 16 }}>
+                        Data already synced
+                    </Text>
+                    <Text style={{ fontSize: 14, color: '#64748B', marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>
+                        This record was uploaded to the server and its details were removed from this device.
+                    </Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
     const symptoms = parseSymptoms(participant.symptoms);
     const statusBadge = getStatusBadgeColor(participant.status);
     const analysisResult = participant.analysis_result ? JSON.parse(participant.analysis_result) : null;

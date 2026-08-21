@@ -10,6 +10,7 @@ import { getBuildInfo } from '../utils/buildInfo';
 import {
   getPendingParticipants,
   getRecordingsByParticipantId,
+  purgeSyncedParticipantData,
   getDB,
   Participant,
   Recording,
@@ -288,6 +289,10 @@ class SyncService {
           console.warn('[SyncService] Could not update server_participant_id:', err);
         }
       }
+
+      // Step 4: The server owns the record now — strip the device copy down
+      // to the dashboard-display fields and delete every audio file.
+      await purgeSyncedParticipantData(participantId);
 
       console.log(`[SyncService] Successfully synced participant ${participantId}`);
     } catch (error: any) {

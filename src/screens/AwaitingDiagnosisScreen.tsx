@@ -1,8 +1,9 @@
 /**
- * Pending Results Screen - Shows all unsynced/pending records
+ * Awaiting Diagnosis Screen - Records with collection done but no diagnosis
+ * yet. These cannot sync until test results are added (see diagnosisGate).
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -17,13 +18,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { getPendingParticipants, Participant } from '../services/DatabaseService';
+import { getAwaitingDiagnosisParticipants, Participant } from '../services/DatabaseService';
 import { useAuth } from '../contexts/AuthContext';
 
-type PendingResultsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PendingResults'>;
+type AwaitingDiagnosisScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AwaitingDiagnosis'>;
 
-const PendingResultsScreen = () => {
-    const navigation = useNavigation<PendingResultsScreenNavigationProp>();
+const AwaitingDiagnosisScreen = () => {
+    const navigation = useNavigation<AwaitingDiagnosisScreenNavigationProp>();
     const { username } = useAuth();
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [loading, setLoading] = useState(true);
@@ -37,10 +38,10 @@ const PendingResultsScreen = () => {
     const loadData = async () => {
         try {
             setLoading(true);
-            const data = username ? await getPendingParticipants(username) : [];
+            const data = username ? await getAwaitingDiagnosisParticipants(username) : [];
             setParticipants(data);
         } catch (error) {
-            console.error('Error loading pending results:', error);
+            console.error('Error loading awaiting-diagnosis records:', error);
         } finally {
             setLoading(false);
         }
@@ -71,7 +72,7 @@ const PendingResultsScreen = () => {
                     <Ionicons name="arrow-back" size={24} color="white" />
                 </TouchableOpacity>
                 <View style={{ flex: 1 }}>
-                    <Text style={styles.headerTitle}>Pending Sync</Text>
+                    <Text style={styles.headerTitle}>Awaiting Diagnosis</Text>
                     <Text style={styles.headerSubtitle}>
                         {participants.length} {participants.length === 1 ? 'record' : 'records'}
                     </Text>
@@ -88,8 +89,8 @@ const PendingResultsScreen = () => {
                     {participants.length === 0 ? (
                         <View style={styles.emptyContainer}>
                             <Ionicons name="checkmark-circle" size={64} color="#94A3B8" />
-                            <Text style={styles.emptyText}>No records pending sync</Text>
-                            <Text style={styles.emptySubtext}>All records have been synced</Text>
+                            <Text style={styles.emptyText}>No records awaiting diagnosis</Text>
+                            <Text style={styles.emptySubtext}>Records without test results will appear here</Text>
                         </View>
                     ) : (
                         participants.map((participant) => (
@@ -109,8 +110,8 @@ const PendingResultsScreen = () => {
                                             Mobile: {participant.mobile_number || 'N/A'}
                                         </Text>
                                     </View>
-                                    <View style={styles.unsyncedBadge}>
-                                        <Text style={styles.unsyncedText}>Pending Sync</Text>
+                                    <View style={styles.awaitingBadge}>
+                                        <Text style={styles.awaitingText}>Awaiting Diagnosis</Text>
                                     </View>
                                 </View>
                                 <View style={styles.cardFooter}>
@@ -211,13 +212,13 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#64748B',
     },
-    unsyncedBadge: {
-        backgroundColor: '#F97316',
+    awaitingBadge: {
+        backgroundColor: '#D97706',
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 12,
     },
-    unsyncedText: {
+    awaitingText: {
         color: 'white',
         fontSize: 12,
         fontWeight: '600',
@@ -235,5 +236,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default PendingResultsScreen;
-
+export default AwaitingDiagnosisScreen;

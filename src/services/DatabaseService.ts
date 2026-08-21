@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system/legacy';
 import type { UserProfile } from './AuthService';
 import { getRegionCode, getFacilityCode } from '../utils/participantIdCodes';
 
@@ -44,6 +45,7 @@ export interface Participant {
     created_at?: string;
     synced?: number;
     status?: string; // draft, awaiting_diagnosis, pending (ready to sync), synced
+    purged?: number; // 1 = synced and stripped to dashboard-display fields only
     analysis_result?: string | null; // JSON string for ONNX result
     file_ids?: string | null; // JSON array of file IDs from server
     sync_attempts?: number; // Number of sync attempts
@@ -128,7 +130,8 @@ export const initDatabase = async () => {
         sync_attempts INTEGER DEFAULT 0,
         last_sync_attempt TEXT,
         server_participant_id TEXT, -- Server-side ID after sync
-        created_by TEXT -- Login username that created the record (local-only)
+        created_by TEXT, -- Login username that created the record (local-only)
+        purged INTEGER DEFAULT 0 -- synced + stripped to dashboard fields only
       );
 
       CREATE TABLE IF NOT EXISTS recordings (
@@ -151,6 +154,14 @@ export const initDatabase = async () => {
 
             // Migrate existing database to add new sync columns if they don't exist
             await migrateDatabase();
+
+            // Catch-up purge of records synced before purge-after-sync
+            // existed. Deliberately NOT awaited: it re-enters getDB(), which
+            // waits on this very initPromise — awaiting here would deadlock,
+            // and file deletion shouldn't block app startup anyway.
+            purgeAllSyncedParticipants()
+                .then((n) => { if (n > 0) console.log(`[DB Purge] Catch-up purged ${n} synced record(s)`); })
+                .catch((err) => console.warn('[DB Purge] Catch-up purge failed:', err));
         } catch (error) {
             console.error('Error initializing database:', error);
             initPromise = null; // Reset on error so it can be retried
@@ -181,6 +192,7 @@ const migrateDatabase = async () => {
             { name: 'alcohol_use_frequency', sql: `ALTER TABLE participants ADD COLUMN alcohol_use_frequency TEXT` },
             { name: 'recurring_tb', sql: `ALTER TABLE participants ADD COLUMN recurring_tb INTEGER` },
             { name: 'created_by', sql: `ALTER TABLE participants ADD COLUMN created_by TEXT` },
+            { name: 'purged', sql: `ALTER TABLE participants ADD COLUMN purged INTEGER DEFAULT 0` },
         ];
 
         for (const migration of migrations) {
@@ -610,17 +622,19 @@ export const getStats = async (createdBy: string) => {
         const pending = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'pending' AND created_by = ?`, [createdBy]);
         const awaiting = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'awaiting_diagnosis' AND created_by = ?`, [createdBy]);
         const drafts = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'draft' AND created_by = ?`, [createdBy]);
+        const synced = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'synced' AND created_by = ?`, [createdBy]);
         const total = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE created_by = ?`, [createdBy]);
 
         return {
             pending: pending?.count || 0,
             awaiting: awaiting?.count || 0,
             drafts: drafts?.count || 0,
+            synced: synced?.count || 0,
             total: total?.count || 0
         };
     } catch (error) {
         console.error("Error fetching stats:", error);
-        return { pending: 0, awaiting: 0, drafts: 0, total: 0 };
+        return { pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0 };
     }
 };
 
@@ -638,18 +652,82 @@ export const getPendingParticipants = async (createdBy: string): Promise<Partici
     }
 };
 
-/** Everything not yet on the server, both syncable and awaiting diagnosis. */
-export const getUnsyncedParticipants = async (createdBy: string): Promise<Participant[]> => {
+export const getAwaitingDiagnosisParticipants = async (createdBy: string): Promise<Participant[]> => {
     const database = await getDB();
     try {
         const rows = await database.getAllAsync<Participant>(
-            `SELECT * FROM participants WHERE status IN ('pending', 'awaiting_diagnosis') AND created_by = ? ORDER BY created_at DESC`,
+            `SELECT * FROM participants WHERE status = 'awaiting_diagnosis' AND created_by = ? ORDER BY created_at DESC`,
             [createdBy]
         );
         return rows;
     } catch (error) {
-        console.error("Error fetching unsynced participants:", error);
+        console.error("Error fetching awaiting-diagnosis participants:", error);
         return [];
+    }
+};
+
+/**
+ * Data minimization after a confirmed sync: the server now owns the record,
+ * so the device keeps only what the Recent Cases dashboard displays
+ * (participant_id/full_name, mobile, region, created_at, status, owner,
+ * analysis_result for the confidence line) and deletes everything else —
+ * all form answers and every audio file, rejected takes included.
+ */
+export const purgeSyncedParticipantData = async (participantId: string): Promise<void> => {
+    const database = await getDB();
+    try {
+        const recordings = await database.getAllAsync<Recording>(
+            `SELECT * FROM recordings WHERE participant_id = ?`,
+            [participantId]
+        );
+        for (const rec of recordings) {
+            try {
+                await FileSystem.deleteAsync(rec.file_path, { idempotent: true });
+            } catch (err) {
+                console.warn(`[DB Purge] Could not delete audio file ${rec.file_path}:`, err);
+            }
+        }
+        await database.runAsync(`DELETE FROM recordings WHERE participant_id = ?`, [participantId]);
+
+        // NOT NULL columns get '' / 0, nullable ones NULL
+        await database.runAsync(
+            `UPDATE participants SET
+                age = 0, gender = '', address = NULL, date_of_screening = '',
+                district = '', facility = '', community = NULL,
+                data_collector_name = '', consent_obtained = 0,
+                diabetes_status = '', hiv_status = '', covid_status = '',
+                tobacco_use = 0, tobacco_duration = NULL,
+                alcohol_use = 0, alcohol_use_frequency = NULL, alcohol_duration = NULL,
+                previous_tb = 0, last_tb_year = NULL, tb_treatment_completed = NULL,
+                recurring_tb = NULL, symptoms = '{}',
+                test_done = NULL, test_type = NULL, test_date_collection = NULL,
+                test_date_result = NULL, test_result = NULL, test_site = NULL,
+                test_notes = NULL, file_ids = NULL,
+                purged = 1
+             WHERE participant_id = ?`,
+            [participantId]
+        );
+        console.log(`[DB Purge] Purged synced participant ${participantId}`);
+    } catch (error) {
+        // Non-fatal: the sync itself succeeded; purge can retry at next launch
+        console.error(`[DB Purge] Error purging ${participantId}:`, error);
+    }
+};
+
+/** Catch-up purge for records synced before purging existed (idempotent). */
+export const purgeAllSyncedParticipants = async (): Promise<number> => {
+    const database = await getDB();
+    try {
+        const rows = await database.getAllAsync<{ participant_id: string }>(
+            `SELECT participant_id FROM participants WHERE status = 'synced' AND COALESCE(purged, 0) = 0`
+        );
+        for (const row of rows) {
+            await purgeSyncedParticipantData(row.participant_id);
+        }
+        return rows.length;
+    } catch (error) {
+        console.error('[DB Purge] Catch-up purge failed:', error);
+        return 0;
     }
 };
 

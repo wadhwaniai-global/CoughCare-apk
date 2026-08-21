@@ -16,6 +16,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import NewParticipantScreen from '../screens/NewParticipantScreen';
 import ViewRecordScreen from '../screens/ViewRecordScreen';
 import PendingResultsScreen from '../screens/PendingResultsScreen';
+import AwaitingDiagnosisScreen from '../screens/AwaitingDiagnosisScreen';
 import ViewDraftsScreen from '../screens/ViewDraftsScreen';
 import AddTestResultsScreen from '../screens/AddTestResultsScreen';
 
@@ -25,6 +26,7 @@ export type RootStackParamList = {
   NewParticipant: { draftId?: string } | undefined;
   ViewRecord: { participantId: string };
   PendingResults: undefined;
+  AwaitingDiagnosis: undefined;
   ViewDrafts: undefined;
   AddTestResults: { participantId: string };
   Home: undefined;
@@ -67,6 +69,7 @@ function AppStack() {
       <Stack.Screen name="NewParticipant" component={NewParticipantScreen} />
       <Stack.Screen name="ViewRecord" component={ViewRecordScreen} />
       <Stack.Screen name="PendingResults" component={PendingResultsScreen} />
+      <Stack.Screen name="AwaitingDiagnosis" component={AwaitingDiagnosisScreen} />
       <Stack.Screen name="ViewDrafts" component={ViewDraftsScreen} />
       <Stack.Screen name="AddTestResults" component={AddTestResultsScreen} />
       <Stack.Screen name="Home" component={HomeScreen} />
