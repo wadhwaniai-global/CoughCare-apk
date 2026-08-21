@@ -3,8 +3,8 @@
  * Handles login, logout, and token management using secure storage
  */
 
-import Constants from 'expo-constants';
 import { Platform } from 'react-native';
+import { API_BASE_URL } from '../utils/apiConfig';
 
 // Dynamically import SecureStore to handle cases where native module isn't available
 let SecureStore: any = null;
@@ -16,24 +16,6 @@ try {
 
 // Fallback to AsyncStorage if SecureStore is not available
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-/**
- * Get API base URL with Android emulator support
- * Android emulator uses 10.0.2.2 to access host machine's localhost
- */
-const getApiBaseUrl = (): string => {
-  const baseUrl = Constants.expoConfig?.extra?.apiBaseUrl || 'https://cough-pilot.wadhwaniaiglobal.com';
-  
-  // On Android, replace 127.0.0.1 or localhost with 10.0.2.2 (emulator host alias)
-  // This only applies to localhost URLs, not production HTTPS URLs
-  if (Platform.OS === 'android' && (baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost'))) {
-    return baseUrl.replace(/127\.0\.0\.1|localhost/, '10.0.2.2');
-  }
-  
-  return baseUrl;
-};
-
-const API_BASE_URL = getApiBaseUrl();
 const ACCESS_TOKEN_KEY = 'access_token';
 const USERNAME_KEY = 'username';
 const PROFILE_KEY = 'user_profile';
