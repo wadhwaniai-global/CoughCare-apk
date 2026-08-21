@@ -5,21 +5,23 @@ Agreed 2026-08-18. Two batches, matched to how each fix can be delivered
 
 ## Batch 1 — next OTA round (pure JS, after the current fixes are verified on `preview`)
 
-- [ ] **Purge synced records from the device.** The local SQLite database holds
-      HIV status, TB history, GPS, and phone numbers indefinitely. Once a
-      record is `synced`, it no longer needs to live on the phone; deleting (or
-      redacting) synced records shrinks the exposure window of a lost or
-      compromised device to days instead of the study's lifetime. Decide the
-      retention window with the study team (e.g. keep 7 days for reference,
-      then purge).
+- [x] **Purge synced records from the device** (done 2026-08-21, stronger
+      than originally planned: immediate, not a retention window). After a
+      confirmed sync the device keeps only dashboard-display fields (id,
+      mobile, region, date, status, confidence) and deletes all form answers
+      and every audio file, rejected takes included. A catch-up purge at
+      startup handles records synced before this existed. Exposure window of
+      a lost device is now only the unsynced backlog.
 - [x] **Fail closed when SecureStore is unavailable** (done 2026-08-19).
       Native token storage no longer falls back to plaintext AsyncStorage;
       deletes also clear any plaintext copies left by older builds.
-- [ ] **Session-expiry policy.** `refreshToken()` is an unimplemented TODO, so
-      an expired session forces an online re-login — a field worker offline
-      with an expired token cannot collect data. Needs a deliberate decision
-      with the backend team (longer sessions, refresh endpoint, or offline
-      grace period).
+- [x] **Session-expiry policy — decided 2026-08-21: keep current behavior.**
+      24h tokens, no refresh; the app only logs out on a server 401 (i.e. at
+      sync time), offline collection is unaffected by expiry. Rishi confirmed
+      this is the data collectors' preferred state. Known accepted edge: a
+      401-forced logout while subsequently offline blocks app access (not
+      data) until the collector finds signal to re-login. Revisit only if the
+      field reports friction.
 
 ## Batch 2 — DONE 2026-08-19 (shipped in the v1.0.2 uninstall/reinstall event, pre-launch)
 
@@ -47,5 +49,4 @@ Agreed 2026-08-18. Two batches, matched to how each fix can be delivered
       plaintext Expo password) removed from the repo head (2026-08-18).
       **Both remain in git history** — the `jainrishi601` Expo password must be
       rotated; purging history needs a coordinated force-push if ever desired.
-- [ ] **Enable 2FA on the `rishi-waig13` Expo account** — the account can push
-      code to every field device; do this in the Expo dashboard today.
+- [x] **2FA on the `rishi-waig13` Expo account** — enabled 2026-08-19.
