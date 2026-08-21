@@ -153,6 +153,24 @@ const DashboardScreen = () => {
             return;
         }
 
+        if (stats.pending === 0) {
+            Alert.alert('Nothing to sync', 'There are no pending records to upload.');
+            return;
+        }
+
+        // Syncing is a one-way door: synced records can no longer be edited.
+        // Make the user confirm so corrections happen before upload.
+        Alert.alert(
+            'Sync records?',
+            `${stats.pending} record(s) will be uploaded to the server.\n\nOnce synced, records can no longer be edited. Please make sure all corrections are done before syncing.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Sync now', onPress: () => performSync() },
+            ]
+        );
+    };
+
+    const performSync = async () => {
         setIsSyncing(true);
         setSyncProgress({ total: 0, completed: 0 });
 

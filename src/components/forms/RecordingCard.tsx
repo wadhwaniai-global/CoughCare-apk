@@ -6,11 +6,14 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { AnalysisResult } from '../../types/participantForm';
+import { AudioPlayButton } from '../ui/AudioPlayButton';
 
 interface RecordingCardProps {
     title: string;
     subtitle: string;
     recordingKey: string;
+    /** file/blob URI of the recorded audio, for replay verification */
+    audioUri?: string | null;
     isRecorded: boolean;
     isRecording: boolean;
     currentDuration: number;
@@ -28,6 +31,7 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
     title,
     subtitle,
     recordingKey,
+    audioUri,
     isRecorded,
     isRecording,
     currentDuration,
@@ -247,13 +251,16 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
                     </Text>
                 </TouchableOpacity>
             ) : isRecorded ? (
-                <TouchableOpacity
-                    style={styles.reRecordBtn}
-                    onPress={onReRecord}
-                >
-                    <Ionicons name="refresh" size={20} color="white" style={{ marginRight: 8 }} />
-                    <Text style={styles.reRecordBtnText}>Re-record</Text>
-                </TouchableOpacity>
+                <View style={styles.recordedActionsRow}>
+                    {audioUri ? <AudioPlayButton uri={audioUri} /> : null}
+                    <TouchableOpacity
+                        style={[styles.reRecordBtn, audioUri ? { flex: 1, marginLeft: 10 } : null]}
+                        onPress={onReRecord}
+                    >
+                        <Ionicons name="refresh" size={20} color="white" style={{ marginRight: 8 }} />
+                        <Text style={styles.reRecordBtnText}>Re-record</Text>
+                    </TouchableOpacity>
+                </View>
             ) : (
                 <TouchableOpacity
                     style={styles.startRecordingBtn}
@@ -412,7 +419,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
     },
+    recordedActionsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
     reRecordBtn: {
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',

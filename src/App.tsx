@@ -9,8 +9,6 @@ import { useAppFonts } from './hooks/useAppFonts';
 import { View, ActivityIndicator, Platform } from 'react-native';
 import { api } from './utils/api';
 import { AuthProvider } from './contexts/AuthContext';
-import NetInfo from '@react-native-community/netinfo';
-import { syncService } from './services/SyncService';
 
 import { initDatabase } from './services/DatabaseService';
 
@@ -26,29 +24,11 @@ export default function App() {
     }
   }, []);
 
-  // Auto-sync when coming online
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      // Web: use window online/offline events
-      const handleOnline = () => {
-        console.log('[App] Device came online, triggering sync...');
-        syncService.syncPendingForms().catch(console.error);
-      };
-
-      window.addEventListener('online', handleOnline);
-      return () => window.removeEventListener('online', handleOnline);
-    } else {
-      // React Native: use NetInfo
-      const unsubscribe = NetInfo.addEventListener((state) => {
-        if (state.isConnected && !syncService.getIsSyncing()) {
-          console.log('[App] Device came online, triggering sync...');
-          syncService.syncPendingForms().catch(console.error);
-        }
-      });
-
-      return () => unsubscribe();
-    }
-  }, []);
+  // NOTE (2026-08-20): automatic sync-on-connectivity was removed on purpose.
+  // Pending records can be corrected until they are synced, and the Sync
+  // button now asks for confirmation ("records cannot be edited after sync").
+  // A background auto-sync would silently bypass both. Syncing is manual via
+  // the Dashboard Sync button.
 
   if (!fontsLoaded) {
     return (

@@ -26,6 +26,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { getParticipantById, getRecordingsByParticipantId, saveParticipant, Participant, Recording } from '../services/DatabaseService';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { CustomAlert } from '../components/ui/CustomAlert';
+import { AudioPlayButton } from '../components/ui/AudioPlayButton';
 import { Dropdown } from '../components/forms/Dropdown';
 import { formatDateDDMMYYYY, parseDateInput } from '../utils/dateUtils';
 
@@ -542,13 +543,19 @@ const ViewRecordScreen = () => {
                                 return recordingTypes.map(type => {
                                     const recording = recordingMap.get(type);
                                     return (
-                                        <InfoRow
-                                            key={type}
-                                            label={getRecordingLabel(type)}
-                                            value={recording && recording.duration
-                                                ? `${recording.duration} seconds`
-                                                : 'Not recorded'}
-                                        />
+                                        <View key={type} style={styles.infoRow}>
+                                            <Text style={styles.infoLabel}>{getRecordingLabel(type)}</Text>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                <Text style={styles.infoValue}>
+                                                    {recording && recording.duration
+                                                        ? `${recording.duration} seconds`
+                                                        : 'Not recorded'}
+                                                </Text>
+                                                {recording?.file_path ? (
+                                                    <AudioPlayButton uri={recording.file_path} compact />
+                                                ) : null}
+                                            </View>
+                                        </View>
                                     );
                                 });
                             })()}
@@ -887,15 +894,18 @@ const ViewRecordScreen = () => {
                     )
                 }
 
-                {/* Edit Draft Button - Only for draft records */}
-                {participant.status === 'draft' && (
+                {/* Edit button - drafts and not-yet-synced records only. Synced
+                    records are immutable (the server has them already). */}
+                {(participant.status === 'draft' || participant.status === 'pending') && (
                     <View style={[styles.footer, { paddingBottom: Math.max(12 + insets.bottom * 2, 44) }]}>
                         <TouchableOpacity
                             style={styles.editDraftButton}
                             onPress={() => navigation.navigate('NewParticipant', { draftId: participant.participant_id })}
                         >
                             <Ionicons name="create-outline" size={18} color="white" style={{ marginRight: 6 }} />
-                            <Text style={styles.editDraftButtonText}>Edit Draft</Text>
+                            <Text style={styles.editDraftButtonText}>
+                                {participant.status === 'draft' ? 'Edit Draft' : 'Edit Record'}
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 )}

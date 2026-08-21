@@ -49,6 +49,9 @@ const NewParticipantScreen = () => {
     const draftId = route.params?.draftId;
     const [isEditingDraft] = useState(!!draftId);
     const [isLoadingDraft, setIsLoadingDraft] = useState(!!draftId);
+    // Status of the record being edited ('draft' | 'pending') — pending records
+    // can be corrected until they are synced.
+    const [editingStatus, setEditingStatus] = useState<string | null>(null);
     const insets = useSafeAreaInsets();
     const { profile, username } = useAuth();
     const [expandedSection, setExpandedSection] = useState<string | null>('A');
@@ -94,6 +97,7 @@ const NewParticipantScreen = () => {
             try {
                 const participant = await getParticipantById(draftId);
                 if (!participant) return;
+                setEditingStatus(participant.status || 'draft');
 
                 // Parse GPS tag out of the packed address field
                 const rawAddress = participant.address || '';
@@ -257,6 +261,20 @@ const NewParticipantScreen = () => {
                         icon: 'alert-circle',
                         iconColor: '#EF4444'
                     });
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
+            // Guard: the record may have synced while it was being edited.
+            // Synced records are immutable — refuse to overwrite.
+            if (isEditingDraft && formData.participantId) {
+                const current = await getParticipantById(formData.participantId);
+                if (current?.status === 'synced') {
+                    Alert.alert(
+                        'Record already synced',
+                        'This record was uploaded to the server while you were editing and can no longer be changed.'
+                    );
                     setIsSubmitting(false);
                     return;
                 }
@@ -465,6 +483,20 @@ const NewParticipantScreen = () => {
                 }
             }
 
+            // Guard: the record may have synced while it was being edited.
+            // Synced records are immutable — refuse to overwrite.
+            if (isEditingDraft && formData.participantId) {
+                const current = await getParticipantById(formData.participantId);
+                if (current?.status === 'synced') {
+                    Alert.alert(
+                        'Record already synced',
+                        'This record was uploaded to the server while you were editing and can no longer be changed.'
+                    );
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
             // Pack GPS into address field (no schema migration)
             const submitGpsTag = formData.gpsLatitude && formData.gpsLongitude
                 ? `[GPS:${formData.gpsLatitude},${formData.gpsLongitude}]`
@@ -605,7 +637,9 @@ const NewParticipantScreen = () => {
                     <Ionicons name="arrow-back" size={24} color="white" />
                 </TouchableOpacity>
                 <View>
-                    <Text style={styles.appBarTitle}>{isEditingDraft ? 'Edit Draft' : 'New Participant'}</Text>
+                    <Text style={styles.appBarTitle}>
+                        {isEditingDraft ? (editingStatus === 'pending' ? 'Edit Record' : 'Edit Draft') : 'New Participant'}
+                    </Text>
                     {profile ? (
                         <Text style={styles.appBarSubtitle} numberOfLines={1}>
                             {profile.first_name} {profile.last_name} · {profile.facility}

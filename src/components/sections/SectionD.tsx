@@ -121,6 +121,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 title="Cough Recording 1"
                 subtitle="Min: 5 seconds"
                 recordingKey="recording1"
+                audioUri={formData.recording1}
                 isRecorded={!!formData.recording1}
                 isRecording={activeRecordingKey === 'recording1'}
                 currentDuration={activeRecordingKey === 'recording1' ? recordingDuration : (recordedDurations['recording1'] || 0)}
@@ -138,6 +139,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 title="Cough Recording 2"
                 subtitle="Min: 5 seconds"
                 recordingKey="recording2"
+                audioUri={formData.recording2}
                 isRecorded={!!formData.recording2}
                 isRecording={activeRecordingKey === 'recording2'}
                 currentDuration={activeRecordingKey === 'recording2' ? recordingDuration : (recordedDurations['recording2'] || 0)}
@@ -155,6 +157,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 title="Cough Recording 3"
                 subtitle="Min: 5 seconds"
                 recordingKey="recording3"
+                audioUri={formData.recording3}
                 isRecorded={!!formData.recording3}
                 isRecording={activeRecordingKey === 'recording3'}
                 currentDuration={activeRecordingKey === 'recording3' ? recordingDuration : (recordedDurations['recording3'] || 0)}
@@ -172,6 +175,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 title="Ambient Sound Recording"
                 subtitle="Min: 10 seconds"
                 recordingKey="recordingBackground"
+                audioUri={formData.recordingBackground}
                 isRecorded={!!formData.recordingBackground}
                 isRecording={activeRecordingKey === 'recordingBackground'}
                 currentDuration={activeRecordingKey === 'recordingBackground' ? recordingDuration : (recordedDurations['recordingBackground'] || 0)}
