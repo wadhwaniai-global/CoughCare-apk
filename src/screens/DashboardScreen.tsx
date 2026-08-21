@@ -23,7 +23,7 @@ const DashboardScreen = () => {
     const route = useRoute<DashboardScreenRouteProp>();
     const { logout, username, profile } = useAuth();
 
-    const [stats, setStats] = useState({ pending: 0, drafts: 0, total: 0 });
+    const [stats, setStats] = useState({ pending: 0, awaiting: 0, drafts: 0, total: 0 });
     // Static for the lifetime of the process - the running bundle cannot change mid-session
     const buildInfoLine = React.useMemo(() => getBuildInfoLine(), []);
     const [isOnline, setIsOnline] = useState(true);
@@ -45,7 +45,7 @@ const DashboardScreen = () => {
     const loadData = async () => {
         try {
             if (!username) {
-                setStats({ pending: 0, drafts: 0, total: 0 });
+                setStats({ pending: 0, awaiting: 0, drafts: 0, total: 0 });
                 setRecentCases([]);
                 return;
             }
@@ -283,7 +283,11 @@ const DashboardScreen = () => {
                 {/* Stats Cards */}
                 <View style={styles.statsContainer}>
                     <View style={styles.statCard}>
-                        <Text style={styles.statLabel}>Pending</Text>
+                        <Text style={styles.statLabel}>Awaiting Diagnosis</Text>
+                        <Text style={[styles.statValue, { color: '#D97706' }]}>{stats.awaiting}</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                        <Text style={styles.statLabel}>Pending Sync</Text>
                         <Text style={[styles.statValue, { color: '#EA580C' }]}>{stats.pending}</Text>
                     </View>
                     <View style={styles.statCard}>
@@ -388,18 +392,21 @@ const DashboardScreen = () => {
                                     <View style={{ flexShrink: 0 }}>
                                         <View style={[
                                             styles.statusBadge,
-                                            item.recordStatus === 'pending' ? { backgroundColor: '#FEF3C7' } :
-                                                item.recordStatus === 'synced' ? { backgroundColor: '#DCFCE7' } :
-                                                    { backgroundColor: '#E0E7FF' }
+                                            item.recordStatus === 'pending' ? { backgroundColor: '#E0F2FE' } :
+                                                item.recordStatus === 'awaiting_diagnosis' ? { backgroundColor: '#FEF3C7' } :
+                                                    item.recordStatus === 'synced' ? { backgroundColor: '#DCFCE7' } :
+                                                        { backgroundColor: '#E0E7FF' }
                                         ]}>
                                             <Text style={[
                                                 styles.statusText,
-                                                item.recordStatus === 'pending' ? { color: '#D97706' } :
-                                                    item.recordStatus === 'synced' ? { color: '#16A34A' } :
-                                                        { color: '#6366F1' }
+                                                item.recordStatus === 'pending' ? { color: '#0284C7' } :
+                                                    item.recordStatus === 'awaiting_diagnosis' ? { color: '#D97706' } :
+                                                        item.recordStatus === 'synced' ? { color: '#16A34A' } :
+                                                            { color: '#6366F1' }
                                             ]}>
-                                                {item.recordStatus === 'pending' ? 'Pending' :
-                                                    item.recordStatus === 'synced' ? 'Synced' : 'Draft'}
+                                                {item.recordStatus === 'pending' ? 'Pending Sync' :
+                                                    item.recordStatus === 'awaiting_diagnosis' ? 'Awaiting Diagnosis' :
+                                                        item.recordStatus === 'synced' ? 'Synced' : 'Draft'}
                                             </Text>
                                         </View>
                                     </View>
@@ -442,8 +449,8 @@ const DashboardScreen = () => {
                         onPress={() => navigation.navigate('PendingResults')}
                     >
                         <Text style={styles.footerBtnText}>View Pending</Text>
-                        {stats.pending > 0 && (
-                            <Text style={styles.footerBtnSubtext}>{stats.pending} items</Text>
+                        {(stats.pending + stats.awaiting) > 0 && (
+                            <Text style={styles.footerBtnSubtext}>{stats.pending + stats.awaiting} items</Text>
                         )}
                     </TouchableOpacity>
                     <TouchableOpacity
@@ -529,8 +536,8 @@ const styles = StyleSheet.create({
     statCard: {
         backgroundColor: 'white',
         borderRadius: 12,
-        padding: 16,
-        width: '31%',
+        padding: 10,
+        width: '23.5%',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
@@ -538,9 +545,12 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     statLabel: {
-        fontSize: 12,
+        fontSize: 11,
         color: '#64748B',
         marginBottom: 8,
+        // Two-line space so long labels (e.g. "Awaiting Diagnosis") don't
+        // push their card taller than its siblings
+        minHeight: 28,
     },
     statValue: {
         fontSize: 24,

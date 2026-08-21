@@ -43,7 +43,7 @@ export interface Participant {
     test_notes?: string | null;
     created_at?: string;
     synced?: number;
-    status?: string; // draft, pending, synced
+    status?: string; // draft, awaiting_diagnosis, pending (ready to sync), synced
     analysis_result?: string | null; // JSON string for ONNX result
     file_ids?: string | null; // JSON array of file IDs from server
     sync_attempts?: number; // Number of sync attempts
@@ -185,6 +185,28 @@ const migrateDatabase = async () => {
                     }
                 }
             }
+        }
+
+        // Sync-gate reclassification: 'pending' records saved before the
+        // diagnosis gate existed may lack a complete diagnosis; move them to
+        // 'awaiting_diagnosis' so they cannot sync. Mirrors hasDiagnosis()
+        // in utils/diagnosisGate.ts; idempotent, safe to run every startup.
+        try {
+            const result = await db.runAsync(
+                `UPDATE participants SET status = 'awaiting_diagnosis'
+                 WHERE status = 'pending' AND NOT (
+                     test_done = 'No'
+                     OR (test_done = 'Yes'
+                         AND test_type IS NOT NULL AND test_type != ''
+                         AND test_result IS NOT NULL AND test_result != ''
+                         AND test_result != 'Pending')
+                 )`
+            );
+            if (result.changes > 0) {
+                console.log(`[DB Migration] Moved ${result.changes} record(s) to awaiting_diagnosis`);
+            }
+        } catch (err) {
+            console.warn('[DB Migration] Sync-gate reclassification failed:', err);
         }
     } catch (error) {
         console.error('[DB Migration] Error migrating database:', error);
@@ -541,17 +563,19 @@ export const getStats = async (createdBy: string) => {
     const database = await getDB();
     try {
         const pending = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'pending' AND created_by = ?`, [createdBy]);
+        const awaiting = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'awaiting_diagnosis' AND created_by = ?`, [createdBy]);
         const drafts = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'draft' AND created_by = ?`, [createdBy]);
         const total = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE created_by = ?`, [createdBy]);
 
         return {
             pending: pending?.count || 0,
+            awaiting: awaiting?.count || 0,
             drafts: drafts?.count || 0,
             total: total?.count || 0
         };
     } catch (error) {
         console.error("Error fetching stats:", error);
-        return { pending: 0, drafts: 0, total: 0 };
+        return { pending: 0, awaiting: 0, drafts: 0, total: 0 };
     }
 };
 
@@ -565,6 +589,21 @@ export const getPendingParticipants = async (createdBy: string): Promise<Partici
         return rows;
     } catch (error) {
         console.error("Error fetching pending participants:", error);
+        return [];
+    }
+};
+
+/** Everything not yet on the server, both syncable and awaiting diagnosis. */
+export const getUnsyncedParticipants = async (createdBy: string): Promise<Participant[]> => {
+    const database = await getDB();
+    try {
+        const rows = await database.getAllAsync<Participant>(
+            `SELECT * FROM participants WHERE status IN ('pending', 'awaiting_diagnosis') AND created_by = ? ORDER BY created_at DESC`,
+            [createdBy]
+        );
+        return rows;
+    } catch (error) {
+        console.error("Error fetching unsynced participants:", error);
         return [];
     }
 };

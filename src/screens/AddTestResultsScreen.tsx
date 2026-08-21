@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { getParticipantById, saveParticipant, Participant } from '../services/DatabaseService';
 import { Dropdown } from '../components/forms/Dropdown';
+import { gatedStatus } from '../utils/diagnosisGate';
 
 type AddTestResultsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddTestResults'>;
 type AddTestResultsScreenRouteProp = RouteProp<RootStackParamList, 'AddTestResults'>;
@@ -152,8 +153,7 @@ const AddTestResultsScreen = () => {
             };
 
             // Update participant with test results
-            await saveParticipant({
-                ...participant,
+            const testFields = {
                 test_done: formData.testDone,
                 test_type: formData.testType,
                 test_date_collection: dateCollection,
@@ -161,6 +161,14 @@ const AddTestResultsScreen = () => {
                 test_result: mapTestResult(formData.testResult),
                 test_site: formData.testSite,
                 test_notes: formData.testNotes || null,
+            };
+            await saveParticipant({
+                ...participant,
+                ...testFields,
+                // Re-run the sync gate (see utils/diagnosisGate.ts)
+                status: participant.status === 'pending' || participant.status === 'awaiting_diagnosis'
+                    ? gatedStatus(testFields)
+                    : participant.status,
             });
 
             console.log('Test results saved successfully!');

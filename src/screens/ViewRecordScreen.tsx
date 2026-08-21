@@ -29,6 +29,7 @@ import { CustomAlert } from '../components/ui/CustomAlert';
 import { AudioPlayButton } from '../components/ui/AudioPlayButton';
 import { Dropdown } from '../components/forms/Dropdown';
 import { formatDateDDMMYYYY, parseDateInput } from '../utils/dateUtils';
+import { gatedStatus } from '../utils/diagnosisGate';
 
 type ViewRecordScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ViewRecord'>;
 type ViewRecordScreenRouteProp = RouteProp<RootStackParamList, 'ViewRecord'>;
@@ -127,7 +128,9 @@ const ViewRecordScreen = () => {
         switch (status) {
             case 'synced':
                 return { bg: '#DCFCE7', text: '#16A34A' };
-            case 'pending':
+            case 'pending': // diagnosis complete, ready to sync
+                return { bg: '#E0F2FE', text: '#0284C7' };
+            case 'awaiting_diagnosis':
                 return { bg: '#FEF3C7', text: '#D97706' };
             case 'draft':
                 return { bg: '#E0E7FF', text: '#6366F1' };
@@ -333,8 +336,7 @@ const ViewRecordScreen = () => {
             // Update participant
             const isTestDone = testFormData.testDone === 'Yes';
 
-            const updatedParticipant = {
-                ...participant,
+            const testFields = {
                 test_done: testFormData.testDone,
                 test_type: isTestDone ? testFormData.testType : null,
                 test_date_collection: isTestDone ? dateCollection : null,
@@ -342,6 +344,18 @@ const ViewRecordScreen = () => {
                 test_result: isTestDone ? mapTestResult(testFormData.testResult) : null,
                 test_site: isTestDone ? testFormData.testSite : null,
                 test_notes: isTestDone ? (testFormData.testNotes || null) : null,
+            };
+
+            const updatedParticipant = {
+                ...participant,
+                ...testFields,
+                // Re-run the sync gate: adding a complete diagnosis promotes the
+                // record to 'pending' (syncable); removing it demotes back to
+                // 'awaiting_diagnosis'. Drafts and synced records never reach
+                // this editor, but guard anyway.
+                status: participant.status === 'pending' || participant.status === 'awaiting_diagnosis'
+                    ? gatedStatus(testFields)
+                    : participant.status,
             };
 
             await saveParticipant(updatedParticipant);
@@ -404,13 +418,16 @@ const ViewRecordScreen = () => {
                 </TouchableOpacity>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.headerTitle}>View Record</Text>
-                    {participant.status !== 'draft' && (
+                    {(participant.status === 'pending' || participant.status === 'awaiting_diagnosis') && (
                         <Text style={styles.headerSubtitle}>Can add test results</Text>
                     )}
                 </View>
                 <View style={[styles.statusBadge, { backgroundColor: statusBadge.bg }]}>
                     <Text style={[styles.statusBadgeText, { color: statusBadge.text }]}>
-                        {participant.status === 'synced' ? 'Synced' : participant.status === 'pending' ? 'Unsynced' : 'Draft'}
+                        {participant.status === 'synced' ? 'Synced'
+                            : participant.status === 'pending' ? 'Pending Sync'
+                            : participant.status === 'awaiting_diagnosis' ? 'Awaiting Diagnosis'
+                            : 'Draft'}
                     </Text>
                 </View>
             </View>
@@ -591,8 +608,8 @@ const ViewRecordScreen = () => {
                             <Ionicons name="document-text" size={20} color="#2563EB" style={{ marginRight: 8 }} />
                             <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Text style={styles.sectionTitle}>Diagnostic Testing</Text>
-                                {/* Only show Add Results button if pending and not editing */}
-                                {participant.status === 'pending' && !isEditingTestResults && (
+                                {/* Only show Add Results button if unsynced and not editing */}
+                                {(participant.status === 'pending' || participant.status === 'awaiting_diagnosis') && !isEditingTestResults && (
                                     <TouchableOpacity
                                         style={styles.addButton}
                                         onPress={() => {
@@ -896,7 +913,7 @@ const ViewRecordScreen = () => {
 
                 {/* Edit button - drafts and not-yet-synced records only. Synced
                     records are immutable (the server has them already). */}
-                {(participant.status === 'draft' || participant.status === 'pending') && (
+                {(participant.status === 'draft' || participant.status === 'pending' || participant.status === 'awaiting_diagnosis') && (
                     <View style={[styles.footer, { paddingBottom: Math.max(12 + insets.bottom * 2, 44) }]}>
                         <TouchableOpacity
                             style={styles.editDraftButton}

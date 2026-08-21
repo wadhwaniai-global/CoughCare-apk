@@ -24,6 +24,7 @@ import { saveParticipant, saveRecording, getDB, getParticipantById, getRecording
 import { useParticipantForm } from '../hooks/useParticipantForm';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { validateForm, formatValidationErrors } from '../utils/formValidation';
+import { gatedStatus } from '../utils/diagnosisGate';
 import { AlcoholUse, ParticipantFormData } from '../types/participantForm';
 import { todayDDMMYYYY } from '../utils/dateUtils';
 import { AccordionSection } from '../components/forms/AccordionSection';
@@ -49,7 +50,7 @@ const NewParticipantScreen = () => {
     const draftId = route.params?.draftId;
     const [isEditingDraft] = useState(!!draftId);
     const [isLoadingDraft, setIsLoadingDraft] = useState(!!draftId);
-    // Status of the record being edited ('draft' | 'pending') — pending records
+    // Status of the record being edited ('draft' | 'awaiting_diagnosis' | 'pending') — non-draft records
     // can be corrected until they are synced.
     const [editingStatus, setEditingStatus] = useState<string | null>(null);
     const insets = useSafeAreaInsets();
@@ -504,6 +505,19 @@ const NewParticipantScreen = () => {
             const submitAddressForDb = [formData.address, submitGpsTag].filter(Boolean).join('\n') || null;
             const submitCollectorName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
 
+            // Section E fields. The main form has no explicit "Was a test
+            // done?" question yet, so test_done is inferred from the result:
+            // a real result → 'Yes', 'Pending' → 'Not yet', empty → unanswered.
+            const testFields = {
+                test_done: formData.testResult ? (formData.testResult === 'Pending' ? 'Not yet' : 'Yes') : null,
+                test_type: formData.testType || null,
+                test_date_collection: formData.testDateCollection || null,
+                test_date_result: formData.testDateResult || null,
+                test_result: formData.testResult || null,
+                test_site: formData.testSite || null,
+                test_notes: formData.testNotes || null,
+            };
+
             // Save to DB - Ensure all fields are properly stored (null for missing, not undefined)
             console.log('Saving participant to database...');
             await saveParticipant({
@@ -534,25 +548,11 @@ const NewParticipantScreen = () => {
                 tb_treatment_completed: formData.tbTreatmentStatus || null,
                 recurring_tb: formData.recurringTb === null ? null : formData.recurringTb ? 1 : 0,
                 symptoms: JSON.stringify(formData.symptoms || {}),
-                test_done: null,
-                test_type: null,
-                test_date_collection: null,
-                test_date_result: null,
-                test_result: null,
-                test_site: null,
-                test_notes: null,
-                status: 'pending', // Ready for sync
+                ...testFields,
+                // Sync is gated on diagnosis: complete → 'pending' (syncable),
+                // otherwise 'awaiting_diagnosis' until test results are added.
+                status: gatedStatus(testFields),
                 analysis_result: primaryResult ? JSON.stringify(primaryResult) : null,
-                // Section E fields
-                test_done: formData.testResult ? (formData.testResult === 'Pending' ? 'Not yet' : 'Yes') : null, // Map to existing schema if possible, or store as JSON? 
-                // Wait, schema has test_done, test_type, test_date_collection, test_date_result, test_result, test_site, test_notes
-                // Let's map correctly based on DatabaseService schema
-                test_type: formData.testType || null,
-                test_date_collection: formData.testDateCollection || null,
-                test_date_result: formData.testDateResult || null,
-                test_result: formData.testResult || null,
-                test_site: formData.testSite || null,
-                test_notes: formData.testNotes || null
             });
 
             // Save Recordings - Delete existing recordings for this participant first to prevent duplicates
@@ -638,7 +638,7 @@ const NewParticipantScreen = () => {
                 </TouchableOpacity>
                 <View>
                     <Text style={styles.appBarTitle}>
-                        {isEditingDraft ? (editingStatus === 'pending' ? 'Edit Record' : 'Edit Draft') : 'New Participant'}
+                        {isEditingDraft ? (editingStatus === 'draft' ? 'Edit Draft' : 'Edit Record') : 'New Participant'}
                     </Text>
                     {profile ? (
                         <Text style={styles.appBarSubtitle} numberOfLines={1}>

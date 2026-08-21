@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { getPendingParticipants, Participant } from '../services/DatabaseService';
+import { getUnsyncedParticipants, Participant } from '../services/DatabaseService';
 import { useAuth } from '../contexts/AuthContext';
 
 type PendingResultsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'PendingResults'>;
@@ -37,7 +37,7 @@ const PendingResultsScreen = () => {
     const loadData = async () => {
         try {
             setLoading(true);
-            const data = username ? await getPendingParticipants(username) : [];
+            const data = username ? await getUnsyncedParticipants(username) : [];
             setParticipants(data);
         } catch (error) {
             console.error('Error loading pending results:', error);
@@ -109,8 +109,13 @@ const PendingResultsScreen = () => {
                                             Mobile: {participant.mobile_number || 'N/A'}
                                         </Text>
                                     </View>
-                                    <View style={styles.unsyncedBadge}>
-                                        <Text style={styles.unsyncedText}>Unsynced</Text>
+                                    <View style={[
+                                        styles.unsyncedBadge,
+                                        participant.status === 'awaiting_diagnosis' && { backgroundColor: '#D97706' },
+                                    ]}>
+                                        <Text style={styles.unsyncedText}>
+                                            {participant.status === 'awaiting_diagnosis' ? 'Awaiting Diagnosis' : 'Pending Sync'}
+                                        </Text>
                                     </View>
                                 </View>
                                 <View style={styles.cardFooter}>
