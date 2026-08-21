@@ -657,8 +657,10 @@ const ViewRecordScreen = () => {
                                             setIsEditingTestResults(true);
                                         }}
                                     >
-                                        <Ionicons name="pencil" size={16} color="#2563EB" style={{ marginRight: 4 }} />
-                                        <Text style={styles.addButtonText}>Add Results</Text>
+                                        <Ionicons name={participant.test_done ? 'pencil' : 'add'} size={16} color="#2563EB" style={{ marginRight: 4 }} />
+                                        <Text style={styles.addButtonText}>
+                                            {participant.test_done ? 'Edit Diagnosis' : 'Add Diagnosis'}
+                                        </Text>
                                     </TouchableOpacity>
                                 )}
                             </View>

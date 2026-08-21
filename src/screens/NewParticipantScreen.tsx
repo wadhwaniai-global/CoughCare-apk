@@ -26,6 +26,14 @@ import { useAudioRecording } from '../hooks/useAudioRecording';
 import { validateForm, formatValidationErrors } from '../utils/formValidation';
 import { gatedStatus } from '../utils/diagnosisGate';
 import { isTestBuild } from '../utils/buildInfo';
+
+// The ViewRecord diagnosis editor stores dates as YYYY-MM-DD; Section E
+// works in DD/MM/YYYY. Normalize when loading a record for editing.
+const isoToDDMMYYYY = (value?: string | null): string => {
+    if (!value) return '';
+    const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : value;
+};
 import { AlcoholUse, ParticipantFormData } from '../types/participantForm';
 import { todayDDMMYYYY } from '../utils/dateUtils';
 import { AccordionSection } from '../components/forms/AccordionSection';
@@ -120,6 +128,26 @@ const NewParticipantScreen = () => {
         clearRecording(key);
     };
 
+    // test_done for a record being edited: the main form has no "Was a test
+    // done?" question, so an explicit answer saved elsewhere (e.g. 'No' from
+    // the ViewRecord diagnosis editor) must survive an edit round-trip.
+    const loadedTestDoneRef = React.useRef<string | null>(null);
+
+    /** Section E fields in DB shape, shared by draft save and submit.
+     *  test_done is inferred from the result when one is picked; otherwise
+     *  the answer loaded with the record (if any) is preserved. */
+    const buildTestFields = () => ({
+        test_done: formData.testResult
+            ? (formData.testResult === 'Pending' ? 'Not yet' : 'Yes')
+            : (loadedTestDoneRef.current ?? null),
+        test_type: formData.testType || null,
+        test_date_collection: formData.testDateCollection || null,
+        test_date_result: formData.testDateResult || null,
+        test_result: formData.testResult || null,
+        test_site: formData.testSite || null,
+        test_notes: formData.testNotes || null,
+    });
+
     /** Persist kept takes (replacing prior ones) and append any newly
      *  rejected takes. Rejected rows use a unique recording_type suffix to
      *  coexist with the UNIQUE(participant_id, recording_type) constraint. */
@@ -201,7 +229,17 @@ const NewParticipantScreen = () => {
                     tbTreatmentStatus: participant.tb_treatment_completed || null,
                     recurringTb: participant.recurring_tb === 1 ? true : participant.recurring_tb === 0 ? false : null,
                     symptoms: participant.symptoms ? JSON.parse(participant.symptoms) : {},
+                    // Section E — without this, editing a record wipes its
+                    // diagnosis on resubmit and the gate demotes it to
+                    // awaiting_diagnosis.
+                    testType: participant.test_type || null,
+                    testResult: participant.test_result || null,
+                    testDateCollection: isoToDDMMYYYY(participant.test_date_collection),
+                    testDateResult: isoToDDMMYYYY(participant.test_date_result),
+                    testSite: participant.test_site || '',
+                    testNotes: participant.test_notes || '',
                 }));
+                loadedTestDoneRef.current = participant.test_done || null;
 
                 const recordings = await getRecordingsByParticipantId(draftId);
                 const recordingMap: Record<string, string> = {};
@@ -392,13 +430,7 @@ const NewParticipantScreen = () => {
                 tb_treatment_completed: formData.tbTreatmentStatus || null,
                 recurring_tb: formData.recurringTb === null ? null : formData.recurringTb ? 1 : 0,
                 symptoms: JSON.stringify(formData.symptoms || {}),
-                test_done: null,
-                test_type: null,
-                test_date_collection: null,
-                test_date_result: null,
-                test_result: null,
-                test_site: null,
-                test_notes: null,
+                ...buildTestFields(),
                 status: 'draft', // Save as draft
                 analysis_result: null
             });
@@ -547,18 +579,7 @@ const NewParticipantScreen = () => {
             const submitAddressForDb = [formData.address, submitGpsTag].filter(Boolean).join('\n') || null;
             const submitCollectorName = profile ? `${profile.first_name} ${profile.last_name}`.trim() : '';
 
-            // Section E fields. The main form has no explicit "Was a test
-            // done?" question yet, so test_done is inferred from the result:
-            // a real result → 'Yes', 'Pending' → 'Not yet', empty → unanswered.
-            const testFields = {
-                test_done: formData.testResult ? (formData.testResult === 'Pending' ? 'Not yet' : 'Yes') : null,
-                test_type: formData.testType || null,
-                test_date_collection: formData.testDateCollection || null,
-                test_date_result: formData.testDateResult || null,
-                test_result: formData.testResult || null,
-                test_site: formData.testSite || null,
-                test_notes: formData.testNotes || null,
-            };
+            const testFields = buildTestFields();
 
             // Save to DB - Ensure all fields are properly stored (null for missing, not undefined)
             console.log('Saving participant to database...');
