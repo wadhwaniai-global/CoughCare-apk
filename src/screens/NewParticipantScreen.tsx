@@ -102,7 +102,7 @@ const NewParticipantScreen = () => {
 
     // Discarded takes (re-records): remembered with their own score and
     // uploaded at sync for model research; never shown anywhere in the app.
-    const rejectedTakesRef = useRef<Array<{ slot: string; uri: string; confidence: number | null; duration: number }>>([]);
+    const rejectedTakesRef = React.useRef<Array<{ slot: string; uri: string; confidence: number | null; duration: number }>>([]);
 
     const handleClearRecording = (key: string) => {
         // Runs in the same tick as the slot being emptied, so this render's
