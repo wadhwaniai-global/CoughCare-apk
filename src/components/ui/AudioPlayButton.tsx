@@ -57,13 +57,21 @@ export const AudioPlayButton: React.FC<AudioPlayButtonProps> = ({ uri, durationS
 
     const onStatus = (status: AVPlaybackStatus) => {
         if (!status.isLoaded) return;
-        setPositionMillis(status.positionMillis ?? 0);
         if (status.durationMillis) setDurationMillis(status.durationMillis);
         if (status.didJustFinish) {
+            // stopAsync (not a bare seek): after didJustFinish the sound's
+            // internal shouldPlay is still true on Android, so seeking to 0
+            // resumes playback — an accidental loop. stopAsync clears
+            // shouldPlay and rewinds in one step.
             setIsPlaying(false);
             setPositionMillis(0);
-            soundRef.current?.setPositionAsync(0).catch(() => {});
+            soundRef.current?.stopAsync().catch(() => {});
+            return;
         }
+        setPositionMillis(status.positionMillis ?? 0);
+        // Derive the button state from the player's real state so it can
+        // never drift from what is actually audible.
+        setIsPlaying(status.isPlaying);
     };
 
     const ensureLoaded = async (): Promise<Audio.Sound | null> => {
