@@ -25,6 +25,7 @@ import { useParticipantForm } from '../hooks/useParticipantForm';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { validateForm, formatValidationErrors } from '../utils/formValidation';
 import { gatedStatus } from '../utils/diagnosisGate';
+import { isTestBuild } from '../utils/buildInfo';
 import { AlcoholUse, ParticipantFormData } from '../types/participantForm';
 import { todayDDMMYYYY } from '../utils/dateUtils';
 import { AccordionSection } from '../components/forms/AccordionSection';
@@ -732,7 +733,9 @@ const NewParticipantScreen = () => {
                         onStartRecording={startRecording}
                         onStopRecording={stopRecording}
                         onClearRecording={clearRecording}
-                        onUseSample={handleUseSample}
+                        // The flask (Use Sample) button is a pipeline health
+                        // check for testers only — field builds never show it.
+                        onUseSample={isTestBuild() ? handleUseSample : undefined}
                         errors={inlineErrors}
                     />
                 </AccordionSection>

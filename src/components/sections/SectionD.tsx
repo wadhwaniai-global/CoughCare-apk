@@ -20,7 +20,8 @@ interface SectionDProps {
     onStartRecording: (key: string) => void;
     onStopRecording: (key: string) => Promise<string | null>;
     onClearRecording: (key: string) => void;
-    onUseSample: (key: string) => Promise<void>;
+    /** Testing-only sample injection; omit to hide the flask button */
+    onUseSample?: (key: string) => Promise<void>;
     errors?: Record<string, string>;
 }
 
@@ -47,9 +48,11 @@ export const SectionD: React.FC<SectionDProps> = ({
         icon: 'alert-circle' as keyof typeof Ionicons.glyphMap,
         iconColor: '#EF4444'
     });
-    const handleUseSample = async (key: string) => {
-        await onUseSample(key);
-    };
+    const handleUseSample = onUseSample
+        ? async (key: string) => {
+            await onUseSample(key);
+        }
+        : undefined;
 
     const handleStopRecording = async (key: string) => {
         // Get minimum seconds for this recording
@@ -130,7 +133,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onStartRecording={() => onStartRecording('recording1')}
                 onStopRecording={() => handleStopRecording('recording1')}
                 onReRecord={() => handleReRecord('recording1')}
-                onUseSample={() => handleUseSample('recording1')}
+                onUseSample={handleUseSample ? () => handleUseSample('recording1') : undefined}
                 onNoCoughDetected={() => handleNoCoughDetected('recording1')}
                 error={errors['recording1']}
             />
@@ -148,7 +151,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onStartRecording={() => onStartRecording('recording2')}
                 onStopRecording={() => handleStopRecording('recording2')}
                 onReRecord={() => handleReRecord('recording2')}
-                onUseSample={() => handleUseSample('recording2')}
+                onUseSample={handleUseSample ? () => handleUseSample('recording2') : undefined}
                 onNoCoughDetected={() => handleNoCoughDetected('recording2')}
                 error={errors['recording2']}
             />
@@ -166,7 +169,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onStartRecording={() => onStartRecording('recording3')}
                 onStopRecording={() => handleStopRecording('recording3')}
                 onReRecord={() => handleReRecord('recording3')}
-                onUseSample={() => handleUseSample('recording3')}
+                onUseSample={handleUseSample ? () => handleUseSample('recording3') : undefined}
                 onNoCoughDetected={() => handleNoCoughDetected('recording3')}
                 error={errors['recording3']}
             />
@@ -183,7 +186,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onStartRecording={() => onStartRecording('recordingBackground')}
                 onStopRecording={() => handleStopRecording('recordingBackground')}
                 onReRecord={() => handleReRecord('recordingBackground')}
-                onUseSample={() => handleUseSample('recordingBackground')}
+                onUseSample={handleUseSample ? () => handleUseSample('recordingBackground') : undefined}
                 error={errors['recordingBackground']}
             />
 
