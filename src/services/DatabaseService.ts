@@ -55,10 +55,16 @@ export interface Recording {
     id?: number;
     participant_id: string;
     file_path: string;
-    recording_type: string; // cough_1, cough_2, cough_3, background
+    // cough_1, cough_2, cough_3, background; rejected takes get a unique
+    // "<slot>_rej_<timestamp>_<n>" type to coexist with the UNIQUE constraint
+    recording_type: string;
     duration: number;
     created_at?: string;
     synced?: number;
+    confidence?: number | null; // this take's own cough score (null: unscored)
+    rejected?: number; // 1 = discarded take, kept for research upload only
+    file_id?: string | null; // server file id once uploaded
+    checksum?: string | null; // server checksum once uploaded
 }
 
 export const initDatabase = async () => {
@@ -133,6 +139,10 @@ export const initDatabase = async () => {
         duration INTEGER,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP,
         synced INTEGER DEFAULT 0,
+        confidence REAL,
+        rejected INTEGER DEFAULT 0,
+        file_id TEXT,
+        checksum TEXT,
         FOREIGN KEY (participant_id) REFERENCES participants (participant_id),
         UNIQUE(participant_id, recording_type)
       );
@@ -182,6 +192,30 @@ const migrateDatabase = async () => {
                     // Column might have been added by another process, ignore
                     if (!err.message?.includes('duplicate column')) {
                         console.warn(`[DB Migration] Error adding ${migration.name}:`, err);
+                    }
+                }
+            }
+        }
+
+        // Recordings table: per-take score, rejected-take flag, and the
+        // server file identity (fixes retried syncs dropping already-uploaded
+        // files from the form payload).
+        const recInfo = await db.getAllAsync(`PRAGMA table_info(recordings)`);
+        const recColumns = (recInfo as any[]).map((col: any) => col.name);
+        const recMigrations = [
+            { name: 'confidence', sql: `ALTER TABLE recordings ADD COLUMN confidence REAL` },
+            { name: 'rejected', sql: `ALTER TABLE recordings ADD COLUMN rejected INTEGER DEFAULT 0` },
+            { name: 'file_id', sql: `ALTER TABLE recordings ADD COLUMN file_id TEXT` },
+            { name: 'checksum', sql: `ALTER TABLE recordings ADD COLUMN checksum TEXT` },
+        ];
+        for (const migration of recMigrations) {
+            if (!recColumns.includes(migration.name)) {
+                try {
+                    await db.execAsync(migration.sql);
+                    console.log(`[DB Migration] Added recordings.${migration.name} column`);
+                } catch (err: any) {
+                    if (!err.message?.includes('duplicate column')) {
+                        console.warn(`[DB Migration] Error adding recordings.${migration.name}:`, err);
                     }
                 }
             }
@@ -343,9 +377,16 @@ export const saveRecording = async (recording: Recording) => {
     try {
         // Use INSERT OR REPLACE to prevent duplicates based on (participant_id, recording_type)
         await database.runAsync(
-            `INSERT OR REPLACE INTO recordings (participant_id, file_path, recording_type, duration) 
-             VALUES (?, ?, ?, ?)`,
-            [recording.participant_id, recording.file_path, recording.recording_type, recording.duration]
+            `INSERT OR REPLACE INTO recordings (participant_id, file_path, recording_type, duration, confidence, rejected)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [
+                recording.participant_id,
+                recording.file_path,
+                recording.recording_type,
+                recording.duration,
+                recording.confidence ?? null,
+                recording.rejected ?? 0,
+            ]
         );
     } catch (error) {
         console.error("Error saving recording:", error);
@@ -381,20 +422,24 @@ export const getParticipantById = async (participantId: string): Promise<Partici
     }
 };
 
-export const getRecordingsByParticipantId = async (participantId: string): Promise<Recording[]> => {
+export const getRecordingsByParticipantId = async (
+    participantId: string,
+    includeRejected: boolean = false // only sync wants the discarded takes
+): Promise<Recording[]> => {
     const database = await getDB();
     try {
         // Get the latest recording for each type (to handle any existing duplicates)
         const rows = await database.getAllAsync<Recording>(
-            `SELECT * FROM recordings 
-             WHERE participant_id = ? 
+            `SELECT * FROM recordings
+             WHERE participant_id = ?
+             ${includeRejected ? '' : 'AND COALESCE(rejected, 0) = 0'}
              AND id IN (
-                 SELECT MAX(id) 
-                 FROM recordings 
-                 WHERE participant_id = ? 
+                 SELECT MAX(id)
+                 FROM recordings
+                 WHERE participant_id = ?
                  GROUP BY recording_type
              )
-             ORDER BY 
+             ORDER BY
                  CASE recording_type 
                      WHEN 'cough_1' THEN 1
                      WHEN 'cough_2' THEN 2

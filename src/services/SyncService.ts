@@ -88,7 +88,14 @@ class SyncService {
    */
   private async uploadFormMetadata(
     participant: Participant,
-    fileIds: Array<{ file_id: string; checksum: string }>
+    fileIds: Array<{ file_id: string; checksum: string }>,
+    recordingsMeta: Array<{
+      file_id: string;
+      type: string;
+      rejected: boolean;
+      confidence: number | null;
+      duration: number | null;
+    }>
   ): Promise<{
     form_id: string;
     user_id: string;
@@ -148,6 +155,10 @@ class SyncService {
         test_site: participant.test_site,
         test_notes: participant.test_notes,
         analysis_result: analysisResult,
+        // Per-recording detail: every uploaded file's own cough score, slot,
+        // and whether the collector discarded it (re-record). file_id joins
+        // against the top-level file_ids/file_references.
+        recordings: recordingsMeta,
         // Which build produced this form. Both the test and field apps talk to
         // the same server; app_channel separates their data: "test" = the
         // CoughCare Test app, "preview" = the field app, "development" = a dev
@@ -187,31 +198,34 @@ class SyncService {
         [new Date().toISOString(), participantId]
       );
 
-      // Get all recordings for this participant
-      const recordings = await getRecordingsByParticipantId(participantId);
+      // Get all recordings for this participant, including rejected takes —
+      // those are uploaded too (with their scores) for model research.
+      const recordings = await getRecordingsByParticipantId(participantId, true);
 
-      // Step 1: Upload all files and collect file info (file_id and checksum)
-      // API expects: file_ids: [{ file_id: "...", checksum: "..." }]
-      const fileIds: Array<{ file_id: string; checksum: string }> = [];
+      // Step 1: Upload all files and collect file info (file_id and checksum).
+      // The server identity is stored on each recording row so a retried sync
+      // re-sends the COMPLETE file_ids list — previously, files uploaded on a
+      // failed earlier attempt were skipped and silently dropped from the form.
+      const fileEntries: Array<{ file_id: string; checksum: string; recording: Recording }> = [];
 
       for (const recording of recordings) {
-        if (recording.synced === 1) {
-          // Already synced, skip
-          continue;
-        }
-
         try {
-          const fileInfo = await this.uploadFile(recording.file_path);
-          fileIds.push({
-            file_id: fileInfo.file_id,
-            checksum: fileInfo.checksum,
-          });
+          let fileId = recording.file_id || null;
+          let checksum = recording.checksum || null;
 
-          // Mark recording as synced
-          await database.runAsync(
-            `UPDATE recordings SET synced = 1 WHERE id = ?`,
-            [recording.id]
-          );
+          if (!(recording.synced === 1 && fileId && checksum)) {
+            const fileInfo = await this.uploadFile(recording.file_path);
+            fileId = fileInfo.file_id;
+            checksum = fileInfo.checksum;
+
+            // Mark recording as synced and remember its server identity
+            await database.runAsync(
+              `UPDATE recordings SET synced = 1, file_id = ?, checksum = ? WHERE id = ?`,
+              [fileId, checksum, recording.id]
+            );
+          }
+
+          fileEntries.push({ file_id: fileId!, checksum: checksum!, recording });
         } catch (error: any) {
           console.error(
             `[SyncService] Failed to upload recording ${recording.recording_type}:`,
@@ -221,8 +235,22 @@ class SyncService {
         }
       }
 
+      // Every uploaded file goes in the top-level list — it is the only place
+      // the backend validates existence/checksums (their explicit guidance).
+      const fileIds = fileEntries.map(({ file_id, checksum }) => ({ file_id, checksum }));
+
+      // Per-file metadata rides inside form_data; file_id is the join key.
+      const recordingsMeta = fileEntries.map(({ file_id, recording }) => ({
+        file_id,
+        // strip the uniqueness suffix off rejected takes: "cough_1_rej_..." -> "cough_1"
+        type: recording.recording_type.replace(/_rej_.*$/, ''),
+        rejected: recording.rejected === 1,
+        confidence: recording.confidence ?? null,
+        duration: recording.duration ?? null,
+      }));
+
       // Step 2: Upload form metadata with file IDs
-      const serverResponse = await this.uploadFormMetadata(participant, fileIds);
+      const serverResponse = await this.uploadFormMetadata(participant, fileIds, recordingsMeta);
 
       // Step 3: Mark participant as synced
       // Build update query dynamically to handle columns that might not exist yet

@@ -93,6 +93,76 @@ const NewParticipantScreen = () => {
         initRecordedDurations,
     } = useAudioRecording();
 
+    const SLOT_BY_KEY: Record<string, string> = {
+        recording1: 'cough_1',
+        recording2: 'cough_2',
+        recording3: 'cough_3',
+        recordingBackground: 'background',
+    };
+
+    // Discarded takes (re-records): remembered with their own score and
+    // uploaded at sync for model research; never shown anywhere in the app.
+    const rejectedTakesRef = useRef<Array<{ slot: string; uri: string; confidence: number | null; duration: number }>>([]);
+
+    const handleClearRecording = (key: string) => {
+        // Runs in the same tick as the slot being emptied, so this render's
+        // formData still holds the outgoing take's uri and analysisResults
+        // its score.
+        const uri = formData[key as keyof typeof formData] as string | null;
+        if (uri) {
+            rejectedTakesRef.current.push({
+                slot: SLOT_BY_KEY[key] ?? key,
+                uri,
+                confidence: analysisResults[key]?.result?.confidence ?? null,
+                duration: recordedDurations[key] || 0,
+            });
+        }
+        clearRecording(key);
+    };
+
+    /** Persist kept takes (replacing prior ones) and append any newly
+     *  rejected takes. Rejected rows use a unique recording_type suffix to
+     *  coexist with the UNIQUE(participant_id, recording_type) constraint. */
+    const persistRecordings = async (participantId: string) => {
+        const database = await getDB();
+        try {
+            // Replace only the kept takes; rejected rows accumulate.
+            await database.runAsync(
+                `DELETE FROM recordings WHERE participant_id = ? AND COALESCE(rejected, 0) = 0`,
+                [participantId]
+            );
+        } catch (error) {
+            console.warn('Error deleting existing recordings:', error);
+        }
+
+        for (const [key, slot] of Object.entries(SLOT_BY_KEY)) {
+            const uri = formData[key as keyof typeof formData] as string;
+            if (uri) {
+                await saveRecording({
+                    participant_id: participantId,
+                    file_path: uri,
+                    recording_type: slot,
+                    duration: recordedDurations[key] || 0,
+                    confidence: analysisResults[key]?.result?.confidence ?? null,
+                });
+            }
+        }
+
+        const takes = rejectedTakesRef.current;
+        const stamp = Date.now();
+        for (let i = 0; i < takes.length; i++) {
+            await saveRecording({
+                participant_id: participantId,
+                file_path: takes[i].uri,
+                recording_type: `${takes[i].slot}_rej_${stamp}_${i}`,
+                duration: takes[i].duration,
+                confidence: takes[i].confidence,
+                rejected: 1,
+            });
+        }
+        rejectedTakesRef.current = [];
+    };
+
     React.useEffect(() => {
         if (!draftId) return;
         const loadDraft = async () => {
@@ -334,36 +404,7 @@ const NewParticipantScreen = () => {
             });
 
             // Save any recordings that exist (even if incomplete)
-            const database = await getDB();
-            try {
-                // Delete existing recordings for this participant
-                await database.runAsync(
-                    `DELETE FROM recordings WHERE participant_id = ?`,
-                    [formData.participantId]
-                );
-            } catch (error) {
-                console.warn('Error deleting existing recordings:', error);
-            }
-
-            // Save recordings that exist
-            const recordings = [
-                { key: 'recording1', type: 'cough_1' },
-                { key: 'recording2', type: 'cough_2' },
-                { key: 'recording3', type: 'cough_3' },
-                { key: 'recordingBackground', type: 'background' }
-            ];
-
-            for (const rec of recordings) {
-                const uri = formData[rec.key as keyof typeof formData] as string;
-                if (uri) {
-                    await saveRecording({
-                        participant_id: formData.participantId,
-                        file_path: uri,
-                        recording_type: rec.type,
-                        duration: recordedDurations[rec.key] || 0
-                    });
-                }
-            }
+            await persistRecordings(formData.participantId);
 
             console.log('Draft saved successfully!');
 
@@ -556,41 +597,9 @@ const NewParticipantScreen = () => {
                 analysis_result: primaryResult ? JSON.stringify(primaryResult) : null,
             });
 
-            // Save Recordings - Delete existing recordings for this participant first to prevent duplicates
-            // Then save new ones
-            const recordings = [
-                { key: 'recording1', type: 'cough_1' },
-                { key: 'recording2', type: 'cough_2' },
-                { key: 'recording3', type: 'cough_3' },
-                { key: 'recordingBackground', type: 'background' }
-            ];
-
+            // Save recordings (kept takes replace, rejected takes accumulate)
             console.log('Saving recordings...');
-
-            // Delete existing recordings for this participant to prevent duplicates
-            const database = await getDB();
-            try {
-                await database.runAsync(
-                    `DELETE FROM recordings WHERE participant_id = ?`,
-                    [formData.participantId]
-                );
-            } catch (error) {
-                console.warn('Error deleting existing recordings:', error);
-            }
-
-            // Save new recordings
-            for (const rec of recordings) {
-                const uri = formData[rec.key as keyof typeof formData] as string;
-                if (uri) {
-                    console.log(`Saving ${rec.type}:`, uri);
-                    await saveRecording({
-                        participant_id: formData.participantId,
-                        file_path: uri,
-                        recording_type: rec.type,
-                        duration: recordedDurations[rec.key] || 0
-                    });
-                }
-            }
+            await persistRecordings(formData.participantId);
 
             console.log('Submission successful!');
 
@@ -732,7 +741,7 @@ const NewParticipantScreen = () => {
                         analysisResults={analysisResults}
                         onStartRecording={startRecording}
                         onStopRecording={stopRecording}
-                        onClearRecording={clearRecording}
+                        onClearRecording={handleClearRecording}
                         // The flask (Use Sample) button is a pipeline health
                         // check for testers only — field builds never show it.
                         onUseSample={isTestBuild() ? handleUseSample : undefined}
