@@ -18,7 +18,12 @@ export const TestBuildBanner: React.FC = () => {
     }
 
     return (
-        <View pointerEvents="none" style={[styles.banner, { top: insets.top }]}>
+        // In normal layout flow (not an overlay): it pushes every screen down
+        // instead of floating above them, so it can never cover a screen
+        // header — overlaying at top:insets.top collided with headers on
+        // devices with tall status bars/notches. It absorbs the status-bar
+        // inset itself, painting the status-bar zone amber on test builds.
+        <View pointerEvents="none" style={[styles.banner, { paddingTop: insets.top + 2 }]}>
             <Text style={styles.text}>TEST BUILD</Text>
         </View>
     );
@@ -26,13 +31,8 @@ export const TestBuildBanner: React.FC = () => {
 
 const styles = StyleSheet.create({
     banner: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        zIndex: 9999,
-        elevation: 12,
-        backgroundColor: 'rgba(245, 158, 11, 0.92)',
-        paddingVertical: 2,
+        backgroundColor: '#F59E0B',
+        paddingBottom: 2,
         alignItems: 'center',
     },
     text: {

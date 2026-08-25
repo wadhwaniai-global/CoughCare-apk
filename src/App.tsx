@@ -42,12 +42,13 @@ export default function App() {
     <AuthProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
+          {/* In layout flow above the navigator: pushes screens down in
+              test-channel builds; renders nothing in field builds */}
+          <TestBuildBanner />
           <NavigationContainer>
             <StatusBar style="auto" />
             <AppNavigator />
           </NavigationContainer>
-          {/* Overlays every screen in test-channel builds; renders nothing otherwise */}
-          <TestBuildBanner />
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </AuthProvider>
