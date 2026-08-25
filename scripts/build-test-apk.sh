@@ -44,11 +44,11 @@ trap restore EXIT
 # Sanity: refuse to run if the files don't contain the expected field values,
 # so we never build a half-converted APK.
 grep -q "applicationId 'com.coughcare.app'" "$GRADLE" || { echo "Unexpected applicationId in build.gradle"; exit 1; }
-grep -q 'expo-channel-name&quot;:&quot;preview' "$MANIFEST" || { echo "Unexpected channel in AndroidManifest.xml"; exit 1; }
+grep -q 'expo-channel-name&quot;:&quot;production' "$MANIFEST" || { echo "Unexpected channel in AndroidManifest.xml"; exit 1; }
 grep -q '<string name="app_name">Cough Against TB</string>' "$STRINGS" || { echo "Unexpected app_name in strings.xml"; exit 1; }
 
 sed -i '' "s/applicationId 'com.coughcare.app'/applicationId 'com.coughcare.test'/" "$GRADLE"
-sed -i '' 's/expo-channel-name\&quot;:\&quot;preview/expo-channel-name\&quot;:\&quot;test/' "$MANIFEST"
+sed -i '' 's/expo-channel-name\&quot;:\&quot;production/expo-channel-name\&quot;:\&quot;test/' "$MANIFEST"
 sed -i '' 's|<string name="app_name">Cough Against TB</string>|<string name="app_name">CoughCare Test</string>|' "$STRINGS"
 
 echo "Building CoughCare Test (com.coughcare.test, channel: test)..."

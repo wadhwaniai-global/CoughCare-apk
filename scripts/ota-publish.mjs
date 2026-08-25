@@ -3,14 +3,16 @@
  * One-command OTA publish.
  *
  *   npm run ota:test                    # publish to the tester's "CoughCare Test" app
- *   npm run ota:preview                 # publish to the LIVE FIELD FLEET (asks for confirmation)
- *   npm run ota:preview -- "my message" # with an explicit message
- *   npm run ota:production              # dormant channel, reserved for a future Play Store release
+ *   npm run ota:production                 # publish to the LIVE FIELD FLEET (asks for confirmation)
+ *   npm run ota:production -- "my message" # with an explicit message
+ *   npm run ota:preview                    # RETIRED — pre-cutover fleet only, never publish
  *   npm run ota:status                  # what is live on each channel
  *
- * CHANNEL SEMANTICS (do not trust the names): the data collectors' installed
- * APKs are hard-bound to the channel named "preview", so "preview" IS the
- * de-facto production channel. Validate on "test" first. See docs/OTA.md.
+ * CHANNEL SEMANTICS (since the 2026-08-22 cutover the names mean what they
+ * say): "production" = the live field fleet, "test" = the CoughCare Test
+ * sandbox app, "preview" = retired (only the abandoned pre-cutover fleet
+ * was bound to it — never publish there). Validate on "test" first.
+ * See docs/OTA.md.
  *
  * Runs the preflight checks that are easy to forget (logged in? tree clean?
  * typecheck still passing? runtimeVersion right?) and then publishes.
@@ -78,8 +80,8 @@ if (!statusOnly && !['test', 'preview', 'production'].includes(channel)) {
         `Unknown target ${JSON.stringify(channel)}`,
         '  Usage:\n' +
         '    npm run ota:test        [-- "message"]   # tester sandbox (CoughCare Test app)\n' +
-        '    npm run ota:preview     [-- "message"]   # LIVE FIELD FLEET\n' +
-        '    npm run ota:production  [-- "message"]   # dormant, reserved\n' +
+        '    npm run ota:production  [-- "message"]   # LIVE FIELD FLEET\n' +
+        '    npm run ota:preview     [-- "message"]   # RETIRED (pre-cutover fleet only)\n' +
         '    npm run ota:status',
     );
 }
@@ -177,25 +179,26 @@ const message = extraArgs.filter((a) => a !== '--yes').join(' ').trim() || subje
 
 step(`Publishing to ${c.bold(channel)}`);
 console.log(`  ${c.dim(`message: ${message}`)}`);
-if (channel === 'production') {
-    warn('This is the production channel — it reaches Play Store users.');
-}
 if (channel === 'preview') {
-    warn('"preview" is the LIVE FIELD CHANNEL — every data collector\'s installed app receives this.');
+    warn('"preview" is RETIRED (2026-08-22). Only the abandoned pre-cutover fleet was bound to it.');
+    warn('The live field channel is now "production" — you almost certainly want npm run ota:production.');
+}
+if (channel === 'production') {
+    warn('"production" is the LIVE FIELD CHANNEL — every data collector\'s installed app receives this.');
     warn('It should already be verified on the "test" channel (CoughCare Test app).');
     if (!skipConfirm) {
         if (!process.stdin.isTTY) {
             die(
                 'Refusing to publish to the live field channel non-interactively.',
                 '  If this is intentional (e.g. CI after test-channel verification):\n\n' +
-                `    ${c.bold('npm run ota:preview -- --yes')}`,
+                `    ${c.bold('npm run ota:production -- --yes')}`,
             );
         }
         const { createInterface } = await import('node:readline/promises');
         const rl = createInterface({ input: process.stdin, output: process.stdout });
-        const answer = await rl.question(`\n  Type ${c.bold('preview')} to confirm the field rollout: `);
+        const answer = await rl.question(`\n  Type ${c.bold('production')} to confirm the field rollout: `);
         rl.close();
-        if (answer.trim() !== 'preview') {
+        if (answer.trim() !== 'production') {
             die('Aborted — nothing was published.');
         }
     }

@@ -18,7 +18,7 @@ export default {
       // Channel for locally built (gradle) APKs. EAS cloud builds override
       // this with the channel from their eas.json build profile.
       requestHeaders: {
-        "expo-channel-name": "preview"
+        "expo-channel-name": "production"
       }
     },
     runtimeVersion: "1.1.0",

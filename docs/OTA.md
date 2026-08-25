@@ -23,10 +23,10 @@ npm run ota:status         # what is currently live
 
 # ...make your JS change, then:
 git commit -am "Fix the thing"
-npm run ota:preview
+npm run ota:production
 ```
 
-`npm run ota:preview` runs every preflight check for you — logged in, tree clean,
+`npm run ota:production` runs every preflight check for you — logged in, tree clean,
 typecheck not regressed, runtimeVersion read from `app.config.js` — then
 publishes and prints how to verify. It refuses to publish rather than doing
 something you'd have to roll back.
@@ -35,24 +35,25 @@ something you'd have to roll back.
 |---|---|
 | `npm run ota:status` | Shows what is live on each channel |
 | `npm run ota:test` | Publishes to the tester's **CoughCare Test** app only |
-| `npm run ota:preview` | Publishes to the **LIVE FIELD FLEET** (asks for confirmation) |
-| `npm run ota:production` | Dormant channel, reserved for a future Play Store release |
+| `npm run ota:production` | Publishes to the **LIVE FIELD FLEET** (asks for confirmation) |
+| `npm run ota:preview` | **RETIRED** — only the abandoned pre-cutover fleet was bound to it; never publish |
 | `npm run ota:test -- "custom message"` | Same, with your own message (defaults to the last commit subject) |
 
-### ⚠ Channel semantics — do not trust the names
-
-The data collectors were issued APKs hard-bound to the channel named
-`preview` before a separate test channel existed, and reinstalling across a
-scattered field team is not practical. So, permanently:
+### Channel semantics (since the 2026-08-22 cutover, the names mean what they say)
 
 | Channel | Who actually receives it |
 |---|---|
 | `test` | The tester's **CoughCare Test** app (`com.coughcare.test`, built by `scripts/build-test-apk.sh`) |
-| `preview` | **Every field data collector.** This is the de-facto production channel. |
-| `production` | Nobody today. Reserved for a future Play Store release. |
+| `production` | **Every field data collector** (v1.0.3+ APKs). The live field channel. |
+| `preview` | **Retired.** Only the abandoned pre-cutover fleet (never distributed / written off at the backend cutover) was bound to it. Never publish here. |
 
 The workflow is always: publish to `test` → verify on the CoughCare Test app
-→ then `npm run ota:preview` (it makes you type `preview` to confirm).
+→ then `npm run ota:production` (it makes you type `production` to confirm).
+
+History: before 2026-08-22 the field APKs were hard-bound to `preview`, making
+it the de-facto production channel. The hard-cutover fleet event (uninstall +
+fresh v1.0.3 install everywhere) was the one moment the binding could change,
+so it did.
 
 ### Test APK
 
@@ -209,7 +210,7 @@ maintainer). Publishing an OTA does not touch it.
 Normally just:
 
 ```bash
-npm run ota:preview
+npm run ota:test
 npm run ota:production
 ```
 
@@ -225,7 +226,7 @@ npm run ota:production
 The commit subject becomes the update message unless you pass one:
 
 ```bash
-npm run ota:preview -- "Fix specimen date validation"
+npm run ota:production -- "Fix specimen date validation"
 ```
 
 ### Doing it by hand
