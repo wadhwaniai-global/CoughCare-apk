@@ -15,6 +15,12 @@ Agreed 2026-08-18. Two batches, matched to how each fix can be delivered
 - [x] **Fail closed when SecureStore is unavailable** (done 2026-08-19).
       Native token storage no longer falls back to plaintext AsyncStorage;
       deletes also clear any plaintext copies left by older builds.
+- [x] **Silent re-auth / 429 backoff — considered and REJECTED 2026-08-28.**
+      The client stays maximally conservative: 401 → hard logout with all
+      unsynced data preserved, no automatic retries anywhere, sync is
+      manual-only. Token revocation server-side works against this as-is
+      (costs the collector a manual re-login). Decision is final unless the
+      field reports friction.
 - [x] **Session-expiry policy — decided 2026-08-21: keep current behavior.**
       24h tokens, no refresh; the app only logs out on a server 401 (i.e. at
       sync time), offline collection is unaffected by expiry. Rishi confirmed
