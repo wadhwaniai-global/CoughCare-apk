@@ -407,16 +407,13 @@ const ViewRecordScreen = () => {
     // remains — and is shown here — is the contact/location detail that is
     // deliberately never uploaded and survives the purge for follow-up.
     if (participant.status === 'synced') {
-        const rawAddress = participant.address || '';
-        const gpsMatch = rawAddress.match(/\[GPS:([-\d.]+),([-\d.]+)\]/);
-        const cleanAddress = rawAddress.replace(/\n?\[GPS:[-\d.]+,[-\d.]+\]/, '').trim();
+        const gpsMatch = (participant.address || '').match(/\[GPS:([-\d.]+),([-\d.]+)\]/);
         const syncedConfidence = participant.analysis_result
             ? (() => { try { const r = JSON.parse(participant.analysis_result!); return typeof r?.confidence === 'number' ? `${(r.confidence * 100).toFixed(1)}%` : null; } catch { return null; } })()
             : null;
         const retainedRows: Array<{ label: string; value: string }> = [
             { label: 'Participant ID', value: participant.participant_id },
             { label: 'Mobile Number', value: participant.mobile_number || 'N/A' },
-            { label: 'Address', value: cleanAddress || 'N/A' },
             { label: 'GPS Coordinates', value: gpsMatch ? `${gpsMatch[1]}, ${gpsMatch[2]}` : 'N/A' },
             { label: 'Region', value: participant.region || 'N/A' },
             ...(syncedConfidence ? [{ label: 'Cough Confidence', value: syncedConfidence }] : []),
