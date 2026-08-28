@@ -403,9 +403,24 @@ const ViewRecordScreen = () => {
         );
     }
 
-    // Synced records are purged on device (server owns the data) — there is
-    // nothing to show beyond the fact that the upload succeeded.
+    // Synced records are purged on device (server owns the data). What
+    // remains — and is shown here — is the contact/location detail that is
+    // deliberately never uploaded and survives the purge for follow-up.
     if (participant.status === 'synced') {
+        const rawAddress = participant.address || '';
+        const gpsMatch = rawAddress.match(/\[GPS:([-\d.]+),([-\d.]+)\]/);
+        const cleanAddress = rawAddress.replace(/\n?\[GPS:[-\d.]+,[-\d.]+\]/, '').trim();
+        const syncedConfidence = participant.analysis_result
+            ? (() => { try { const r = JSON.parse(participant.analysis_result!); return typeof r?.confidence === 'number' ? `${(r.confidence * 100).toFixed(1)}%` : null; } catch { return null; } })()
+            : null;
+        const retainedRows: Array<{ label: string; value: string }> = [
+            { label: 'Participant ID', value: participant.participant_id },
+            { label: 'Mobile Number', value: participant.mobile_number || 'N/A' },
+            { label: 'Address', value: cleanAddress || 'N/A' },
+            { label: 'GPS Coordinates', value: gpsMatch ? `${gpsMatch[1]}, ${gpsMatch[2]}` : 'N/A' },
+            { label: 'Region', value: participant.region || 'N/A' },
+            ...(syncedConfidence ? [{ label: 'Cough Confidence', value: syncedConfidence }] : []),
+        ];
         return (
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
@@ -421,15 +436,31 @@ const ViewRecordScreen = () => {
                         <Text style={[styles.statusBadgeText, { color: '#16A34A' }]}>Synced</Text>
                     </View>
                 </View>
-                <View style={styles.loadingContainer}>
-                    <Ionicons name="cloud-done" size={64} color="#16A34A" />
-                    <Text style={{ fontSize: 18, fontWeight: '600', color: '#1E293B', marginTop: 16 }}>
-                        Data already synced
-                    </Text>
-                    <Text style={{ fontSize: 14, color: '#64748B', marginTop: 8, textAlign: 'center', paddingHorizontal: 32 }}>
-                        This record was uploaded to the server and its details were removed from this device.
-                    </Text>
-                </View>
+                <ScrollView contentContainerStyle={{ padding: 24 }}>
+                    <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 24 }}>
+                        <Ionicons name="cloud-done" size={64} color="#16A34A" />
+                        <Text style={{ fontSize: 18, fontWeight: '600', color: '#1E293B', marginTop: 16 }}>
+                            Data already synced
+                        </Text>
+                        <Text style={{ fontSize: 14, color: '#64748B', marginTop: 8, textAlign: 'center' }}>
+                            This record was uploaded to the server and its details were removed from this device.
+                        </Text>
+                    </View>
+                    <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: '#334155', marginBottom: 4 }}>
+                            Kept on this device
+                        </Text>
+                        <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 12 }}>
+                            Contact and location details are never uploaded — this device holds the only copy, for participant follow-up.
+                        </Text>
+                        {retainedRows.map((row) => (
+                            <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
+                                <Text style={{ fontSize: 13, color: '#64748B', marginRight: 12 }}>{row.label}</Text>
+                                <Text style={{ fontSize: 13, color: '#1E293B', fontWeight: '500', flexShrink: 1, textAlign: 'right' }}>{row.value}</Text>
+                            </View>
+                        ))}
+                    </View>
+                </ScrollView>
             </SafeAreaView>
         );
     }
