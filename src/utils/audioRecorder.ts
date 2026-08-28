@@ -42,36 +42,29 @@ export class AudioRecorder {
         const timestamp = Date.now();
         const uniqueFileName = `cough_recording_${timestamp}.wav`;
         
-        // Default capture: 16kHz mono using the library's default audio source
-        // (VOICE_RECOGNITION). The inference pipeline resamples any WAV rate to
-        // 16kHz, so the model requirement is met either way.
+        // Universal capture profile (2026-08-28, data-richness policy): 48kHz
+        // mono 16-bit from VOICE_RECOGNITION — the only source with
+        // spec-mandated processing guarantees (CDD: AGC off, noise
+        // suppression off, ~flat response), at the hardware-native rate so
+        // the device HAL never downsamples. Uploaded WAVs carry the full
+        // 48kHz signal for future model training; the on-device pipeline
+        // resamples to the model's 16kHz itself.
         //
-        // Samsung Galaxy A07 (SM-A07x): field testers reproduced broken cough
-        // capture on multiple A07 units — recordings score <=40% while the mic
-        // works fine in calls and Samsung Voice Recorder. Hypothesis: this
-        // model's 16kHz VOICE_RECOGNITION capture path mangles transients
-        // (aggressive DSP / bad downsampling). On A07 we record from the plain
-        // MIC source at the hardware-native 48kHz instead and let the pipeline
-        // do the downsampling.
-        const model: string = (Platform as any).constants?.Model ?? '';
-        const isGalaxyA07 = /^SM-A07/i.test(model);
-        const options = isGalaxyA07
-          ? {
-              sampleRate: 48000,
-              channels: 1,
-              bitsPerSample: 16,
-              audioSource: 1, // MediaRecorder.AudioSource.MIC
-              wavFile: uniqueFileName
-            }
-          : {
-              sampleRate: 16000, // pipeline target rate; resampled anyway if different
-              channels: 1,
-              bitsPerSample: 16,
-              wavFile: uniqueFileName
-            };
-        if (isGalaxyA07) {
-          console.log(`[AudioRecorder] Galaxy A07 detected (${model}) — using 48kHz MIC capture`);
-        }
+        // History: 16kHz VOICE_RECOGNITION capture scored <=40% on real
+        // coughs on two Galaxy A07 units (2026-08-19); an unverified
+        // MIC@48kHz override was carried until 2026-08-28. Nobody ever
+        // listened to the "botched" audio, and the likelier culprit was the
+        // device-side 16kHz downsampling, so the override was dropped in
+        // favor of one uniform profile — pending direct verification on a
+        // physical A07. If A07 capture regresses, suspect the source, not
+        // the rate.
+        const options = {
+          sampleRate: 48000,
+          channels: 1,
+          bitsPerSample: 16,
+          audioSource: 6, // MediaRecorder.AudioSource.VOICE_RECOGNITION
+          wavFile: uniqueFileName
+        };
         
         console.log('[AudioRecorder] Initializing react-native-audio-record with unique filename:', uniqueFileName);
         console.log('[AudioRecorder] Options:', options);
