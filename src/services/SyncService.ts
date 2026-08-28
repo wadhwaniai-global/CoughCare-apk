@@ -111,25 +111,15 @@ class SyncService {
         ? JSON.parse(participant.analysis_result)
         : null;
 
-      // Parse GPS tag out of packed address field (the address text itself
-      // stays on-device; see the note on formDataObject)
-      const rawAddress = participant.address || '';
-      const gpsMatch = rawAddress.match(/\[GPS:([-\d.]+),([-\d.]+)\]/);
-      const gps_latitude = gpsMatch ? parseFloat(gpsMatch[1]) : null;
-      const gps_longitude = gpsMatch ? parseFloat(gpsMatch[2]) : null;
-
-      // Prepare form_data object with all participant fields
-      // full_name and address are deliberately NOT sent (2026-08-28, data
-      // minimization): full_name only ever duplicates participant_id, and
-      // the free-text address is direct PII the study doesn't need —
-      // gps_latitude/longitude carry the location signal.
+      // PII minimization (2026-08-28): full_name, address, mobile_number and
+      // GPS coordinates are deliberately NOT sent. Contact/location details
+      // for participant follow-up live only on the collector's device (they
+      // survive purge-after-sync); the server-side record is pseudonymous —
+      // participant_id is the only linkage.
       const formDataObject = {
         participant_id: participant.participant_id,
-        mobile_number: participant.mobile_number,
         age: participant.age,
         gender: participant.gender,
-        gps_latitude,
-        gps_longitude,
         date_of_screening: participant.date_of_screening,
         region: participant.region,
         district: participant.district,

@@ -672,6 +672,10 @@ export const getAwaitingDiagnosisParticipants = async (createdBy: string): Promi
  * (participant_id/full_name, mobile, region, created_at, status, owner,
  * analysis_result for the confidence line) and deletes everything else —
  * all form answers and every audio file, rejected takes included.
+ *
+ * Deliberately retained on-device (2026-08-28): mobile_number and address
+ * (which carries the packed [GPS:lat,lng] tag). These are never uploaded —
+ * the device is their only home, kept for participant follow-up.
  */
 export const purgeSyncedParticipantData = async (participantId: string): Promise<void> => {
     const database = await getDB();
@@ -692,7 +696,7 @@ export const purgeSyncedParticipantData = async (participantId: string): Promise
         // NOT NULL columns get '' / 0, nullable ones NULL
         await database.runAsync(
             `UPDATE participants SET
-                age = 0, gender = '', address = NULL, date_of_screening = '',
+                age = 0, gender = '', date_of_screening = '',
                 district = '', facility = '', community = NULL,
                 data_collector_name = '', consent_obtained = 0,
                 diabetes_status = '', hiv_status = '', covid_status = '',
