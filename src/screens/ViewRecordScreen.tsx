@@ -448,7 +448,7 @@ const ViewRecordScreen = () => {
                             Kept on this device
                         </Text>
                         <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 12 }}>
-                            Contact and location details are never uploaded — this device holds the only copy, for participant follow-up.
+                            Contact and location details are never uploaded. This device holds the only copy, for participant follow-up.
                         </Text>
                         {retainedRows.map((row) => (
                             <View key={row.label} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, borderTopWidth: 1, borderTopColor: '#F1F5F9' }}>
