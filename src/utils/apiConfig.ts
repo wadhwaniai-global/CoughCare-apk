@@ -12,16 +12,19 @@
  * EXPO_PUBLIC_API_BASE_URL (via expo.extra.apiBaseUrl) remains an explicit
  * override for local development against a machine-local server.
  *
- * Resolution is deliberately LAZY (first call, then cached) — nothing here
- * runs at module-initialization time. An earlier version computed the URL at
- * module scope and hit a Hermes module-init ordering failure ("undefined is
- * not a function" calling into buildInfo before it was evaluated), which
- * poisoned every importer. Do not reintroduce module-scope work here.
+ * HARD-WON CONSTRAINTS (#72/#73 debugging):
+ * - No module-scope work. Resolution is lazy (first call) and cached.
+ * - Self-contained: reads Updates.channel directly instead of calling
+ *   buildInfo — a cross-module call from here died with "undefined is not a
+ *   function" under Hermes on device (module-init ordering) while the same
+ *   call worked from screens.
+ * - The entire resolution is fault-tolerant: any throw logs the real stack
+ *   and falls back to the TEST backend (never silently to production).
  */
 
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
-import { getBuildInfo } from './buildInfo';
+import * as Updates from 'expo-updates';
 
 const PROD_API_BASE_URL = 'https://api-ghana-cough-prod.waig-tech.dev';
 const TEST_API_BASE_URL = 'https://api-ghana-cough-test.waig-tech.dev';
@@ -35,14 +38,25 @@ let cachedBaseUrl: string | null = null;
 export const getApiBaseUrl = (): string => {
   if (cachedBaseUrl) return cachedBaseUrl;
 
-  const override = Constants.expoConfig?.extra?.apiBaseUrl as string | undefined | null;
-  let baseUrl =
-    override || (getBuildInfo().channel === 'production' ? PROD_API_BASE_URL : TEST_API_BASE_URL);
+  let baseUrl = TEST_API_BASE_URL;
+  try {
+    let channel = 'development';
+    try {
+      channel = Updates.channel || 'development';
+    } catch {
+      // dev client / Expo Go: updates module not configured
+    }
 
-  // On Android, replace 127.0.0.1 or localhost with 10.0.2.2 (emulator host alias)
-  // This only applies to localhost URLs, not production HTTPS URLs
-  if (Platform.OS === 'android' && (baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost'))) {
-    baseUrl = baseUrl.replace(/127\.0\.0\.1|localhost/, '10.0.2.2');
+    const override = Constants.expoConfig?.extra?.apiBaseUrl as string | undefined | null;
+    baseUrl = override || (channel === 'production' ? PROD_API_BASE_URL : TEST_API_BASE_URL);
+
+    // On Android, replace 127.0.0.1 or localhost with 10.0.2.2 (emulator host alias)
+    // This only applies to localhost URLs, not production HTTPS URLs
+    if (Platform.OS === 'android' && (baseUrl.includes('127.0.0.1') || baseUrl.includes('localhost'))) {
+      baseUrl = baseUrl.replace(/127\.0\.0\.1|localhost/, '10.0.2.2');
+    }
+  } catch (error: any) {
+    console.error('[apiConfig] URL resolution failed, using TEST backend:', error, error?.stack);
   }
 
   cachedBaseUrl = baseUrl;
