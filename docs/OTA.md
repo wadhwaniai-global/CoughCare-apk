@@ -47,6 +47,13 @@ something you'd have to roll back.
 | `production` | **Every field data collector** (v1.0.3+ APKs). The live field channel. |
 | `preview` | **Retired.** Only the abandoned pre-cutover fleet (never distributed / written off at the backend cutover) was bound to it. Never publish here. |
 
+Each channel is also bound to its backend **at runtime** (src/utils/apiConfig.ts,
+since 2026-09-02): `production` talks to `api-ghana-cough-prod.waig-tech.dev`,
+`test` and dev builds talk to `api-ghana-cough-test.waig-tech.dev` (an isolated
+instance — internal accounts only). The same bundle is correct on every channel;
+there is no per-publish environment variable. `EXPO_PUBLIC_API_BASE_URL`
+overrides both for local development.
+
 The workflow is always: publish to `test` → verify on the CoughCare Test app
 → then `npm run ota:production` (it makes you type `production` to confirm).
 

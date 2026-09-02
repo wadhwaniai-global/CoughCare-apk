@@ -94,7 +94,10 @@ export default {
       eas: {
         projectId: "b4a88731-0c6b-4aec-a0f5-451585590fad"
       },
-      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || "https://api-ghana-cough-prod.waig-tech.dev",
+      // Explicit override for local dev only. When null, the app derives the
+      // backend from its OTA channel at runtime (src/utils/apiConfig.ts):
+      // production -> prod backend, test/dev -> test backend.
+      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || null,
       logoVersion: process.env.EXPO_PUBLIC_LOGO_VERSION || "1",
       logoAlt: process.env.EXPO_PUBLIC_LOGO_ALT || "AI Cough Screening Assistant"
     }
