@@ -94,10 +94,14 @@ export default {
       eas: {
         projectId: "b4a88731-0c6b-4aec-a0f5-451585590fad"
       },
-      // Explicit override for local dev only. When null, the app derives the
-      // backend from its OTA channel at runtime (src/utils/apiConfig.ts):
-      // production -> prod backend, test/dev -> test backend.
-      apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL || null,
+      // Explicit override for local dev only. When unset, the key is OMITTED
+      // (a null here round-trips through the update manifest as {}, which
+      // broke URL resolution) and the app derives the backend from its OTA
+      // channel at runtime (src/utils/apiConfig.ts): production -> prod
+      // backend, test/dev -> test backend.
+      ...(process.env.EXPO_PUBLIC_API_BASE_URL
+        ? { apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL }
+        : {}),
       logoVersion: process.env.EXPO_PUBLIC_LOGO_VERSION || "1",
       logoAlt: process.env.EXPO_PUBLIC_LOGO_ALT || "AI Cough Screening Assistant"
     }

@@ -47,8 +47,13 @@ export const getApiBaseUrl = (): string => {
       // dev client / Expo Go: updates module not configured
     }
 
-    const override = Constants.expoConfig?.extra?.apiBaseUrl as string | undefined | null;
-    baseUrl = override || (channel === 'production' ? PROD_API_BASE_URL : TEST_API_BASE_URL);
+    // Accept the override ONLY as a non-empty string. The manifest/Constants
+    // layer round-trips a null extra.apiBaseUrl as {} (root cause of the
+    // #72–#74 "undefined is not a function" login crashes: {} is truthy and
+    // {}.includes doesn't exist).
+    const override = Constants.expoConfig?.extra?.apiBaseUrl;
+    const overrideUrl = typeof override === 'string' && override.trim() !== '' ? override : null;
+    baseUrl = overrideUrl || (channel === 'production' ? PROD_API_BASE_URL : TEST_API_BASE_URL);
 
     // On Android, replace 127.0.0.1 or localhost with 10.0.2.2 (emulator host alias)
     // This only applies to localhost URLs, not production HTTPS URLs
@@ -57,6 +62,7 @@ export const getApiBaseUrl = (): string => {
     }
   } catch (error: any) {
     console.error('[apiConfig] URL resolution failed, using TEST backend:', error, error?.stack);
+    baseUrl = TEST_API_BASE_URL; // never cache a half-computed value
   }
 
   cachedBaseUrl = baseUrl;
