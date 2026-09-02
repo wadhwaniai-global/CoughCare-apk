@@ -4,10 +4,10 @@
  */
 
 import { authService } from './AuthService';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { getApiBaseUrl } from '../utils/apiConfig';
 
 // Log the API base URL on module load for debugging
-console.log('[ApiService] Initialized with API_BASE_URL:', API_BASE_URL);
+// NOTE: no module-scope URL resolution here — see utils/apiConfig.ts.
 
 export interface ApiError {
   message: string;
@@ -20,7 +20,7 @@ class ApiService {
    * Get base URL
    */
   getBaseUrl(): string {
-    return API_BASE_URL;
+    return getApiBaseUrl();
   }
 
   /**
@@ -72,7 +72,7 @@ class ApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
+    const url = `${getApiBaseUrl()}${endpoint}`;
     const headers = await this.getAuthHeaders();
 
     // Merge headers
@@ -161,7 +161,7 @@ class ApiService {
       type: 'audio/wav', // Default to WAV, adjust if needed
     } as any);
 
-    const url = `${API_BASE_URL}/files/upload`;
+    const url = `${getApiBaseUrl()}/files/upload`;
     console.log('[ApiService] Uploading file to:', url);
     console.log('[ApiService] File URI:', fileUri);
     
@@ -192,7 +192,7 @@ class ApiService {
       // Provide more helpful error messages
       if (error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
         throw new Error(
-          `Cannot connect to server at ${API_BASE_URL}.\n\n` +
+          `Cannot connect to server at ${getApiBaseUrl()}.\n\n` +
           `Please ensure:\n` +
           `1. Backend server is running\n` +
           `2. If using Android emulator, the URL should use 10.0.2.2\n` +

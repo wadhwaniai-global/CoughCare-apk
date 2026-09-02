@@ -4,7 +4,7 @@
  */
 
 import { Platform } from 'react-native';
-import { API_BASE_URL } from '../utils/apiConfig';
+import { getApiBaseUrl } from '../utils/apiConfig';
 
 // Dynamically import SecureStore to handle cases where native module isn't available
 let SecureStore: any = null;
@@ -89,7 +89,7 @@ class AuthService {
    */
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
     try {
-      const url = `${API_BASE_URL}/auth/login`;
+      const url = `${getApiBaseUrl()}/auth/login`;
       console.log('[AuthService] Attempting login to:', url);
       
       const response = await fetch(url, {
@@ -129,7 +129,7 @@ class AuthService {
       // Provide more helpful error messages
       if (error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
         throw new Error(
-          `Cannot connect to server at ${API_BASE_URL}.\n\n` +
+          `Cannot connect to server at ${getApiBaseUrl()}.\n\n` +
           `Please ensure:\n` +
           `1. Backend server is running\n` +
           `2. If using Android emulator with localhost, use 10.0.2.2 instead of 127.0.0.1\n` +
