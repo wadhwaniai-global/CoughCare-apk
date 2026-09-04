@@ -5,6 +5,7 @@
 
 import React, { createContext, useState, useEffect, useContext, ReactNode } from 'react';
 import { authService, LoginCredentials, UserProfile } from '../services/AuthService';
+import { syncService } from '../services/SyncService';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -48,6 +49,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsAuthenticated(authenticated);
       setUsername(storedUsername);
       setProfile(storedProfile);
+      if (authenticated) {
+        // Continue this collector's participant-ID sequence from the server
+        syncService.seedSequenceFromServer().catch(() => {});
+      }
     } catch (error) {
       console.error('[AuthContext] Error checking auth:', error);
       setIsAuthenticated(false);
@@ -68,6 +73,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsAuthenticated(true);
       setUsername(credentials.username);
       setProfile(response.profile ?? null);
+      // Fresh login (incl. reinstall / new device): pick up where the
+      // server says this collector's ID sequence left off.
+      syncService.seedSequenceFromServer(true).catch(() => {});
     } catch (error) {
       console.error('[AuthContext] Login error:', error);
       setIsAuthenticated(false);

@@ -149,6 +149,15 @@ export const initDatabase = async () => {
         FOREIGN KEY (participant_id) REFERENCES participants (participant_id),
         UNIQUE(participant_id, recording_type)
       );
+
+      -- Highest participant-ID sequence the SERVER already holds per ID prefix,
+      -- fetched at login (see SyncService.seedSequenceFromServer). Lets a
+      -- reinstalled or second device continue a collector's sequence instead
+      -- of restarting at 0001 and colliding with already-synced records.
+      CREATE TABLE IF NOT EXISTS sequence_seeds (
+        prefix TEXT PRIMARY KEY,
+        max_seq INTEGER NOT NULL
+      );
     `);
             console.log('Database initialized successfully (v2)');
 
@@ -486,6 +495,28 @@ export const cleanupDuplicateRecordings = async () => {
     }
 };
 
+export const upsertSequenceSeed = async (prefix: string, maxSeq: number): Promise<void> => {
+    const database = await getDB();
+    await database.runAsync(
+        `INSERT INTO sequence_seeds (prefix, max_seq) VALUES (?, ?)
+         ON CONFLICT(prefix) DO UPDATE SET max_seq = MAX(max_seq, excluded.max_seq)`,
+        [prefix, maxSeq]
+    );
+};
+
+export const getSequenceSeed = async (prefix: string): Promise<number> => {
+    const database = await getDB();
+    try {
+        const row = await database.getFirstAsync<{ max_seq: number }>(
+            `SELECT max_seq FROM sequence_seeds WHERE prefix = ?`,
+            [prefix]
+        );
+        return row?.max_seq ?? 0;
+    } catch {
+        return 0;
+    }
+};
+
 /** Thrown when the logged-in profile carries no collector code; the caller
  *  must block participant creation (Stage 2 of the collector-code rollout). */
 export class MissingCollectorCodeError extends Error {
@@ -540,6 +571,11 @@ export const getNextParticipantId = async (profile: UserProfile | null): Promise
                 if (!isNaN(n) && n > maxSeq) maxSeq = n;
             }
         }
+        // Never fall below what the server already holds for this prefix
+        // (reinstall / second device for the same collector).
+        const seeded = await getSequenceSeed(prefix);
+        if (seeded > maxSeq) maxSeq = seeded;
+
         const nextSeq = String(maxSeq + 1).padStart(4, '0');
         return `${prefix}${nextSeq}`;
     } catch (error) {

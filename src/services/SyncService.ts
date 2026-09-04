@@ -11,6 +11,7 @@ import {
   getPendingParticipants,
   getRecordingsByParticipantId,
   purgeSyncedParticipantData,
+  upsertSequenceSeed,
   getDB,
   Participant,
   Recording,
@@ -34,6 +35,46 @@ export interface SyncResult {
 
 class SyncService {
   private isSyncing = false;
+  private sequenceSeeded = false;
+
+  /**
+   * Seed the local participant-ID sequence from the server (once per app
+   * session, at login / startup). Participant IDs are minted from a
+   * device-local counter, so a reinstalled or second device for the same
+   * collector would restart at 0001 and collide with already-synced
+   * records. GET /forms returns the caller's own forms; the highest
+   * sequence per 17-digit ID prefix is stored and honored by
+   * getNextParticipantId. Best-effort: offline or failing is fine, the
+   * local counter still works.
+   */
+  async seedSequenceFromServer(force = false): Promise<number> {
+    if (this.sequenceSeeded && !force) return 0;
+    if (!(await this.isOnline())) return 0;
+    try {
+      const list = await apiService.get<any>('/forms');
+      const forms: any[] = Array.isArray(list) ? list : (list?.forms || list?.items || []);
+      const maxByPrefix = new Map<string, number>();
+      for (const f of forms) {
+        const pid: unknown = f?.form_data?.participant_id;
+        if (typeof pid !== 'string') continue;
+        // New format only: GHA- + 17-digit prefix + 4-digit seq (legacy
+        // 17-digit IDs cannot collide with new ones).
+        const m = pid.match(/^(GHA-\d{17})(\d{4})$/);
+        if (!m) continue;
+        const seq = parseInt(m[2], 10);
+        if (!isNaN(seq) && seq > (maxByPrefix.get(m[1]) ?? 0)) maxByPrefix.set(m[1], seq);
+      }
+      for (const [prefix, maxSeq] of maxByPrefix) {
+        await upsertSequenceSeed(prefix, maxSeq);
+      }
+      this.sequenceSeeded = true;
+      console.log(`[SequenceSeed] Seeded ${maxByPrefix.size} prefix(es) from ${forms.length} server form(s)`);
+      return maxByPrefix.size;
+    } catch (error) {
+      console.warn('[SequenceSeed] Could not seed from server (will rely on local counter):', error);
+      return 0;
+    }
+  }
   private syncProgressCallback?: (progress: SyncProgress) => void;
 
   /**
@@ -312,6 +353,13 @@ class SyncService {
       }
 
       console.error(`[SyncService] Failed to sync participant ${participantId}:`, error);
+      if (error?.status === 409) {
+        // Server refused a duplicate participant_id. Never create a silent
+        // second copy: the record stays pending for manual resolution.
+        throw new Error(
+          'Duplicate participant ID on the server (409). This record was NOT synced — contact support before retrying.'
+        );
+      }
       throw error;
     }
   }
