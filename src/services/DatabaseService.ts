@@ -486,7 +486,34 @@ export const cleanupDuplicateRecordings = async () => {
     }
 };
 
+/** Thrown when the logged-in profile carries no collector code; the caller
+ *  must block participant creation (Stage 2 of the collector-code rollout). */
+export class MissingCollectorCodeError extends Error {
+    constructor() {
+        super('Your account has no collector code, so participant IDs cannot be created. Please log out and log in again. If this keeps happening, contact your administrator.');
+        this.name = 'MissingCollectorCodeError';
+    }
+}
+
 export const getNextParticipantId = async (profile: UserProfile | null): Promise<string> => {
+    // Pattern: GHA-{region 2}{facility 3}{collector 4}{YYYYMMDD}{seq 4}
+    //
+    // The collector code (backend-assigned, in the login profile) is what
+    // makes IDs unique ACROSS devices: the sequence below is derived from
+    // this device's local DB only, so without it two collectors at the same
+    // facility on the same day would both mint ...0001. Data collectors count
+    // up from 0001; internal accounts count down from 9999.
+    //
+    // Stage 2 (2026-09-04): every account carries a code, so a missing one is
+    // an error — refuse rather than mint a collision-prone legacy ID. Checked
+    // OUTSIDE the try below so the timestamp fallback can never mask it.
+    const rawCode = profile?.collector_code;
+    const collectorCode = typeof rawCode === 'string' && /^\d{4}$/.test(rawCode) ? rawCode : null;
+    if (!collectorCode) {
+        console.warn('[ParticipantId] No collector_code in profile — refusing to mint a participant ID');
+        throw new MissingCollectorCodeError();
+    }
+
     const database = await getDB();
     try {
         const regionCode = getRegionCode(profile?.region);
@@ -498,26 +525,7 @@ export const getNextParticipantId = async (profile: UserProfile | null): Promise
         const dd = String(now.getDate()).padStart(2, '0');
         const dateStr = `${yyyy}${mm}${dd}`;
 
-        // Pattern: GHA-{region 2}{facility 3}{collector 4}{YYYYMMDD}{seq 4}
-        //
-        // The collector code (backend-assigned, in the login profile) is what
-        // makes IDs unique ACROSS devices: the sequence below is derived from
-        // this device's local DB only, so without it two collectors at the
-        // same facility on the same day both mint ...0001.
-        //
-        // Collector codes: data collectors count UP from 0001; internal /
-        // non-collector accounts (admins, testers) count DOWN from 9999, so
-        // the ID alone tells internal records apart.
-        //
-        // Stage 1 rollout: fall back to the legacy 17-digit format when the
-        // profile has no code yet (identical to pre-2026-09 behavior). Stage 2
-        // (once every account carries a code) will refuse instead.
-        const rawCode = profile?.collector_code;
-        const collectorCode = typeof rawCode === 'string' && /^\d{4}$/.test(rawCode) ? rawCode : null;
-        if (!collectorCode) {
-            console.warn('[ParticipantId] No collector_code in profile — using legacy format (cross-device collisions possible)');
-        }
-        const prefix = `GHA-${regionCode}${facilityCode}${collectorCode ?? ''}${dateStr}`;
+        const prefix = `GHA-${regionCode}${facilityCode}${collectorCode}${dateStr}`;
         const rows = await database.getAllAsync<{ participant_id: string }>(
             `SELECT participant_id FROM participants WHERE participant_id LIKE ?`,
             [`${prefix}%`]

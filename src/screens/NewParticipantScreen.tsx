@@ -85,7 +85,7 @@ const NewParticipantScreen = () => {
     });
 
     // Use custom hooks
-    const { formData, setFormData, updateField, updateSymptom } = useParticipantForm(
+    const { formData, setFormData, updateField, updateSymptom, participantIdError } = useParticipantForm(
         draftId ? { participantId: draftId } : undefined,
         profile,
     );
@@ -343,6 +343,27 @@ const NewParticipantScreen = () => {
             return newErrors;
         });
     };
+
+    // No participant ID could be minted (profile without a collector code):
+    // explain and leave the form — nothing can be saved without an ID.
+    React.useEffect(() => {
+        if (!participantIdError) return;
+        setAlertConfig({
+            visible: true,
+            title: 'Cannot Create Participant',
+            message: participantIdError,
+            listItems: [],
+            buttons: [{
+                text: 'OK',
+                onPress: () => {
+                    setAlertConfig(prev => ({ ...prev, visible: false }));
+                    navigation.goBack();
+                },
+            }],
+            icon: 'alert-circle',
+            iconColor: '#EF4444',
+        });
+    }, [participantIdError]);
 
     // Close sections B, C, D if consent is revoked
     React.useEffect(() => {

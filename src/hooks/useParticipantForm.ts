@@ -50,11 +50,20 @@ export const useParticipantForm = (
         ...initialData,
     });
 
+    // Set when no participant ID could be minted (e.g. the profile has no
+    // collector code); the screen must block creation and show this message.
+    const [participantIdError, setParticipantIdError] = useState<string | null>(null);
+
     useEffect(() => {
         if (initialData?.participantId) return;
         const initId = async () => {
-            const id = await getNextParticipantId(profile ?? null);
-            setFormData(prev => ({ ...prev, participantId: id }));
+            try {
+                const id = await getNextParticipantId(profile ?? null);
+                setFormData(prev => ({ ...prev, participantId: id }));
+                setParticipantIdError(null);
+            } catch (error: any) {
+                setParticipantIdError(error?.message || 'Could not create a participant ID.');
+            }
         };
         initId();
     }, [profile]);
@@ -89,6 +98,7 @@ export const useParticipantForm = (
         updateFormData,
         updateField,
         updateSymptom,
+        participantIdError,
     };
 };
 
