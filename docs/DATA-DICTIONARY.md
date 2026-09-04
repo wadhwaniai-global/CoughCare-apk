@@ -59,8 +59,8 @@ a non-Pending result.
 | Field | Type | Values |
 |---|---|---|
 | `test_done` | string | `Yes` \| `No` \| `Not yet` (Not yet never appears on synced records) |
-| `test_type` | string \| null | `GeneXpert` \| `Smear Microscopy` \| `Culture` \| `Chest X-ray` |
-| `test_result` | string \| null | `Positive` \| `Negative` \| `Indeterminate` \| `Inconclusive` \| `Pending` (Inconclusive comes from one editor's mapping; Pending never appears on synced records) |
+| `test_type` | string \| null | `GeneXpert` \| `Smear Microscopy` \| `Culture` \| `Chest X-ray` (main form) \| `Chest X-Ray (CXR)` \| `Other` (record editor) — two editors, two spellings of X-ray; normalize |
+| `test_result` | string \| null | `Positive` \| `Negative` \| `Indeterminate` (main form) \| `Inconclusive` \| `Not done` (record editor) \| `Pending` (never on synced records) |
 | `test_date_collection`, `test_date_result` | string \| null | `DD/MM/YYYY` (main form) **or** `YYYY-MM-DD` (record editor) — mixed formats, normalize when displaying |
 | `test_site` | string \| null | free text |
 | `test_notes` | string \| null | free text |
