@@ -2,8 +2,11 @@
  * Region and facility code lookups for participant ID generation.
  * Codes derived from "ParticipantID Structure Proposal" document.
  *
- * Format: GHA-{regionCode 2 digits}{facilityCode 3 digits}{YYYYMMDD}{seq 4 digits}
- * Example: GHA-020052026MMDD0001  (Greater Accra, International Health Care Center)
+ * Format: GHA-{regionCode 2}{facilityCode 3}{collectorCode 3}{YYYYMMDD}{seq 4}
+ * Example: GHA-02205017 2026MMDD 0001 (spaces for reading only)
+ *   = Greater Accra, International Health Care Center, collector 017.
+ * The collector code comes from the backend-assigned profile field; records
+ * minted before it existed use the legacy 17-digit form without it.
  *
  * Doc table lists facility codes as 4-digit values (e.g., "0205") which combine
  * region+facility-within-region. We take the LAST 3 digits as the facility code.

@@ -15,7 +15,7 @@ recording, WAV).
 
 | Field | Type | Values / format |
 |---|---|---|
-| `participant_id` | string | `GHA-{region}{facility}{YYYYMMDD}{seq}` — pseudonymous study ID, unique, the only participant linkage |
+| `participant_id` | string | `GHA-{region 2}{facility 3}{collector 3}{YYYYMMDD}{seq 4}` (24 chars) — pseudonymous study ID, the only participant linkage. The collector code (backend-assigned per account) makes it unique across devices; records minted before codes existed use the legacy 17-digit form `GHA-{region}{facility}{YYYYMMDD}{seq}` and CAN collide across collectors at one facility on one day (key on `form_id` for those). |
 | `age` | integer | years |
 | `gender` | string | `Male` \| `Female` \| `Transgender` |
 | `date_of_screening` | string | `DD/MM/YYYY` |

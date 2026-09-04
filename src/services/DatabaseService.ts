@@ -498,8 +498,22 @@ export const getNextParticipantId = async (profile: UserProfile | null): Promise
         const dd = String(now.getDate()).padStart(2, '0');
         const dateStr = `${yyyy}${mm}${dd}`;
 
-        // Pattern: GHA-{regionCode}{facilityCode}{dateStr}{4-digit seq}
-        const prefix = `GHA-${regionCode}${facilityCode}${dateStr}`;
+        // Pattern: GHA-{region 2}{facility 3}{collector 3}{YYYYMMDD}{seq 4}
+        //
+        // The collector code (backend-assigned, in the login profile) is what
+        // makes IDs unique ACROSS devices: the sequence below is derived from
+        // this device's local DB only, so without it two collectors at the
+        // same facility on the same day both mint ...0001.
+        //
+        // Stage 1 rollout: fall back to the legacy 17-digit format when the
+        // profile has no code yet (identical to pre-2026-09 behavior). Stage 2
+        // (once every account carries a code) will refuse instead.
+        const rawCode = profile?.collector_code;
+        const collectorCode = typeof rawCode === 'string' && /^\d{3}$/.test(rawCode) ? rawCode : null;
+        if (!collectorCode) {
+            console.warn('[ParticipantId] No collector_code in profile — using legacy format (cross-device collisions possible)');
+        }
+        const prefix = `GHA-${regionCode}${facilityCode}${collectorCode ?? ''}${dateStr}`;
         const rows = await database.getAllAsync<{ participant_id: string }>(
             `SELECT participant_id FROM participants WHERE participant_id LIKE ?`,
             [`${prefix}%`]

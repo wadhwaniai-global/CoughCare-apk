@@ -28,6 +28,10 @@ export interface UserProfile {
   district: string;
   country: string;
   user_type: string;
+  /** 3-digit collector code assigned by the backend (admin), unique per
+   *  account. Part of every participant ID this collector mints. Optional
+   *  until all accounts carry one (Stage 1 rollout). */
+  collector_code?: string;
 }
 
 // Token storage: hardware-backed SecureStore on native, AsyncStorage on web
