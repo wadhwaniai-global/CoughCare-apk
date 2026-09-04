@@ -51,7 +51,15 @@ class SyncService {
     if (this.sequenceSeeded && !force) return 0;
     if (!(await this.isOnline())) return 0;
     try {
-      const list = await apiService.get<any>('/forms');
+      // GET /forms is unpaginated and, since 2026-09-04, returns only
+      // participant_id per form (no clinical data ever travels back to a
+      // device). ?since= filters by server receipt date in UTC (= Ghana
+      // time); we ask from YESTERDAY's device date so a device-clock vs UTC
+      // skew around midnight cannot hide a same-prefix form. A few hundred
+      // bytes per call.
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const sinceStr = `${since.getFullYear()}-${String(since.getMonth() + 1).padStart(2, '0')}-${String(since.getDate()).padStart(2, '0')}`;
+      const list = await apiService.get<any>(`/forms?since=${sinceStr}`);
       const forms: any[] = Array.isArray(list) ? list : (list?.forms || list?.items || []);
       const maxByPrefix = new Map<string, number>();
       for (const f of forms) {
