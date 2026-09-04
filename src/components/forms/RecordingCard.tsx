@@ -170,7 +170,7 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
                 ]}>
                     {remaining > 0
                         ? `Record at least ${remaining} more seconds`
-                        : "✓ Minimum reached — auto-stops at 1:00"}
+                        : "✓ Minimum reached. Auto-stops at 1:00"}
                 </Text>
             )}
 

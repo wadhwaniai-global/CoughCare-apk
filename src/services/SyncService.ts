@@ -372,7 +372,7 @@ class SyncService {
         // it (and nowhere else), and leave it pending.
         await setSyncConflict(participantId, true);
         throw new Error(
-          'Duplicate participant ID on the server (409). This record was NOT synced — open it and use Re-issue Participant ID.'
+          'Duplicate participant ID on the server (409). This record was NOT synced. Open it and use Re-issue Participant ID.'
         );
       }
       throw error;

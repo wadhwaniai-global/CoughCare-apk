@@ -324,7 +324,7 @@ const DashboardScreen = () => {
                         <View>
                             <Text style={styles.sectionLabel}>Last Sync</Text>
                             <Text style={styles.syncTime}>
-                                {lastSyncTime || '—'}
+                                {lastSyncTime || 'Not yet'}
                             </Text>
                         </View>
                         <TouchableOpacity
