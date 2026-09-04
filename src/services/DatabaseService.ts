@@ -513,7 +513,7 @@ export const getNextParticipantId = async (profile: UserProfile | null): Promise
         // profile has no code yet (identical to pre-2026-09 behavior). Stage 2
         // (once every account carries a code) will refuse instead.
         const rawCode = profile?.collector_code;
-        const collectorCode = typeof rawCode === 'string' && /^\d{3}$/.test(rawCode) ? rawCode : null;
+        const collectorCode = typeof rawCode === 'string' && /^\d{4}$/.test(rawCode) ? rawCode : null;
         if (!collectorCode) {
             console.warn('[ParticipantId] No collector_code in profile — using legacy format (cross-device collisions possible)');
         }
