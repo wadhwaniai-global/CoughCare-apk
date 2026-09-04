@@ -46,6 +46,8 @@ export interface Participant {
     synced?: number;
     status?: string; // draft, awaiting_diagnosis, pending (ready to sync), synced
     purged?: number; // 1 = synced and stripped to dashboard-display fields only
+    sync_conflict?: number; // 1 = server rejected this participant_id as a duplicate (409); enables Re-issue ID
+    previous_participant_id?: string | null; // set when the ID was re-issued after a 409 (lineage, also sent to server)
     analysis_result?: string | null; // JSON string for ONNX result
     file_ids?: string | null; // JSON array of file IDs from server
     sync_attempts?: number; // Number of sync attempts
@@ -131,7 +133,9 @@ export const initDatabase = async () => {
         last_sync_attempt TEXT,
         server_participant_id TEXT, -- Server-side ID after sync
         created_by TEXT, -- Login username that created the record (local-only)
-        purged INTEGER DEFAULT 0 -- synced + stripped to dashboard fields only
+        purged INTEGER DEFAULT 0, -- synced + stripped to dashboard fields only
+        sync_conflict INTEGER DEFAULT 0, -- 409 duplicate participant_id from server
+        previous_participant_id TEXT -- prior ID when re-issued after a 409
       );
 
       CREATE TABLE IF NOT EXISTS recordings (
@@ -202,6 +206,8 @@ const migrateDatabase = async () => {
             { name: 'recurring_tb', sql: `ALTER TABLE participants ADD COLUMN recurring_tb INTEGER` },
             { name: 'created_by', sql: `ALTER TABLE participants ADD COLUMN created_by TEXT` },
             { name: 'purged', sql: `ALTER TABLE participants ADD COLUMN purged INTEGER DEFAULT 0` },
+            { name: 'sync_conflict', sql: `ALTER TABLE participants ADD COLUMN sync_conflict INTEGER DEFAULT 0` },
+            { name: 'previous_participant_id', sql: `ALTER TABLE participants ADD COLUMN previous_participant_id TEXT` },
         ];
 
         for (const migration of migrations) {
@@ -526,14 +532,40 @@ export class MissingCollectorCodeError extends Error {
     }
 }
 
+/**
+ * Next 4-digit sequence for an ID prefix: one past the highest sequence
+ * known locally OR seeded from the server for that prefix.
+ */
+const nextSequenceForPrefix = async (prefix: string): Promise<string> => {
+    const database = await getDB();
+    const rows = await database.getAllAsync<{ participant_id: string }>(
+        `SELECT participant_id FROM participants WHERE participant_id LIKE ?`,
+        [`${prefix}%`]
+    );
+    let maxSeq = 0;
+    const seqRegex = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d{4})$`);
+    for (const row of rows) {
+        const m = row.participant_id.match(seqRegex);
+        if (m) {
+            const n = parseInt(m[1], 10);
+            if (!isNaN(n) && n > maxSeq) maxSeq = n;
+        }
+    }
+    // Never fall below what the server already holds for this prefix
+    // (reinstall / second device for the same collector).
+    const seeded = await getSequenceSeed(prefix);
+    if (seeded > maxSeq) maxSeq = seeded;
+    return String(maxSeq + 1).padStart(4, '0');
+};
+
 export const getNextParticipantId = async (profile: UserProfile | null): Promise<string> => {
     // Pattern: GHA-{region 2}{facility 3}{collector 4}{YYYYMMDD}{seq 4}
     //
     // The collector code (backend-assigned, in the login profile) is what
-    // makes IDs unique ACROSS devices: the sequence below is derived from
-    // this device's local DB only, so without it two collectors at the same
-    // facility on the same day would both mint ...0001. Data collectors count
-    // up from 0001; internal accounts count down from 9999.
+    // makes IDs unique ACROSS devices: the sequence is derived from this
+    // device's local DB (plus the server seed), so without it two collectors
+    // at the same facility on the same day would both mint ...0001. Data
+    // collectors count up from 0001; internal accounts count down from 9999.
     //
     // Stage 2 (2026-09-04): every account carries a code, so a missing one is
     // an error — refuse rather than mint a collision-prone legacy ID. Checked
@@ -545,7 +577,6 @@ export const getNextParticipantId = async (profile: UserProfile | null): Promise
         throw new MissingCollectorCodeError();
     }
 
-    const database = await getDB();
     try {
         const regionCode = getRegionCode(profile?.region);
         const facilityCode = getFacilityCode(profile?.facility);
@@ -557,32 +588,59 @@ export const getNextParticipantId = async (profile: UserProfile | null): Promise
         const dateStr = `${yyyy}${mm}${dd}`;
 
         const prefix = `GHA-${regionCode}${facilityCode}${collectorCode}${dateStr}`;
-        const rows = await database.getAllAsync<{ participant_id: string }>(
-            `SELECT participant_id FROM participants WHERE participant_id LIKE ?`,
-            [`${prefix}%`]
-        );
-
-        let maxSeq = 0;
-        const seqRegex = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d{4})$`);
-        for (const row of rows) {
-            const m = row.participant_id.match(seqRegex);
-            if (m) {
-                const n = parseInt(m[1], 10);
-                if (!isNaN(n) && n > maxSeq) maxSeq = n;
-            }
-        }
-        // Never fall below what the server already holds for this prefix
-        // (reinstall / second device for the same collector).
-        const seeded = await getSequenceSeed(prefix);
-        if (seeded > maxSeq) maxSeq = seeded;
-
-        const nextSeq = String(maxSeq + 1).padStart(4, '0');
-        return `${prefix}${nextSeq}`;
+        return `${prefix}${await nextSequenceForPrefix(prefix)}`;
     } catch (error) {
         console.error("Error generating next participant ID:", error);
         // Fallback: timestamp-based unique ID to avoid collision
         return `GHA-00000000000000${Date.now()}`.slice(0, 23);
     }
+};
+
+/** Flag (or clear) a record whose participant_id the server rejected as a
+ *  duplicate (409). The flag is the ONLY thing that makes the Re-issue ID
+ *  remedy visible in the UI. */
+export const setSyncConflict = async (participantId: string, conflict: boolean): Promise<void> => {
+    const database = await getDB();
+    try {
+        await database.runAsync(
+            `UPDATE participants SET sync_conflict = ? WHERE participant_id = ?`,
+            [conflict ? 1 : 0, participantId]
+        );
+    } catch (error) {
+        console.warn('[DB] Could not set sync_conflict:', error);
+    }
+};
+
+/**
+ * Re-issue a participant ID after a 409: keep the record's original prefix
+ * (collector code + mint date) and take the next sequence the device and the
+ * server-seed agree is free. Caller should re-seed that prefix from the
+ * server first. Renames the participant row and all its recordings
+ * atomically, records the old ID for lineage, and clears the conflict flag.
+ * Returns the new ID.
+ */
+export const reissueParticipantId = async (oldId: string, profile: UserProfile | null): Promise<string> => {
+    const database = await getDB();
+    const m = oldId.match(/^(GHA-\d{17})(\d{4})$/);
+    // New-format IDs keep their prefix; anything else (legacy) is re-minted for today.
+    const newId = m ? `${m[1]}${await nextSequenceForPrefix(m[1])}` : await getNextParticipantId(profile);
+    if (newId === oldId) throw new Error('Re-issue produced the same ID');
+
+    await database.withTransactionAsync(async () => {
+        await database.runAsync(
+            `UPDATE recordings SET participant_id = ? WHERE participant_id = ?`,
+            [newId, oldId]
+        );
+        await database.runAsync(
+            `UPDATE participants
+             SET participant_id = ?, full_name = ?, previous_participant_id = ?, sync_conflict = 0,
+                 sync_attempts = 0, last_sync_attempt = NULL
+             WHERE participant_id = ?`,
+            [newId, newId, oldId, oldId]
+        );
+    });
+    console.log(`[ParticipantId] Re-issued ${oldId} -> ${newId}`);
+    return newId;
 };
 
 

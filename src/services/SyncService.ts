@@ -12,6 +12,7 @@ import {
   getRecordingsByParticipantId,
   purgeSyncedParticipantData,
   upsertSequenceSeed,
+  setSyncConflict,
   getDB,
   Participant,
   Recording,
@@ -47,7 +48,7 @@ class SyncService {
    * getNextParticipantId. Best-effort: offline or failing is fine, the
    * local counter still works.
    */
-  async seedSequenceFromServer(force = false): Promise<number> {
+  async seedSequenceFromServer(force = false, sinceOverride?: string): Promise<number> {
     if (this.sequenceSeeded && !force) return 0;
     if (!(await this.isOnline())) return 0;
     try {
@@ -58,7 +59,8 @@ class SyncService {
       // skew around midnight cannot hide a same-prefix form. A few hundred
       // bytes per call.
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      const sinceStr = `${since.getFullYear()}-${String(since.getMonth() + 1).padStart(2, '0')}-${String(since.getDate()).padStart(2, '0')}`;
+      const sinceStr = sinceOverride
+        ?? `${since.getFullYear()}-${String(since.getMonth() + 1).padStart(2, '0')}-${String(since.getDate()).padStart(2, '0')}`;
       const list = await apiService.get<any>(`/forms?since=${sinceStr}`);
       const forms: any[] = Array.isArray(list) ? list : (list?.forms || list?.items || []);
       const maxByPrefix = new Map<string, number>();
@@ -167,6 +169,8 @@ class SyncService {
       // participant_id is the only linkage.
       const formDataObject = {
         participant_id: participant.participant_id,
+        // Present only when the ID was re-issued after a server 409 (lineage)
+        ...(participant.previous_participant_id ? { previous_participant_id: participant.previous_participant_id } : {}),
         age: participant.age,
         gender: participant.gender,
         date_of_screening: participant.date_of_screening,
@@ -304,6 +308,7 @@ class SyncService {
         `UPDATE participants 
          SET synced = 1, 
              status = 'synced',
+             sync_conflict = 0,
              sync_attempts = COALESCE(sync_attempts, 0) + 1
          WHERE participant_id = ?`,
         [participantId]
@@ -363,9 +368,11 @@ class SyncService {
       console.error(`[SyncService] Failed to sync participant ${participantId}:`, error);
       if (error?.status === 409) {
         // Server refused a duplicate participant_id. Never create a silent
-        // second copy: the record stays pending for manual resolution.
+        // second copy: flag the record so the Re-issue ID remedy appears on
+        // it (and nowhere else), and leave it pending.
+        await setSyncConflict(participantId, true);
         throw new Error(
-          'Duplicate participant ID on the server (409). This record was NOT synced — contact support before retrying.'
+          'Duplicate participant ID on the server (409). This record was NOT synced — open it and use Re-issue Participant ID.'
         );
       }
       throw error;

@@ -23,7 +23,9 @@ import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navig
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { getParticipantById, getRecordingsByParticipantId, saveParticipant, Participant, Recording } from '../services/DatabaseService';
+import { getParticipantById, getRecordingsByParticipantId, saveParticipant, reissueParticipantId, Participant, Recording } from '../services/DatabaseService';
+import { syncService } from '../services/SyncService';
+import { useAuth } from '../contexts/AuthContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { CustomAlert } from '../components/ui/CustomAlert';
 import { AudioPlayButton } from '../components/ui/AudioPlayButton';
@@ -39,6 +41,54 @@ const ViewRecordScreen = () => {
     const route = useRoute<ViewRecordScreenRouteProp>();
     const insets = useSafeAreaInsets();
     const participantId = route.params?.participantId;
+    const { profile } = useAuth();
+    const [reissuing, setReissuing] = useState(false);
+
+    /**
+     * Re-issue the participant ID after the server rejected it as a duplicate
+     * (409). Only reachable via the conflict notice, which only renders when
+     * sync_conflict is set — invisible in normal use. Re-seeds this record's
+     * ID prefix from the server first so the new sequence is past anything
+     * already stored there, then renames the record + recordings atomically.
+     */
+    const handleReissueId = () => {
+        if (!participant) return;
+        const oldId = participant.participant_id;
+        Alert.alert(
+            'Re-issue Participant ID?',
+            `The server already has a record with ID ${oldId}. A new ID will be assigned to this record so it can be synced.\n\nIf the old ID was written on any paper forms, update them with the new ID.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Re-issue',
+                    onPress: async () => {
+                        try {
+                            setReissuing(true);
+                            // Seed from the record's own mint date (from the ID prefix), minus a day for clock skew
+                            const m = oldId.match(/^GHA-\d{9}(\d{4})(\d{2})(\d{2})\d{4}$/);
+                            if (m) {
+                                const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]) - 1);
+                                const since = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                                await syncService.seedSequenceFromServer(true, since);
+                            } else {
+                                await syncService.seedSequenceFromServer(true);
+                            }
+                            const newId = await reissueParticipantId(oldId, profile ?? null);
+                            navigation.setParams({ participantId: newId });
+                            Alert.alert(
+                                'New Participant ID',
+                                `New ID: ${newId}\n(was ${oldId})\n\nThe record can now be synced. Update any paper forms that carry the old ID.`
+                            );
+                        } catch (error: any) {
+                            Alert.alert('Re-issue failed', error?.message || 'Could not re-issue the participant ID.');
+                        } finally {
+                            setReissuing(false);
+                        }
+                    },
+                },
+            ]
+        );
+    };
 
     const [participant, setParticipant] = useState<Participant | null>(null);
     const [recordings, setRecordings] = useState<Recording[]>([]);
@@ -501,6 +551,29 @@ const ViewRecordScreen = () => {
                     contentContainerStyle={{ paddingBottom: 40 }}
                     keyboardShouldPersistTaps="handled"
                 >
+                    {/* Duplicate-ID remedy. Renders ONLY when the server rejected
+                        this record's participant_id with a 409 during sync. */}
+                    {participant.sync_conflict === 1 && participant.status === 'pending' && (
+                        <View style={{ backgroundColor: '#FEF2F2', borderColor: '#FECACA', borderWidth: 1, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                                <Ionicons name="alert-circle" size={20} color="#B91C1C" style={{ marginRight: 8 }} />
+                                <Text style={{ fontSize: 15, fontWeight: '700', color: '#B91C1C' }}>Participant ID conflict</Text>
+                            </View>
+                            <Text style={{ fontSize: 13, color: '#7F1D1D', lineHeight: 19 }}>
+                                The server already holds a record with this participant ID, so this record could not be synced. Re-issue a new ID to continue.
+                            </Text>
+                            <TouchableOpacity
+                                onPress={handleReissueId}
+                                disabled={reissuing}
+                                style={{ marginTop: 12, backgroundColor: '#B91C1C', borderRadius: 8, paddingVertical: 12, alignItems: 'center', opacity: reissuing ? 0.6 : 1 }}
+                            >
+                                {reissuing
+                                    ? <ActivityIndicator size="small" color="white" />
+                                    : <Text style={{ color: 'white', fontWeight: '700' }}>Re-issue Participant ID</Text>}
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
                     {/* Individual Details */}
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>

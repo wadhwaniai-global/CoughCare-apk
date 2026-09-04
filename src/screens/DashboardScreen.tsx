@@ -61,6 +61,7 @@ const DashboardScreen = () => {
                 status: p.analysis_result ? (JSON.parse(p.analysis_result).coughDetected ? "Cough Detected" : "No Cough") : "Pending",
                 region: p.region,
                 recordStatus: p.status || 'pending',
+                syncConflict: p.sync_conflict === 1,
                 analysis: p.analysis_result ? JSON.parse(p.analysis_result) : null
             }));
             setRecentCases(formattedCases);
@@ -394,7 +395,12 @@ const DashboardScreen = () => {
                                         <Text style={styles.caseName} numberOfLines={1} ellipsizeMode="tail">{item.id}</Text>
                                         <Text style={styles.caseId}>{item.phone}</Text>
                                     </View>
-                                    <View style={{ flexShrink: 0 }}>
+                                    <View style={{ flexShrink: 0, alignItems: 'flex-end' }}>
+                                        {item.syncConflict && (
+                                            <View style={[styles.statusBadge, { backgroundColor: '#FEE2E2', marginBottom: 4 }]}>
+                                                <Text style={[styles.statusText, { color: '#B91C1C' }]}>ID Conflict</Text>
+                                            </View>
+                                        )}
                                         <View style={[
                                             styles.statusBadge,
                                             item.recordStatus === 'pending' ? { backgroundColor: '#E0F2FE' } :
