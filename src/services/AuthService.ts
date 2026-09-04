@@ -28,9 +28,10 @@ export interface UserProfile {
   district: string;
   country: string;
   user_type: string;
-  /** 3-digit collector code assigned by the backend (admin), unique per
-   *  account. Part of every participant ID this collector mints. Optional
-   *  until all accounts carry one (Stage 1 rollout). */
+  /** 4-digit collector code assigned by the backend (admin), unique per
+   *  account: data collectors 0001 upward, internal accounts 9999 downward.
+   *  Part of every participant ID this user mints. Optional until all
+   *  accounts carry one (Stage 1 rollout). */
   collector_code?: string;
 }
 

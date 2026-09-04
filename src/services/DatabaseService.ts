@@ -498,12 +498,16 @@ export const getNextParticipantId = async (profile: UserProfile | null): Promise
         const dd = String(now.getDate()).padStart(2, '0');
         const dateStr = `${yyyy}${mm}${dd}`;
 
-        // Pattern: GHA-{region 2}{facility 3}{collector 3}{YYYYMMDD}{seq 4}
+        // Pattern: GHA-{region 2}{facility 3}{collector 4}{YYYYMMDD}{seq 4}
         //
         // The collector code (backend-assigned, in the login profile) is what
         // makes IDs unique ACROSS devices: the sequence below is derived from
         // this device's local DB only, so without it two collectors at the
         // same facility on the same day both mint ...0001.
+        //
+        // Collector codes: data collectors count UP from 0001; internal /
+        // non-collector accounts (admins, testers) count DOWN from 9999, so
+        // the ID alone tells internal records apart.
         //
         // Stage 1 rollout: fall back to the legacy 17-digit format when the
         // profile has no code yet (identical to pre-2026-09 behavior). Stage 2
