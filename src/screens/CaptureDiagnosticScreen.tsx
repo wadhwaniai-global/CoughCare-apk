@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import * as FileSystem from 'expo-file-system/legacy';
 import { AudioRecorder, getCaptureProfile } from '../utils/audioRecorder';
+import { computeAudioQuality, describeQuality, AudioQuality } from '../utils/audioQuality';
 import { detectCoughFromUrl } from '../utils/onnxInference';
 
 const TAKE_SECONDS = 12;
@@ -30,6 +31,7 @@ interface Take {
     probability: number | null;
     path: string;
     exported: string; // exported file name, or an error/skip note
+    quality: AudioQuality | null;
 }
 
 const CaptureDiagnosticScreen = () => {
@@ -72,6 +74,7 @@ const CaptureDiagnosticScreen = () => {
             }
             setCountdown(0);
             const path = await recorderRef.current.stop();
+            const quality = await computeAudioQuality(path, recorderRef.current.getLastTakeWallSeconds());
             let probability: number | null = null;
             try {
                 const res = await detectCoughFromUrl(path);
@@ -82,7 +85,7 @@ const CaptureDiagnosticScreen = () => {
             const stamp = new Date();
             const hhmmss = `${String(stamp.getHours()).padStart(2, '0')}${String(stamp.getMinutes()).padStart(2, '0')}${String(stamp.getSeconds()).padStart(2, '0')}`;
             const exported = await exportWav(path, `diag_${source.short}_${hhmmss}.wav`);
-            setTakes((prev) => [{ key: `${source.short}-${stamp.getTime()}`, source: source.name, seconds: TAKE_SECONDS, probability, path, exported }, ...prev]);
+            setTakes((prev) => [{ key: `${source.short}-${stamp.getTime()}`, source: source.name, seconds: TAKE_SECONDS, probability, path, exported, quality }, ...prev]);
         } catch (e: any) {
             Alert.alert(`${source.name} failed`, e?.message || String(e));
         } finally {
@@ -135,6 +138,7 @@ const CaptureDiagnosticScreen = () => {
                             </Text>
                         </View>
                         <Text style={styles.takeMeta}>{t.seconds}s · {t.exported}</Text>
+                        <Text style={styles.takeMeta}>{describeQuality(t.quality)}</Text>
                         <Text style={styles.takePath} numberOfLines={1}>{t.path.split('/').pop()}</Text>
                     </View>
                 ))}

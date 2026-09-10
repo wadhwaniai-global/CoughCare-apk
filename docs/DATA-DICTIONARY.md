@@ -102,12 +102,47 @@ be added to the version notes below.
 | `confidence` | number 0–1 \| null | that take's own score; null for `background` (never scored) |
 | `duration` | number \| null | seconds |
 | `audio_source` | string \| null | `MIC` \| `VOICE_RECOGNITION`: the Android microphone path used for this take. Fleet policy since 2026-09-10 is `MIC` on every device (uniform training data; VOICE_RECOGNITION was found to mangle cough audio on the Galaxy A07). Null on takes recorded before this field existed; `VOICE_RECOGNITION` only on pre-policy takes. |
+| `quality` | object \| null | On-device signal metrics for this take, computed once from the PCM right after recording (schema below). Null when the app could not compute them (never blocks the take). Absent on records from seq < 99. |
+
+### `recordings[].quality` object
+
+Purpose: catch a device model whose microphone path misbehaves (gain control,
+clipping, an unusually quiet path, or the record-start dead time seen on the
+Galaxy A07) from the metadata alone, grouped by `device_model` / `device_build`.
+All levels are dBFS (0 = full scale, more negative = quieter), rounded to 0.1 dB.
+
+| Field | Type | Meaning |
+|---|---|---|
+| `v` | 1 | schema version of this object |
+| `sample_rate` | number | Hz, from the WAV header (48000 on current builds) |
+| `file_seconds` | number | audio length implied by the file |
+| `wall_seconds` | number \| null | how long the recorder actually ran. `file_seconds` noticeably above `wall_seconds` means the platform padded zeros while the input started (A07: 6 s take gave 9 to 31 s files) |
+| `leading_zero_seconds` | number | exact-zero samples at the start of the file. This is the record-start dead time: any cough made during it was NOT captured. A07 MIC: 0 to 1.3 s; A07 VOICE_RECOGNITION: up to 5 s |
+| `interior_zero_seconds` | number | total length of exact-zero runs of 20 ms or more after the leading block (dropouts / buffer underruns; 0 on a healthy device) |
+| `peak_dbfs` | number \| null | loudest sample. Around -6 for a close cough on the A07; 0 means saturation |
+| `rms_dbfs` | number \| null | average level over the real audio (leading zeros excluded) |
+| `clipped_ratio` | number | fraction of real-audio samples at full scale. 0 on a healthy path; sustained values above about 0.001 mean the path is too hot |
+| `noise_floor_dbfs` | number \| null | 10th percentile of 20 ms frame levels over the real audio (exact-zero dropout frames excluded), i.e. the quiet-frame level. A07 MIC: -70 to -75 in a quiet room; A07 VOICE_RECOGNITION: -43 (its gain control lifts the floor). A floor far above the fleet median with a normal peak suggests gain control or noise pumping; a peak AND floor both far below suggest an unamplified path |
+| `floor_pre_dbfs` | number \| null | noise floor of the first quarter of the real audio |
+| `floor_post_dbfs` | number \| null | noise floor of the last quarter. A floor that moves by many dB within one take is the signature of automatic gain control / compression (the processing that made VOICE_RECOGNITION unusable) |
+
+Null floors: the take had under 0.5 s of real audio. Values are per take;
+`background` takes give the cleanest floor read (no cough energy), cough takes
+give the peak / clipping read.
+
+Suggested dashboard checks (per `device_model`, then per `device_build`):
+median and spread of `leading_zero_seconds`, `noise_floor_dbfs`,
+`peak_dbfs`, share of takes with `clipped_ratio > 0.001`, share with
+`interior_zero_seconds > 0`, and `|floor_post_dbfs - floor_pre_dbfs|`. A model
+that stands out on any of these is the one to inspect before trusting its
+recordings as training data.
 
 ## form_data — build provenance
 
 | Field | Type | Notes |
 |---|---|---|
 | `device_model` | string | Android model string, e.g. `SM-A075F` (not PII). Use with `recordings[].audio_source` for per-model score distributions and fleet composition. |
+| `device_build` | string | Android build fingerprint, e.g. `samsung/a07insxx/a07:16/BP2A.250705.008/A075FXXS3BYH2:user/release-keys`. Pins the firmware, and so the audio HAL tuning: two phones with the same `device_model` can differ here. Contains no device serial. Absent on records from seq < 99. |
 | `app_channel` | string | `production` (field) \| `test` (tester sandbox) \| `preview` (retired pre-cutover) \| `development` |
 | `app_bundle_seq` | string | monotonic build number (git commit count) — the key for the version notes below |
 | `app_update_id` | string | 8-char OTA update id or `embedded` |
@@ -138,6 +173,7 @@ post-sync purge there. Server-side records are pseudonymous.
 | seq < 65 | payload includes `full_name` and `address` |
 | seq < 68 | payload includes `mobile_number`, `gps_latitude`, `gps_longitude` |
 | seq < 67 | audio is 16 kHz |
+| seq < 99 | no `recordings[].quality` object and no `device_build` |
 | CED detector builds (test channel #92+; main seq TBD) | `analysis_result` has no `segment_probabilities`/`num_segments`; `threshold_used` = 0.4758; per-recording `confidence` values come from a different model and are not comparable with earlier scores |
 
 **Exclude internal data** (backend guidance, 2026-08): drop forms where

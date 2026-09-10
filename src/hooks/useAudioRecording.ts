@@ -8,12 +8,17 @@ import { Audio } from 'expo-av';
 import { detectCoughFromUrl } from '../utils/onnxInference';
 import { AnalysisResult } from '../types/participantForm';
 import { AudioRecorder } from '../utils/audioRecorder';
+import { computeAudioQuality, AudioQuality } from '../utils/audioQuality';
 
 export const useAudioRecording = () => {
     const [activeRecordingKey, setActiveRecordingKey] = useState<string | null>(null);
     const [recordingDuration, setRecordingDuration] = useState(0);
     const [recordedDurations, setRecordedDurations] = useState<Record<string, number>>({});
     const [analysisResults, setAnalysisResults] = useState<Record<string, AnalysisResult>>({});
+    // Signal metrics per take (level, clipping, noise floor, start-up zero
+    // padding), uploaded with the recording so the dashboard can catch a
+    // device model whose microphone path misbehaves. null = not computed.
+    const [takeQuality, setTakeQuality] = useState<Record<string, AudioQuality | null>>({});
 
     const recorderRef = useRef<AudioRecorder | null>(null);
     const recordingInterval = useRef<NodeJS.Timeout | null>(null);
@@ -102,6 +107,12 @@ export const useAudioRecording = () => {
             if (uri) {
                 setRecordedDurations(prev => ({ ...prev, [key]: finalDuration }));
 
+                // Cheap (one pass over the PCM) and fail-safe: a null never
+                // blocks the take. Awaited so the metrics exist by the time
+                // the form can be saved.
+                const quality = await computeAudioQuality(uri, recorderRef.current.getLastTakeWallSeconds());
+                setTakeQuality(prev => ({ ...prev, [key]: quality }));
+
                 // The ambient clip is never scored for cough — SectionD renders no
                 // analysis for it — and it is the longest recording in the form
                 // (10s minimum), so running the ONNX pipeline on it is pure cost and
@@ -133,6 +144,11 @@ export const useAudioRecording = () => {
             const newResults = { ...prev };
             delete newResults[key];
             return newResults;
+        });
+        setTakeQuality(prev => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
         });
     };
 
@@ -200,6 +216,7 @@ export const useAudioRecording = () => {
         recordingDuration,
         recordedDurations,
         analysisResults,
+        takeQuality,
         startRecording,
         stopRecording,
         clearRecording,

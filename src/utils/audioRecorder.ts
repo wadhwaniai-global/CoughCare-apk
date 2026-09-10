@@ -21,6 +21,14 @@ export interface CaptureProfile {
 export const getDeviceModel = (): string =>
   String((Platform as any).constants?.Model ?? (Platform as any).constants?.model ?? 'unknown');
 
+/** Android build fingerprint, e.g.
+ *  "samsung/a07insxx/a07:16/BP2A.250705.008/A075FXXS3BYH2:user/release-keys".
+ *  Identifies the exact firmware (and so the audio HAL tuning) of a device
+ *  model; two phones with the same model string can differ here. Contains
+ *  no serial number or other identifier of the individual device. */
+export const getDeviceBuild = (): string =>
+  String((Platform as any).constants?.Fingerprint ?? 'unknown');
+
 /**
  * ONE capture profile for the whole fleet: 48 kHz mono 16-bit from the MIC
  * source. Decided 2026-09-10: the recordings are training data for a future
@@ -45,6 +53,15 @@ export class AudioRecorder {
   private recordingUri: string | null = null;
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
+  /** How long the most recent take actually ran, in seconds. Compared with
+   *  the file length by the quality metrics: on the Galaxy A07 the file is
+   *  longer than the wall clock because the platform pads zeros while the
+   *  input starts up. */
+  private lastTakeWallSeconds: number | null = null;
+
+  getLastTakeWallSeconds(): number | null {
+    return this.lastTakeWallSeconds;
+  }
 
   /**
    * @param sourceOverride Diagnostic use only (test builds): record from a
@@ -109,6 +126,7 @@ export class AudioRecorder {
         
         this.isRecording = true;
         (this as any).recordingStartTime = timestamp;
+        this.lastTakeWallSeconds = null;
         
         console.log('[AudioRecorder] Recording started successfully');
       }
@@ -155,6 +173,9 @@ export class AudioRecorder {
           : 'unknown';
         
         console.log(`[AudioRecorder] Stopping recording after ${recordingDuration} seconds...`);
+        this.lastTakeWallSeconds = (this as any).recordingStartTime
+          ? (Date.now() - (this as any).recordingStartTime) / 1000
+          : null;
         
         // Stop recording and get file path
         const filePath = await AudioRecord.stop();

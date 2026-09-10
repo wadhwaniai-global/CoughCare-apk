@@ -28,6 +28,7 @@ import { gatedStatus } from '../utils/diagnosisGate';
 import { DETECTION_THRESHOLD } from '../utils/onnxInference';
 import { isTestBuild } from '../utils/buildInfo';
 import { getCaptureProfile } from '../utils/audioRecorder';
+import type { AudioQuality } from '../utils/audioQuality';
 
 // The ViewRecord diagnosis editor stores dates as YYYY-MM-DD; Section E
 // works in DD/MM/YYYY. Normalize when loading a record for editing.
@@ -96,6 +97,7 @@ const NewParticipantScreen = () => {
         recordingDuration,
         recordedDurations,
         analysisResults,
+        takeQuality,
         startRecording,
         stopRecording,
         clearRecording,
@@ -113,7 +115,7 @@ const NewParticipantScreen = () => {
 
     // Discarded takes (re-records): remembered with their own score and
     // uploaded at sync for model research; never shown anywhere in the app.
-    const rejectedTakesRef = React.useRef<Array<{ slot: string; uri: string; confidence: number | null; duration: number }>>([]);
+    const rejectedTakesRef = React.useRef<Array<{ slot: string; uri: string; confidence: number | null; duration: number; quality: AudioQuality | null }>>([]);
 
     const handleClearRecording = (key: string) => {
         // Runs in the same tick as the slot being emptied, so this render's
@@ -126,6 +128,7 @@ const NewParticipantScreen = () => {
                 uri,
                 confidence: analysisResults[key]?.result?.confidence ?? null,
                 duration: recordedDurations[key] || 0,
+                quality: takeQuality[key] ?? null,
             });
         }
         clearRecording(key);
@@ -156,6 +159,19 @@ const NewParticipantScreen = () => {
      *  coexist with the UNIQUE(participant_id, recording_type) constraint. */
     const persistRecordings = async (participantId: string) => {
         const database = await getDB();
+        // Quality metrics are computed when a take is recorded, so a record
+        // opened for editing has them only in the DB. Keep those for any
+        // slot that was not re-recorded in this session.
+        const priorQuality: Record<string, string | null> = {};
+        try {
+            const existing = await database.getAllAsync<{ recording_type: string; quality: string | null }>(
+                `SELECT recording_type, quality FROM recordings WHERE participant_id = ? AND COALESCE(rejected, 0) = 0`,
+                [participantId]
+            );
+            existing.forEach(r => { priorQuality[r.recording_type] = r.quality ?? null; });
+        } catch (error) {
+            console.warn('Error reading existing recording quality:', error);
+        }
         try {
             // Replace only the kept takes; rejected rows accumulate.
             await database.runAsync(
@@ -176,6 +192,7 @@ const NewParticipantScreen = () => {
                     duration: recordedDurations[key] || 0,
                     confidence: analysisResults[key]?.result?.confidence ?? null,
                     audio_source: getCaptureProfile().audioSource,
+                    quality: takeQuality[key] ? JSON.stringify(takeQuality[key]) : (priorQuality[slot] ?? null),
                 });
             }
         }
@@ -191,6 +208,7 @@ const NewParticipantScreen = () => {
                 confidence: takes[i].confidence,
                 rejected: 1,
                 audio_source: getCaptureProfile().audioSource,
+                quality: takes[i].quality ? JSON.stringify(takes[i].quality) : null,
             });
         }
         rejectedTakesRef.current = [];

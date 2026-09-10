@@ -7,7 +7,8 @@
 import { apiService } from './ApiService';
 import { authService } from './AuthService';
 import { getBuildInfo } from '../utils/buildInfo';
-import { getDeviceModel } from '../utils/audioRecorder';
+import { getDeviceModel, getDeviceBuild } from '../utils/audioRecorder';
+import type { AudioQuality } from '../utils/audioQuality';
 import {
   getPendingParticipants,
   getRecordingsByParticipantId,
@@ -34,6 +35,17 @@ export interface SyncResult {
   failed: number;
   errors: string[];
 }
+
+/** recordings.quality is stored as JSON text; ship it as an object. */
+const parseQuality = (raw: string | null | undefined): AudioQuality | null => {
+  if (!raw) return null;
+  try {
+    const q = JSON.parse(raw);
+    return q && typeof q === 'object' ? (q as AudioQuality) : null;
+  } catch {
+    return null;
+  }
+};
 
 class SyncService {
   private isSyncing = false;
@@ -149,6 +161,7 @@ class SyncService {
       confidence: number | null;
       duration: number | null;
       audio_source: string | null;
+      quality: AudioQuality | null;
     }>
   ): Promise<{
     form_id: string;
@@ -217,6 +230,9 @@ class SyncService {
         // fleet composition and per-model score distributions, which is how
         // a misbehaving microphone path (see audioRecorder.ts) gets caught.
         device_model: getDeviceModel(),
+        // Firmware build fingerprint: same model, different firmware can mean
+        // different audio HAL tuning. Not PII (no serial).
+        device_build: getDeviceBuild(),
         app_channel: getBuildInfo().channel,
         app_bundle_seq: getBuildInfo().bundleSeq,
         app_update_id: getBuildInfo().bundleId,
@@ -302,6 +318,9 @@ class SyncService {
         duration: recording.duration ?? null,
         // which microphone path produced this take (device-scoped policy)
         audio_source: recording.audio_source ?? null,
+        // on-device signal metrics (level, clipping, noise floor, start-up
+        // zero padding); null when they could not be computed
+        quality: parseQuality(recording.quality),
       }));
 
       // Step 2: Upload form metadata with file IDs
