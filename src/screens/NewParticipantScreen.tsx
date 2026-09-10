@@ -27,6 +27,7 @@ import { validateForm, formatValidationErrors } from '../utils/formValidation';
 import { gatedStatus } from '../utils/diagnosisGate';
 import { DETECTION_THRESHOLD } from '../utils/onnxInference';
 import { isTestBuild } from '../utils/buildInfo';
+import { getCaptureProfile } from '../utils/audioRecorder';
 
 // The ViewRecord diagnosis editor stores dates as YYYY-MM-DD; Section E
 // works in DD/MM/YYYY. Normalize when loading a record for editing.
@@ -174,6 +175,7 @@ const NewParticipantScreen = () => {
                     recording_type: slot,
                     duration: recordedDurations[key] || 0,
                     confidence: analysisResults[key]?.result?.confidence ?? null,
+                    audio_source: getCaptureProfile().audioSource,
                 });
             }
         }
@@ -188,6 +190,7 @@ const NewParticipantScreen = () => {
                 duration: takes[i].duration,
                 confidence: takes[i].confidence,
                 rejected: 1,
+                audio_source: getCaptureProfile().audioSource,
             });
         }
         rejectedTakesRef.current = [];

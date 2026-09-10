@@ -69,6 +69,7 @@ export interface Recording {
     rejected?: number; // 1 = discarded take, kept for research upload only
     file_id?: string | null; // server file id once uploaded
     checksum?: string | null; // server checksum once uploaded
+    audio_source?: string | null; // 'MIC' | 'VOICE_RECOGNITION' used for this take
 }
 
 export const initDatabase = async () => {
@@ -150,6 +151,7 @@ export const initDatabase = async () => {
         rejected INTEGER DEFAULT 0,
         file_id TEXT,
         checksum TEXT,
+        audio_source TEXT,
         FOREIGN KEY (participant_id) REFERENCES participants (participant_id),
         UNIQUE(participant_id, recording_type)
       );
@@ -234,6 +236,7 @@ const migrateDatabase = async () => {
             { name: 'rejected', sql: `ALTER TABLE recordings ADD COLUMN rejected INTEGER DEFAULT 0` },
             { name: 'file_id', sql: `ALTER TABLE recordings ADD COLUMN file_id TEXT` },
             { name: 'checksum', sql: `ALTER TABLE recordings ADD COLUMN checksum TEXT` },
+            { name: 'audio_source', sql: `ALTER TABLE recordings ADD COLUMN audio_source TEXT` },
         ];
         for (const migration of recMigrations) {
             if (!recColumns.includes(migration.name)) {
@@ -404,8 +407,8 @@ export const saveRecording = async (recording: Recording) => {
     try {
         // Use INSERT OR REPLACE to prevent duplicates based on (participant_id, recording_type)
         await database.runAsync(
-            `INSERT OR REPLACE INTO recordings (participant_id, file_path, recording_type, duration, confidence, rejected)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT OR REPLACE INTO recordings (participant_id, file_path, recording_type, duration, confidence, rejected, audio_source)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [
                 recording.participant_id,
                 recording.file_path,
@@ -413,6 +416,7 @@ export const saveRecording = async (recording: Recording) => {
                 recording.duration,
                 recording.confidence ?? null,
                 recording.rejected ?? 0,
+                recording.audio_source ?? null,
             ]
         );
     } catch (error) {

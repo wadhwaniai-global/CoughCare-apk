@@ -101,11 +101,13 @@ be added to the version notes below.
 | `rejected` | boolean | true = discarded take (re-record), uploaded for model research |
 | `confidence` | number 0–1 \| null | that take's own score; null for `background` (never scored) |
 | `duration` | number \| null | seconds |
+| `audio_source` | string \| null | `MIC` \| `VOICE_RECOGNITION`: the Android microphone path used for this take. Fleet policy since 2026-09-10 is `MIC` on every device (uniform training data; VOICE_RECOGNITION was found to mangle cough audio on the Galaxy A07). Null on takes recorded before this field existed; `VOICE_RECOGNITION` only on pre-policy takes. |
 
 ## form_data — build provenance
 
 | Field | Type | Notes |
 |---|---|---|
+| `device_model` | string | Android model string, e.g. `SM-A075F` (not PII). Use with `recordings[].audio_source` for per-model score distributions and fleet composition. |
 | `app_channel` | string | `production` (field) \| `test` (tester sandbox) \| `preview` (retired pre-cutover) \| `development` |
 | `app_bundle_seq` | string | monotonic build number (git commit count) — the key for the version notes below |
 | `app_update_id` | string | 8-char OTA update id or `embedded` |

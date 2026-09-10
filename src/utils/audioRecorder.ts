@@ -6,6 +6,41 @@ import * as FileSystem from 'expo-file-system/legacy';
 import AudioRecord from 'react-native-audio-record';
 import { Buffer } from 'buffer';
 
+/** Which microphone path a device records from. Recorded per take and sent
+ *  to the server so capture behaviour can be compared per device model. */
+export type AudioSourceName = 'MIC' | 'VOICE_RECOGNITION';
+
+export interface CaptureProfile {
+  deviceModel: string;
+  sampleRate: number;
+  audioSource: AudioSourceName;
+  /** MediaRecorder.AudioSource constant: 1 = MIC, 6 = VOICE_RECOGNITION */
+  audioSourceId: 1 | 6;
+}
+
+export const getDeviceModel = (): string =>
+  String((Platform as any).constants?.Model ?? (Platform as any).constants?.model ?? 'unknown');
+
+/**
+ * ONE capture profile for the whole fleet: 48 kHz mono 16-bit from the MIC
+ * source. Decided 2026-09-10: the recordings are training data for a future
+ * classifier, so every device must capture the same way. MIC is the path
+ * proven on the fleet's known phone (Galaxy A07: the same coughs scored
+ * 0.99 x4 via MIC vs 0.27/0.63/0.01 via VOICE_RECOGNITION, with Samsung
+ * Voice Recorder audio scoring 0.999 offline). VOICE_RECOGNITION is spec-
+ * required to be clean but the A07 violates that in practice. audio_source
+ * is still recorded per take and device_model per form, so the dashboard
+ * can confirm fleet-wide consistency and catch any model that misbehaves
+ * on MIC too.
+ */
+export const getCaptureProfile = (): CaptureProfile => ({
+  deviceModel: getDeviceModel(),
+  sampleRate: 48000,
+  audioSource: 'MIC',
+  audioSourceId: 1,
+});
+};
+
 export class AudioRecorder {
   private isRecording: boolean = false;
   private recordingUri: string | null = null;
@@ -42,34 +77,18 @@ export class AudioRecorder {
         const timestamp = Date.now();
         const uniqueFileName = `cough_recording_${timestamp}.wav`;
         
-        // Universal capture profile (2026-08-28, data-richness policy): 48kHz
-        // mono 16-bit from VOICE_RECOGNITION — the only source with
-        // spec-mandated processing guarantees (CDD: AGC off, noise
-        // suppression off, ~flat response), at the hardware-native rate so
-        // the device HAL never downsamples. Uploaded WAVs carry the full
-        // 48kHz signal for future model training; the on-device pipeline
-        // resamples to the model's 16kHz itself.
-        //
-        // History: 16kHz VOICE_RECOGNITION capture scored <=40% on real
-        // coughs on two Galaxy A07 units (2026-08-19); an unverified
-        // MIC@48kHz override was carried until 2026-08-28. Nobody ever
-        // listened to the "botched" audio, and the likelier culprit was the
-        // device-side 16kHz downsampling, so the override was dropped in
-        // favor of one uniform profile — pending direct verification on a
-        // physical A07. If A07 capture regresses, suspect the source, not
-        // the rate.
+        // Fleet-wide capture profile (see getCaptureProfile): 48 kHz mono
+        // 16-bit from MIC. The pipeline resamples to 16 kHz itself; uploads
+        // keep the full 48 kHz signal for future model training.
+        const profile = getCaptureProfile();
         const options = {
-          sampleRate: 48000,
+          sampleRate: profile.sampleRate,
           channels: 1,
           bitsPerSample: 16,
-          // A/B UNDER TEST (2026-09-10): MIC instead of VOICE_RECOGNITION. On a
-          // Galaxy A07 the app's VOICE_RECOGNITION captures scored 0.01-0.63 on
-          // real coughs while Samsung Voice Recorder audio of the same cough
-          // scored 0.999 through the same model. Revert to 6 if this does not help.
-          audioSource: 1, // MediaRecorder.AudioSource.MIC
+          audioSource: profile.audioSourceId,
           wavFile: uniqueFileName
         };
-        
+
         console.log('[AudioRecorder] Initializing react-native-audio-record with unique filename:', uniqueFileName);
         console.log('[AudioRecorder] Options:', options);
         

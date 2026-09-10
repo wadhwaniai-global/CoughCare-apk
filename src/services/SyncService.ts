@@ -7,6 +7,7 @@
 import { apiService } from './ApiService';
 import { authService } from './AuthService';
 import { getBuildInfo } from '../utils/buildInfo';
+import { getDeviceModel } from '../utils/audioRecorder';
 import {
   getPendingParticipants,
   getRecordingsByParticipantId,
@@ -147,6 +148,7 @@ class SyncService {
       rejected: boolean;
       confidence: number | null;
       duration: number | null;
+      audio_source: string | null;
     }>
   ): Promise<{
     form_id: string;
@@ -211,6 +213,10 @@ class SyncService {
         // pre-cutover builds), "development" = a dev build. Forms without
         // these keys predate the tagging (all field). The seq/update id also
         // pin the exact code version for debugging.
+        // Device model (e.g. "SM-A075F"): not PII; lets the dashboard show
+        // fleet composition and per-model score distributions, which is how
+        // a misbehaving microphone path (see audioRecorder.ts) gets caught.
+        device_model: getDeviceModel(),
         app_channel: getBuildInfo().channel,
         app_bundle_seq: getBuildInfo().bundleSeq,
         app_update_id: getBuildInfo().bundleId,
@@ -294,6 +300,8 @@ class SyncService {
         rejected: recording.rejected === 1,
         confidence: recording.confidence ?? null,
         duration: recording.duration ?? null,
+        // which microphone path produced this take (device-scoped policy)
+        audio_source: recording.audio_source ?? null,
       }));
 
       // Step 2: Upload form metadata with file IDs
