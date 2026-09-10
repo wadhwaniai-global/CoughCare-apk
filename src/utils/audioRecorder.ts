@@ -46,7 +46,11 @@ export class AudioRecorder {
   private mediaRecorder: MediaRecorder | null = null;
   private audioChunks: Blob[] = [];
 
-  async start(): Promise<void> {
+  /**
+   * @param sourceOverride Diagnostic use only (test builds): record from a
+   *   specific MediaRecorder.AudioSource instead of the fleet profile.
+   */
+  async start(sourceOverride?: 1 | 6 | 9): Promise<void> {
     try {
       if (Platform.OS === 'web') {
         // --- WEB IMPLEMENTATION ---
@@ -84,9 +88,12 @@ export class AudioRecorder {
           sampleRate: profile.sampleRate,
           channels: 1,
           bitsPerSample: 16,
-          audioSource: profile.audioSourceId,
+          audioSource: sourceOverride ?? profile.audioSourceId,
           wavFile: uniqueFileName
         };
+        if (sourceOverride !== undefined) {
+          console.log(`[AudioRecorder] DIAGNOSTIC source override: ${sourceOverride}`);
+        }
 
         console.log('[AudioRecorder] Initializing react-native-audio-record with unique filename:', uniqueFileName);
         console.log('[AudioRecorder] Options:', options);

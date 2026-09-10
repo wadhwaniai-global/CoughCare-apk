@@ -16,7 +16,7 @@ import { getParticipants, getStats, viewDatabaseContents } from '../services/Dat
 import { syncService, SyncProgress } from '../services/SyncService';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert } from 'react-native';
-import { getBuildInfoLine } from '../utils/buildInfo';
+import { getBuildInfoLine, isTestBuild } from '../utils/buildInfo';
 
 const DashboardScreen = () => {
     const navigation = useNavigation<DashboardScreenNavigationProp>();
@@ -486,6 +486,11 @@ const DashboardScreen = () => {
 
                 {/* Build / OTA bundle identifier - lets a tester report exactly what they run */}
                 <Text style={styles.buildInfo}>{buildInfoLine}</Text>
+                {isTestBuild() && (
+                    <TouchableOpacity onPress={() => navigation.navigate('CaptureDiagnostic')} style={{ alignSelf: 'center', marginTop: 8, padding: 6 }}>
+                        <Text style={[styles.buildInfo, { color: '#D97706', textDecorationLine: 'underline', marginTop: 0 }]}>Capture Diagnostic</Text>
+                    </TouchableOpacity>
+                )}
 
             </ScrollView>
         </SafeAreaView>
