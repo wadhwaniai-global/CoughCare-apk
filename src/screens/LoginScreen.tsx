@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
+  Image,
   TextInput,
   TouchableOpacity,
   StyleSheet,
@@ -68,7 +69,14 @@ export default function LoginScreen() {
           <View style={styles.content}>
             {/* Logo/Header */}
             <View style={styles.header}>
-              <Ionicons name="medical" size={64} color="#FFFFFF" />
+              {/* Company logo (brand teal on the white card). Source is the
+                  same PNG the launcher icon is generated from. */}
+              <Image
+                source={require('../../public/logo.png')}
+                style={styles.logo}
+                resizeMode="contain"
+                accessibilityLabel="Wadhwani AI Global"
+              />
               <Text style={styles.title}>Cough Against TB</Text>
               <Text style={styles.subtitle}>Data Collection App</Text>
               {isTestBuild() && (
@@ -194,6 +202,11 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 32,
+  },
+  logo: {
+    width: 240,
+    height: 72,
+    marginBottom: 4,
   },
   title: {
     fontSize: 28,
