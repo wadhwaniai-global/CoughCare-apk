@@ -18,6 +18,7 @@
     "setup:android": "expo prebuild --clean -p android && expo run:android",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "prepare:model": "node scripts/prepare-detector-model.mjs",
     "evaluate": "node evaluate_app_pipeline.js",
     "evaluate:quick": "node evaluate_app_pipeline.js --limit 10",
     "evaluate:compile": "tsc evaluate_app_pipeline.ts --module commonjs --target ES2020 --esModuleInterop --skipLibCheck --resolveJsonModule --moduleResolution node --outDir .",

@@ -25,6 +25,7 @@ import { useParticipantForm } from '../hooks/useParticipantForm';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { validateForm, formatValidationErrors } from '../utils/formValidation';
 import { gatedStatus } from '../utils/diagnosisGate';
+import { DETECTION_THRESHOLD } from '../utils/onnxInference';
 import { isTestBuild } from '../utils/buildInfo';
 
 // The ViewRecord diagnosis editor stores dates as YYYY-MM-DD; Section E
@@ -261,8 +262,10 @@ const NewParticipantScreen = () => {
                             analysisMap[formKey] = {
                                 loading: false,
                                 result: {
-                                    // 0.45 = detection threshold (utils/onnxInference.ts)
-                                    coughDetected: rec.confidence > 0.45,
+                                    // Imported rather than repeated: this has to
+                                    // stay identical to the threshold the model
+                                    // was scored at (utils/onnxInference.ts).
+                                    coughDetected: rec.confidence > DETECTION_THRESHOLD,
                                     confidence: rec.confidence,
                                     // suppresses the No-Cough popup: that alert
                                     // is for fresh takes, not reloaded ones
