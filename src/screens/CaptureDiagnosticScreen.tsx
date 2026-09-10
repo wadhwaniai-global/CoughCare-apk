@@ -16,7 +16,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { AudioRecorder, getCaptureProfile } from '../utils/audioRecorder';
 import { detectCoughFromUrl } from '../utils/onnxInference';
 
-const TAKE_SECONDS = 6;
+const TAKE_SECONDS = 12;
 const SOURCES: Array<{ id: 1 | 6 | 9; name: string; short: string }> = [
     { id: 1, name: 'MIC', short: 'MIC' },
     { id: 6, name: 'VOICE_RECOGNITION', short: 'VR' },
