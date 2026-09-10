@@ -73,14 +73,21 @@ the kept recordings.
 
 | Field | Type | Notes |
 |---|---|---|
-| `coughDetected` | boolean | `confidence > 0.45` |
+| `coughDetected` | boolean | `confidence > threshold_used` |
 | `tbDetected` | boolean | always false (Phase 1: threshold deliberately unreachable) |
-| `confidence` / `file_probability` | number 0–1 | whole-recording bag probability |
-| `segment_probabilities` | number[] | per-2s-segment scores |
-| `num_segments` | integer | up to 32 |
-| `threshold_used` | number | 0.45 |
+| `confidence` / `file_probability` | number 0–1 | whole-recording cough probability |
+| `threshold_used` | number | **0.4758** with the CED single-graph detector (test channel #92+); 0.45 with the earlier two-model pipeline |
+| `segment_probabilities` | number[] | **two-model pipeline only** (per-2s-segment scores); absent, not null, once the CED detector ships |
+| `num_segments` | integer | **two-model pipeline only**; absent once the CED detector ships |
 | `message` | string | display text |
 | `mode` | string | `CLIENT_SIDE_ONNX` |
+
+Detector history: up to the 2.0.0 handover build the app ran a two-graph
+pipeline (mel preprocessing + detector, 2 s windows pooled to a bag score,
+threshold 0.45). The CED detector (CED-tiny + LoRA, int8, single graph over a
+60 s buffer with a real-length mask, val-selected threshold 0.4758) is under
+test on the `test` channel from #92; its release seq on `main` is TBD and will
+be added to the version notes below.
 
 ## form_data — per-recording metadata
 
@@ -129,6 +136,7 @@ post-sync purge there. Server-side records are pseudonymous.
 | seq < 65 | payload includes `full_name` and `address` |
 | seq < 68 | payload includes `mobile_number`, `gps_latitude`, `gps_longitude` |
 | seq < 67 | audio is 16 kHz |
+| CED detector builds (test channel #92+; main seq TBD) | `analysis_result` has no `segment_probabilities`/`num_segments`; `threshold_used` = 0.4758; per-recording `confidence` values come from a different model and are not comparable with earlier scores |
 
 **Exclude internal data** (backend guidance, 2026-08): drop forms where
 `form_data.app_channel == "test"` OR the submitting user's profile
