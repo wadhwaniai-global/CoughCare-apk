@@ -39,7 +39,6 @@ export const getCaptureProfile = (): CaptureProfile => ({
   audioSource: 'MIC',
   audioSourceId: 1,
 });
-};
 
 export class AudioRecorder {
   private isRecording: boolean = false;
