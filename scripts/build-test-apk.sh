@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Build the "CoughCare Test" APK — the tester's sandbox app.
+# Build the "[TEST] Cough Against TB" APK — the tester's sandbox app.
 #
 #   package     com.coughcare.test      (installs alongside the field app)
-#   app name    CoughCare Test
+#   app name    [TEST] Cough Against TB
 #   OTA channel test                    (npm run ota:test reaches only this app)
 #
 # The android/ folder is a gitignored local prebuild, so this script edits the
@@ -52,13 +52,13 @@ grep -q '<color name="iconBackground">#0B8280</color>' "$COLORS" || { echo "Unex
 
 sed -i '' "s/applicationId 'com.coughcare.app'/applicationId 'com.coughcare.test'/" "$GRADLE"
 sed -i '' 's/expo-channel-name\&quot;:\&quot;production/expo-channel-name\&quot;:\&quot;test/' "$MANIFEST"
-sed -i '' 's|<string name="app_name">Cough Against TB</string>|<string name="app_name">CoughCare Test</string>|' "$STRINGS"
+sed -i '' 's|<string name="app_name">Cough Against TB</string>|<string name="app_name">[TEST] Cough Against TB</string>|' "$STRINGS"
 # Same mark, amber background: testers with both apps installed can tell them
 # apart at a glance (amber = the TEST BUILD banner colour). Adaptive icons
 # only; the legacy pre-Android-8 icon stays teal.
 sed -i '' 's|<color name="iconBackground">#0B8280</color>|<color name="iconBackground">#F59E0B</color>|' "$COLORS"
 
-echo "Building CoughCare Test (com.coughcare.test, channel: test)..."
+echo "Building [TEST] Cough Against TB (com.coughcare.test, channel: test)..."
 # Bundle sequence shown as "#<n>" in the app; Metro inlines it during the
 # gradle bundling step (see src/utils/buildInfo.ts).
 export EXPO_PUBLIC_BUNDLE_SEQ="$(git -C "$ROOT" rev-list --count HEAD)"

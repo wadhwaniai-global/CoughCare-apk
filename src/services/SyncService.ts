@@ -222,7 +222,7 @@ class SyncService {
         recordings: recordingsMeta,
         // Which build produced this form. Both the test and field apps talk to
         // the same server; app_channel separates their data: "test" = the
-        // CoughCare Test app, "production" = the field app ("preview" in
+        // [TEST] Cough Against TB app, "production" = the field app ("preview" in
         // pre-cutover builds), "development" = a dev build. Forms without
         // these keys predate the tagging (all field). The seq/update id also
         // pin the exact code version for debugging.

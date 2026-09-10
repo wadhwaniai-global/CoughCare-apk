@@ -1,6 +1,6 @@
 /**
  * Persistent "TEST BUILD" strip shown on every screen of apps bound to the
- * `test` OTA channel (the CoughCare Test app). The test and field apps are
+ * `test` OTA channel (the [TEST] Cough Against TB app). The test and field apps are
  * visually identical once open; this makes them unmistakable everywhere, not
  * just on the login screen. Renders nothing on `preview`/`production` builds.
  */

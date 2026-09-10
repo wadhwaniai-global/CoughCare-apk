@@ -2,14 +2,14 @@
 /**
  * One-command OTA publish.
  *
- *   npm run ota:test                    # publish to the tester's "CoughCare Test" app
+ *   npm run ota:test                    # publish to the tester's "[TEST] Cough Against TB" app
  *   npm run ota:production                 # publish to the LIVE FIELD FLEET (asks for confirmation)
  *   npm run ota:production -- "my message" # with an explicit message
  *   npm run ota:preview                    # RETIRED — pre-cutover fleet only, never publish
  *   npm run ota:status                  # what is live on each channel
  *
  * CHANNEL SEMANTICS (since the 2026-08-22 cutover the names mean what they
- * say): "production" = the live field fleet, "test" = the CoughCare Test
+ * say): "production" = the live field fleet, "test" = the [TEST] Cough Against TB
  * sandbox app, "preview" = retired (only the abandoned pre-cutover fleet
  * was bound to it — never publish there). Validate on "test" first.
  * See docs/OTA.md.
@@ -79,7 +79,7 @@ if (!statusOnly && !['test', 'preview', 'production'].includes(channel)) {
     die(
         `Unknown target ${JSON.stringify(channel)}`,
         '  Usage:\n' +
-        '    npm run ota:test        [-- "message"]   # tester sandbox (CoughCare Test app)\n' +
+        '    npm run ota:test        [-- "message"]   # tester sandbox ([TEST] Cough Against TB app)\n' +
         '    npm run ota:production  [-- "message"]   # LIVE FIELD FLEET\n' +
         '    npm run ota:preview     [-- "message"]   # RETIRED (pre-cutover fleet only)\n' +
         '    npm run ota:status',
@@ -185,7 +185,7 @@ if (channel === 'preview') {
 }
 if (channel === 'production') {
     warn('"production" is the LIVE FIELD CHANNEL — every data collector\'s installed app receives this.');
-    warn('It should already be verified on the "test" channel (CoughCare Test app).');
+    warn('It should already be verified on the "test" channel ([TEST] Cough Against TB app).');
     if (!skipConfirm) {
         if (!process.stdin.isTTY) {
             die(

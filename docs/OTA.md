@@ -34,7 +34,7 @@ something you'd have to roll back.
 | Command | Does |
 |---|---|
 | `npm run ota:status` | Shows what is live on each channel |
-| `npm run ota:test` | Publishes to the tester's **CoughCare Test** app only |
+| `npm run ota:test` | Publishes to the tester's **[TEST] Cough Against TB** app only |
 | `npm run ota:production` | Publishes to the **LIVE FIELD FLEET** (asks for confirmation) |
 | `npm run ota:preview` | **RETIRED** — only the abandoned pre-cutover fleet was bound to it; never publish |
 | `npm run ota:test -- "custom message"` | Same, with your own message (defaults to the last commit subject) |
@@ -43,7 +43,7 @@ something you'd have to roll back.
 
 | Channel | Who actually receives it |
 |---|---|
-| `test` | The tester's **CoughCare Test** app (`com.coughcare.test`, built by `scripts/build-test-apk.sh`) |
+| `test` | The tester's **[TEST] Cough Against TB** app (`com.coughcare.test`, built by `scripts/build-test-apk.sh`) |
 | `production` | **Every field data collector** (v1.0.3+ APKs). The live field channel. |
 | `preview` | **Retired.** Only the abandoned pre-cutover fleet (never distributed / written off at the backend cutover) was bound to it. Never publish here. |
 
@@ -54,7 +54,7 @@ instance — internal accounts only). The same bundle is correct on every channe
 there is no per-publish environment variable. `EXPO_PUBLIC_API_BASE_URL`
 overrides both for local development.
 
-The workflow is always: publish to `test` → verify on the CoughCare Test app
+The workflow is always: publish to `test` → verify on the [TEST] Cough Against TB app
 → then `npm run ota:production` (it makes you type `production` to confirm).
 
 History: before 2026-08-22 the field APKs were hard-bound to `preview`, making
@@ -268,7 +268,7 @@ v1.0.0 #681 · rtv 1.1.0 · preview · 01a004a4
 ```
 
 The **bundle sequence** is the at-a-glance freshness number, comparable across
-the test and field apps: if CoughCare Test shows `#681` and the field app
+the test and field apps: if [TEST] Cough Against TB shows `#681` and the field app
 shows `#675`, the field bundle is 6 changes behind; equal numbers mean both
 apps run identical code. (Bundles built before the sequence existed omit it.)
 
