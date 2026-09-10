@@ -8,7 +8,7 @@
 # Usage: ./scripts/run-emulator.sh [avd-name]
 set -euo pipefail
 
-AVD="${1:-Pixel_10_Pro_XL}"
+AVD="${1:-CoughCare_API36}"
 : "${ANDROID_HOME:=$HOME/Library/Android/sdk}"
 EMULATOR="$ANDROID_HOME/emulator/emulator"
 
