@@ -62,6 +62,11 @@ echo "Building [TEST] Cough Against TB (com.coughcare.test, channel: test)..."
 # Bundle sequence shown as "#<n>" in the app; Metro inlines it during the
 # gradle bundling step (see src/utils/buildInfo.ts).
 export EXPO_PUBLIC_BUNDLE_SEQ="$(git -C "$ROOT" rev-list --count HEAD)"
+# Gradle does not treat that env var as an input of the bundling task, so an
+# unchanged JS tree reuses the previous bundle (and its old "#seq" label).
+# Drop the cached bundle so every APK is labelled with the commit it was built from.
+rm -rf "$ROOT/android/app/build/generated/assets/createBundleReleaseJsAndAssets" \
+       "$ROOT/android/app/build/generated/res/createBundleReleaseJsAndAssets"
 "$ROOT/android/gradlew" -p "$ROOT/android" :app:assembleRelease --console=plain
 
 OUT="$HOME/Desktop/CoughCare-TEST-$(date +%Y-%m-%d).apk"
