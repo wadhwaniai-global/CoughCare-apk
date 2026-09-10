@@ -62,7 +62,11 @@ export class AudioRecorder {
           sampleRate: 48000,
           channels: 1,
           bitsPerSample: 16,
-          audioSource: 6, // MediaRecorder.AudioSource.VOICE_RECOGNITION
+          // A/B UNDER TEST (2026-09-10): MIC instead of VOICE_RECOGNITION. On a
+          // Galaxy A07 the app's VOICE_RECOGNITION captures scored 0.01-0.63 on
+          // real coughs while Samsung Voice Recorder audio of the same cough
+          // scored 0.999 through the same model. Revert to 6 if this does not help.
+          audioSource: 1, // MediaRecorder.AudioSource.MIC
           wavFile: uniqueFileName
         };
         
