@@ -92,12 +92,12 @@ export default function TbResultScreen() {
   if (!tbResult) {
     return (
       <LinearGradient
-        colors={['#158B95', '#0f6b73', '#e0f2f1']}
+        colors={['#0B8280', '#086663', '#e0f2f1']}
         style={styles.container}
       >
         <AppHeader variant="translucent" />
         <View style={styles.centerContent}>
-          <ActivityIndicator size="large" color="#14B8A6" />
+          <ActivityIndicator size="large" color="#0B8280" />
           <Text style={styles.loadingText}>Loading results...</Text>
         </View>
       </LinearGradient>
@@ -112,7 +112,7 @@ export default function TbResultScreen() {
     console.log('TbResultScreen - Rendering error state (no cough detected)');
     return (
       <LinearGradient
-        colors={['#158B95', '#0f6b73', '#e0f2f1']}
+        colors={['#0B8280', '#086663', '#e0f2f1']}
         style={styles.container}
       >
         <AppHeader variant="translucent" />
@@ -163,7 +163,7 @@ export default function TbResultScreen() {
   console.log('TbResultScreen - About to render main content');
   return (
     <LinearGradient
-      colors={['#158B95', '#0f6b73', '#e0f2f1']}
+      colors={['#0B8280', '#086663', '#e0f2f1']}
       style={styles.container}
     >
       <AppHeader variant="translucent" />
@@ -247,7 +247,7 @@ export default function TbResultScreen() {
           {isTBDetected && (
             <Animated.View entering={FadeInDown.delay(400)} style={styles.referralSection}>
               <View style={styles.referralHeader}>
-                <Ionicons name="person-add" size={24} color="#1E40AF" />
+                <Ionicons name="person-add" size={24} color="#086663" />
                 <Text style={styles.referralTitle}>Need Medical Consultation?</Text>
               </View>
               <Text style={styles.referralText}>
@@ -398,10 +398,10 @@ const styles = StyleSheet.create({
   referralSection: {
     width: '100%',
     padding: 24,
-    backgroundColor: '#DBEAFE',
+    backgroundColor: '#E0F2F1',
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#93C5FD',
+    borderColor: '#B2DFDB',
     marginBottom: 24,
   },
   referralHeader: {
@@ -413,13 +413,13 @@ const styles = StyleSheet.create({
   referralTitle: {
     fontSize: 18,
     fontFamily: FONTS.bold,
-    color: '#1E3A8A',
+    color: '#086663',
     letterSpacing: -0.2,
   },
   referralText: {
     fontSize: 16,
     fontFamily: FONTS.regular,
-    color: '#1E40AF',
+    color: '#086663',
     marginBottom: 16,
     lineHeight: 24,
     letterSpacing: 0.1,
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingVertical: 12,
     paddingHorizontal: 24,
-    backgroundColor: '#2563EB',
+    backgroundColor: '#0B8280',
     borderRadius: 50,
     alignItems: 'center',
   },

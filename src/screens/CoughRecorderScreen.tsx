@@ -468,7 +468,7 @@ export default function CoughRecorderScreen() {
 
   return (
     <LinearGradient
-      colors={['#158B95', '#0f6b73', '#e0f2f1']}
+      colors={['#0B8280', '#086663', '#e0f2f1']}
       style={styles.container}
     >
       <AppHeader
@@ -479,7 +479,7 @@ export default function CoughRecorderScreen() {
             onPress={() => navigation.navigate('Home')}
             activeOpacity={0.8}
           >
-            <Ionicons name="home" size={20} color="#158B95" />
+            <Ionicons name="home" size={20} color="#0B8280" />
             <Text style={styles.homeButtonText}>Home</Text>
           </TouchableOpacity>
         }
@@ -521,7 +521,7 @@ export default function CoughRecorderScreen() {
                   onPress={pickAudioFile}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="document-attach" size={24} color="#158B95" />
+                  <Ionicons name="document-attach" size={24} color="#0B8280" />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.uploadButtonText}>Upload an audio file</Text>
                     <Text style={styles.uploadButtonSubtext}>WAV, WEBM, MP3, OGG, or M4A</Text>
@@ -538,7 +538,7 @@ export default function CoughRecorderScreen() {
                   activeOpacity={0.8}
                   disabled={isLoadingSample}
                 >
-                  <Ionicons name="musical-notes" size={24} color={isLoadingSample ? "#9CA3AF" : "#158B95"} />
+                  <Ionicons name="musical-notes" size={24} color={isLoadingSample ? "#9CA3AF" : "#0B8280"} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.sampleButtonText, isLoadingSample && styles.sampleButtonTextDisabled]}>
                       {isLoadingSample ? 'Loading Sample...' : 'Load Sample Audio'}
@@ -591,7 +591,7 @@ export default function CoughRecorderScreen() {
                   onPress={playAudio}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="play" size={24} color="#158B95" />
+                  <Ionicons name="play" size={24} color="#0B8280" />
                   <Text style={styles.playButtonText}>Play Recording</Text>
                 </TouchableOpacity>
 
@@ -718,10 +718,10 @@ const styles = StyleSheet.create({
     width: 128,
     height: 128,
     borderRadius: 64,
-    backgroundColor: '#14B8A6',
+    backgroundColor: '#0B8280',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#14B8A6',
+    shadowColor: '#0B8280',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
@@ -768,7 +768,7 @@ const styles = StyleSheet.create({
     gap: 16,
     padding: 16,
     borderWidth: 2,
-    borderColor: '#14B8A6',
+    borderColor: '#0B8280',
     borderRadius: 16,
     backgroundColor: '#ECFDF5',
   },
@@ -907,8 +907,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 50,
-    backgroundColor: '#14B8A6',
-    shadowColor: '#14B8A6',
+    backgroundColor: '#0B8280',
+    shadowColor: '#0B8280',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

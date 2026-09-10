@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
         backgroundColor: 'white',
     },
     symptomBtnYes: {
-        backgroundColor: '#2563EB',
-        borderColor: '#2563EB',
+        backgroundColor: '#0B8280',
+        borderColor: '#0B8280',
     },
     symptomBtnNo: {
         backgroundColor: '#64748B',

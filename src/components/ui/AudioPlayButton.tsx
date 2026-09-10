@@ -142,9 +142,9 @@ export const AudioPlayButton: React.FC<AudioPlayButtonProps> = ({ uri, durationS
         return (
             <TouchableOpacity style={styles.compactBtn} onPress={compactToggle} disabled={isLoading}>
                 {isLoading ? (
-                    <ActivityIndicator size="small" color="#2563EB" />
+                    <ActivityIndicator size="small" color="#0B8280" />
                 ) : (
-                    <Ionicons name={isPlaying ? 'stop' : 'play'} size={18} color="#2563EB" />
+                    <Ionicons name={isPlaying ? 'stop' : 'play'} size={18} color="#0B8280" />
                 )}
             </TouchableOpacity>
         );
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     player: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#EFF6FF',
+        backgroundColor: '#E0F2F1',
         borderRadius: 10,
         paddingVertical: 8,
         paddingHorizontal: 10,
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
         width: 34,
         height: 34,
         borderRadius: 17,
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -207,17 +207,17 @@ const styles = StyleSheet.create({
     track: {
         height: 5,
         borderRadius: 3,
-        backgroundColor: '#BFDBFE',
+        backgroundColor: '#B2DFDB',
         overflow: 'hidden',
     },
     trackFill: {
         height: '100%',
         borderRadius: 3,
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
     },
     time: {
         fontSize: 12,
-        color: '#1E3A8A',
+        color: '#086663',
         fontVariant: ['tabular-nums'],
         minWidth: 78,
         textAlign: 'right',
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
         width: 34,
         height: 34,
         borderRadius: 17,
-        backgroundColor: '#EFF6FF',
+        backgroundColor: '#E0F2F1',
         alignItems: 'center',
         justifyContent: 'center',
         marginLeft: 10,

@@ -226,7 +226,7 @@ const AddTestResultsScreen = () => {
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
-                <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+                <StatusBar barStyle="light-content" backgroundColor="#0B8280" />
                 <View style={styles.loadingContainer}>
                     <Text style={styles.loadingText}>Loading...</Text>
                 </View>
@@ -237,7 +237,7 @@ const AddTestResultsScreen = () => {
     if (!participant) {
         return (
             <SafeAreaView style={styles.container}>
-                <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+                <StatusBar barStyle="light-content" backgroundColor="#0B8280" />
                 <View style={styles.errorContainer}>
                     <Text style={styles.errorText}>Participant not found</Text>
                     <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
@@ -250,7 +250,7 @@ const AddTestResultsScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+            <StatusBar barStyle="light-content" backgroundColor="#0B8280" />
 
             {/* Header */}
             <View style={styles.header}>
@@ -495,7 +495,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F8FAFC',
     },
     header: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         padding: 16,
         paddingTop: 40,
         flexDirection: 'row',
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     headerSubtitle: {
-        color: '#BFDBFE',
+        color: '#B2DFDB',
         fontSize: 12,
         marginTop: 2,
     },
@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     backButtonText: {
-        color: '#2563EB',
+        color: '#0B8280',
         fontSize: 16,
         fontWeight: '600',
     },
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     modalButton: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         padding: 16,
         borderBottomLeftRadius: 12,
         borderBottomRightRadius: 12,

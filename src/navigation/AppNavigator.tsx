@@ -93,7 +93,7 @@ export default function AppNavigator() {
   // Show loading indicator while checking auth state
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#158B95' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0B8280' }}>
         <ActivityIndicator size="large" color="#FFFFFF" />
       </View>
     );

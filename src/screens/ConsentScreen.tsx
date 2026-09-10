@@ -46,7 +46,7 @@ export default function ConsentScreen() {
         >
           <AnimatedView entering={FadeInDown.delay(80).duration(400).springify()} style={styles.header}>
             <View style={styles.iconContainer}>
-              <Ionicons name="shield-checkmark" size={28} color="#158B95" />
+              <Ionicons name="shield-checkmark" size={28} color="#0B8280" />
             </View>
             <View>
               <Text style={styles.title}>Informed Consent</Text>

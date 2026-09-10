@@ -64,7 +64,7 @@ const AwaitingDiagnosisScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+            <StatusBar barStyle="light-content" backgroundColor="#0B8280" />
 
             {/* Header */}
             <View style={styles.header}>
@@ -81,7 +81,7 @@ const AwaitingDiagnosisScreen = () => {
 
             {loading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#2563EB" />
+                    <ActivityIndicator size="large" color="#0B8280" />
                     <Text style={styles.loadingText}>Loading...</Text>
                 </View>
             ) : (
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F8FAFC',
     },
     header: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         padding: 16,
         paddingTop: 40,
         flexDirection: 'row',
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     headerSubtitle: {
-        color: '#BFDBFE',
+        color: '#B2DFDB',
         fontSize: 12,
         marginTop: 2,
     },

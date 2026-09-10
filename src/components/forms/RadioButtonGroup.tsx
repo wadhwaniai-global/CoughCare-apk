@@ -90,8 +90,8 @@ const styles = StyleSheet.create({
         marginHorizontal: 8, // Add spacing between buttons
     },
     radioButtonActive: {
-        borderColor: '#2563EB',
-        backgroundColor: '#EFF6FF',
+        borderColor: '#0B8280',
+        backgroundColor: '#E0F2F1',
         borderWidth: 2, // Thicker border for active
     },
     radioButtonSuccess: {
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
     radioTextActive: {
-        color: '#2563EB',
+        color: '#0B8280',
         fontWeight: 'bold',
     },
     radioTextWhite: {

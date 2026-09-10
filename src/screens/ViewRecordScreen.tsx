@@ -179,7 +179,7 @@ const ViewRecordScreen = () => {
             case 'synced':
                 return { bg: '#DCFCE7', text: '#16A34A' };
             case 'pending': // diagnosis complete, ready to sync
-                return { bg: '#E0F2FE', text: '#0284C7' };
+                return { bg: '#E0F2F1', text: '#0284C7' };
             case 'awaiting_diagnosis':
                 return { bg: '#FEF3C7', text: '#D97706' };
             case 'draft':
@@ -427,9 +427,9 @@ const ViewRecordScreen = () => {
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
-                <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+                <StatusBar barStyle="light-content" backgroundColor="#0B8280" />
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#2563EB" />
+                    <ActivityIndicator size="large" color="#0B8280" />
                     <Text style={styles.loadingText}>Loading record...</Text>
                 </View>
             </SafeAreaView>
@@ -439,7 +439,7 @@ const ViewRecordScreen = () => {
     if (!participant) {
         return (
             <SafeAreaView style={styles.container}>
-                <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+                <StatusBar barStyle="light-content" backgroundColor="#0B8280" />
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         <Ionicons name="arrow-back" size={24} color="white" />
@@ -470,7 +470,7 @@ const ViewRecordScreen = () => {
         ];
         return (
             <SafeAreaView style={styles.container}>
-                <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+                <StatusBar barStyle="light-content" backgroundColor="#0B8280" />
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                         <Ionicons name="arrow-back" size={24} color="white" />
@@ -518,7 +518,7 @@ const ViewRecordScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+            <StatusBar barStyle="light-content" backgroundColor="#0B8280" />
 
             {/* Header */}
             <View style={styles.header}>
@@ -577,7 +577,7 @@ const ViewRecordScreen = () => {
                     {/* Individual Details */}
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
-                            <Ionicons name="person" size={20} color="#2563EB" style={{ marginRight: 8 }} />
+                            <Ionicons name="person" size={20} color="#0B8280" style={{ marginRight: 8 }} />
                             <Text style={styles.sectionTitle}>Individual Details</Text>
                         </View>
                         <View style={styles.sectionContent}>
@@ -598,7 +598,7 @@ const ViewRecordScreen = () => {
                     {/* Location */}
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
-                            <Ionicons name="location" size={20} color="#2563EB" style={{ marginRight: 8 }} />
+                            <Ionicons name="location" size={20} color="#0B8280" style={{ marginRight: 8 }} />
                             <Text style={styles.sectionTitle}>Location</Text>
                         </View>
                         <View style={styles.sectionContent}>
@@ -614,7 +614,7 @@ const ViewRecordScreen = () => {
                     {/* Health History */}
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
-                            <Ionicons name="pulse" size={20} color="#2563EB" style={{ marginRight: 8 }} />
+                            <Ionicons name="pulse" size={20} color="#0B8280" style={{ marginRight: 8 }} />
                             <Text style={styles.sectionTitle}>Health History</Text>
                         </View>
                         <View style={styles.sectionContent}>
@@ -673,7 +673,7 @@ const ViewRecordScreen = () => {
                     {/* Audio Recordings */}
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
-                            <Ionicons name="mic" size={20} color="#2563EB" style={{ marginRight: 8 }} />
+                            <Ionicons name="mic" size={20} color="#0B8280" style={{ marginRight: 8 }} />
                             <Text style={styles.sectionTitle}>Audio Recordings</Text>
                         </View>
                         <View style={styles.sectionContent}>
@@ -715,7 +715,7 @@ const ViewRecordScreen = () => {
                     {analysisResult && (
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
-                                <Ionicons name="analytics" size={20} color="#2563EB" style={{ marginRight: 8 }} />
+                                <Ionicons name="analytics" size={20} color="#0B8280" style={{ marginRight: 8 }} />
                                 <Text style={styles.sectionTitle}>Analysis Results</Text>
                             </View>
                             <View style={styles.sectionContent}>
@@ -737,7 +737,7 @@ const ViewRecordScreen = () => {
                     {/* Diagnostic Testing */}
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
-                            <Ionicons name="document-text" size={20} color="#2563EB" style={{ marginRight: 8 }} />
+                            <Ionicons name="document-text" size={20} color="#0B8280" style={{ marginRight: 8 }} />
                             <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                 <Text style={styles.sectionTitle}>Diagnostic Testing</Text>
                                 {/* Only show Add Results button if unsynced and not editing */}
@@ -758,7 +758,7 @@ const ViewRecordScreen = () => {
                                             setIsEditingTestResults(true);
                                         }}
                                     >
-                                        <Ionicons name={participant.test_done ? 'pencil' : 'add'} size={16} color="#2563EB" style={{ marginRight: 4 }} />
+                                        <Ionicons name={participant.test_done ? 'pencil' : 'add'} size={16} color="#0B8280" style={{ marginRight: 4 }} />
                                         <Text style={styles.addButtonText}>
                                             {participant.test_done ? 'Edit Diagnosis' : 'Add Diagnosis'}
                                         </Text>
@@ -1100,7 +1100,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F8FAFC',
     },
     header: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         padding: 16,
         paddingTop: 40,
         flexDirection: 'row',
@@ -1115,7 +1115,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     headerSubtitle: {
-        color: '#BFDBFE',
+        color: '#B2DFDB',
         fontSize: 12,
         marginTop: 2,
     },
@@ -1234,15 +1234,15 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 6,
-        backgroundColor: '#EFF6FF',
+        backgroundColor: '#E0F2F1',
     },
     addButtonText: {
-        color: '#2563EB',
+        color: '#0B8280',
         fontSize: 12,
         fontWeight: '600',
     },
     addTestButton: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         padding: 16,
         borderRadius: 12,
         alignItems: 'center',
@@ -1290,7 +1290,7 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 12,
         borderRadius: 8,
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',

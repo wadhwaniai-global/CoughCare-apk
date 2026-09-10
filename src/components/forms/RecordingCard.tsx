@@ -247,7 +247,7 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
             {/* Buttons - Hide during analysis, show loader */}
             {analysis?.loading ? (
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#2563EB" />
+                    <ActivityIndicator size="large" color="#0B8280" />
                     <Text style={styles.loadingText}>Analyzing audio...</Text>
                 </View>
             ) : isRecording ? (
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     },
     loadingText: {
         marginTop: 12,
-        color: '#2563EB',
+        color: '#0B8280',
         fontSize: 14,
         fontWeight: '500',
     },

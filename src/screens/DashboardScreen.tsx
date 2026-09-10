@@ -219,7 +219,7 @@ const DashboardScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+            <StatusBar barStyle="light-content" backgroundColor="#0B8280" />
 
             {/* Header */}
             <View style={styles.header}>
@@ -302,7 +302,7 @@ const DashboardScreen = () => {
                     </View>
                     <View style={styles.statCard}>
                         <Text style={styles.statLabel}>Total</Text>
-                        <Text style={[styles.statValue, { color: '#2563EB' }]}>{stats.total}</Text>
+                        <Text style={[styles.statValue, { color: '#0B8280' }]}>{stats.total}</Text>
                     </View>
                 </View>
 
@@ -403,7 +403,7 @@ const DashboardScreen = () => {
                                         )}
                                         <View style={[
                                             styles.statusBadge,
-                                            item.recordStatus === 'pending' ? { backgroundColor: '#E0F2FE' } :
+                                            item.recordStatus === 'pending' ? { backgroundColor: '#E0F2F1' } :
                                                 item.recordStatus === 'awaiting_diagnosis' ? { backgroundColor: '#FEF3C7' } :
                                                     item.recordStatus === 'synced' ? { backgroundColor: '#DCFCE7' } :
                                                         { backgroundColor: '#E0E7FF' }
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#F8FAFC',
     },
     header: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         padding: 20,
         paddingTop: 40,
         flexDirection: 'row',
@@ -517,7 +517,7 @@ const styles = StyleSheet.create({
     },
     usernameText: {
         fontSize: 12,
-        color: '#BFDBFE',
+        color: '#B2DFDB',
         marginTop: 4,
     },
     logoutButton: {
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
     },
     headerSubtitle: {
         fontSize: 14,
-        color: '#BFDBFE',
+        color: '#B2DFDB',
         marginTop: 4,
     },
     onlineBadge: {
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     syncBtn: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 16,

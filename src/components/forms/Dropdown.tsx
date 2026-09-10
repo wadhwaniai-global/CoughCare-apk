@@ -73,7 +73,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
                                     >
                                         <Text style={styles.dropdownItemText}>{item}</Text>
                                         {value === item && (
-                                            <Ionicons name="checkmark" size={20} color="#2563EB" />
+                                            <Ionicons name="checkmark" size={20} color="#0B8280" />
                                         )}
                                     </TouchableOpacity>
                                 )}

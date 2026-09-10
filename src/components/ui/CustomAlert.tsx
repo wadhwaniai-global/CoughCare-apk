@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
         shadowRadius: 3.84,
     },
     header: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         padding: 16,
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     },
     bulletPoint: {
         fontSize: 16,
-        color: '#2563EB',
+        color: '#0B8280',
         marginRight: 8,
         lineHeight: 22,
     },
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     defaultButton: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
     },
     cancelButton: {
         backgroundColor: 'white',

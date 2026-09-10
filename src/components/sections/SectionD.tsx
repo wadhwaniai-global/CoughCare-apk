@@ -208,15 +208,15 @@ export const SectionD: React.FC<SectionDProps> = ({
 
 const styles = StyleSheet.create({
     protocolBox: {
-        backgroundColor: '#EFF6FF',
+        backgroundColor: '#E0F2F1',
         padding: 16,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#BFDBFE',
+        borderColor: '#B2DFDB',
         marginBottom: 24,
     },
     protocolText: {
-        color: '#1E40AF',
+        color: '#086663',
         fontSize: 14,
         lineHeight: 20,
     },

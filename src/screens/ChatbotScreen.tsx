@@ -172,7 +172,7 @@ export default function ChatbotScreen() {
             onPress={handleGoHome}
             activeOpacity={0.8}
           >
-            <Ionicons name="home" size={16} color="#158B95" />
+            <Ionicons name="home" size={16} color="#0B8280" />
             <Text style={styles.homeButtonText}>Start New Assessment</Text>
           </TouchableOpacity>
         }
@@ -218,7 +218,7 @@ export default function ChatbotScreen() {
 
           {isProcessing && (
             <View style={styles.botMessage}>
-              <Ionicons name="ellipse" size={20} color="#158B95" />
+              <Ionicons name="ellipse" size={20} color="#0B8280" />
             </View>
           )}
         </ScrollView>
@@ -238,7 +238,7 @@ export default function ChatbotScreen() {
               {isRecording ? (
                 <Ionicons name="mic-off" size={24} color="#FFFFFF" />
               ) : (
-                <Ionicons name="mic" size={24} color={isRecording ? '#FFFFFF' : '#158B95'} />
+                <Ionicons name="mic" size={24} color={isRecording ? '#FFFFFF' : '#0B8280'} />
               )}
             </AnimatedTouchableOpacity>
 

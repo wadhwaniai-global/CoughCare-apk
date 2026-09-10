@@ -725,7 +725,7 @@ const NewParticipantScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+            <StatusBar barStyle="light-content" backgroundColor="#0B8280" />
 
             {/* App Bar */}
             <View style={styles.appBar}>
@@ -748,7 +748,7 @@ const NewParticipantScreen = () => {
 
             {isLoadingDraft ? (
                 <View style={styles.draftLoadingContainer}>
-                    <ActivityIndicator size="large" color="#2563EB" />
+                    <ActivityIndicator size="large" color="#0B8280" />
                     <Text style={styles.draftLoadingText}>Loading draft...</Text>
                 </View>
             ) : (<>
@@ -989,7 +989,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     appBar: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         padding: 16,
         paddingTop: 40,
         flexDirection: 'row',
@@ -1004,7 +1004,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     appBarSubtitle: {
-        color: '#BFDBFE',
+        color: '#B2DFDB',
         fontSize: 12,
     },
     content: {
@@ -1098,7 +1098,7 @@ const styles = StyleSheet.create({
         lineHeight: 22,
     },
     modalButton: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         padding: 16,
         borderBottomLeftRadius: 16,
         borderBottomRightRadius: 16,

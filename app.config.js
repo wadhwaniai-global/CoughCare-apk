@@ -6,12 +6,12 @@ export default {
     // Keep in sync with versionName in android/app/build.gradle (gitignored)
     version: "2.1.0",
     orientation: "portrait",
-    icon: "./public/logo.png",
+    icon: "./assets/brand/icon.png",
     userInterfaceStyle: "light",
     splash: {
-      image: "./public/logo.png",
+      image: "./assets/brand/splash-logo.png",
       resizeMode: "contain",
-      backgroundColor: "#158B95"
+      backgroundColor: "#0B8280"
     },
     updates: {
       url: "https://u.expo.dev/b4a88731-0c6b-4aec-a0f5-451585590fad",
@@ -44,8 +44,8 @@ export default {
     },
     android: {
       adaptiveIcon: {
-        foregroundImage: "./public/logo.png",
-        backgroundColor: "#158B95"
+        foregroundImage: "./assets/brand/adaptive-foreground.png",
+        backgroundColor: "#0B8280"
       },
       package: "com.coughcare.app",
       permissions: [
@@ -55,7 +55,7 @@ export default {
       ]
     },
     web: {
-      favicon: "./public/logo.png"
+      favicon: "./assets/brand/icon.png"
     },
     plugins: [
       [

@@ -193,7 +193,7 @@ export default function AnalyzingScreen() {
 
   return (
     <LinearGradient
-      colors={['#158B95', '#0f6b73', '#e0f2f1']}
+      colors={['#0B8280', '#086663', '#e0f2f1']}
       style={styles.container}
     >
       <AppHeader variant="translucent" />

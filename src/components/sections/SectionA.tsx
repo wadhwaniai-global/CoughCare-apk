@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     gpsButton: {
-        backgroundColor: '#2563EB',
+        backgroundColor: '#0B8280',
         paddingVertical: 12,
         paddingHorizontal: 14,
         borderRadius: 8,
@@ -350,11 +350,11 @@ const styles = StyleSheet.create({
     },
     consentContainer: {
         marginTop: 16,
-        backgroundColor: '#EFF6FF',
+        backgroundColor: '#E0F2F1',
         padding: 16,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: '#BFDBFE',
+        borderColor: '#B2DFDB',
     },
     consentContainerError: {
         borderColor: '#EF4444',

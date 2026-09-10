@@ -63,7 +63,7 @@ export default function ResultScreen() {
   if (!result) {
     return (
       <LinearGradient
-        colors={['#158B95', '#0f6b73', '#e0f2f1']}
+        colors={['#0B8280', '#086663', '#e0f2f1']}
         style={styles.container}
       >
         <AppHeader variant="translucent" />
@@ -122,7 +122,7 @@ export default function ResultScreen() {
     console.log('ResultScreen - Rendering cough detected screen');
     return (
       <LinearGradient
-        colors={['#158B95', '#0f6b73', '#e0f2f1']}
+        colors={['#0B8280', '#086663', '#e0f2f1']}
         style={styles.container}
       >
         <AppHeader variant="translucent" />
@@ -188,7 +188,7 @@ export default function ResultScreen() {
 
     return (
       <LinearGradient
-        colors={['#158B95', '#0f6b73', '#e0f2f1']}
+        colors={['#0B8280', '#086663', '#e0f2f1']}
         style={styles.container}
       >
         <AppHeader variant="translucent" />
@@ -248,7 +248,7 @@ export default function ResultScreen() {
   // Fallback - show result data even if format is unexpected
   return (
     <LinearGradient
-      colors={['#158B95', '#0f6b73', '#e0f2f1']}
+      colors={['#0B8280', '#086663', '#e0f2f1']}
       style={styles.container}
     >
       <AppHeader variant="translucent" />

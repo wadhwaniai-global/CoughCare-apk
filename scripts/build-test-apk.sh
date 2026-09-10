@@ -19,6 +19,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 GRADLE="$ROOT/android/app/build.gradle"
 MANIFEST="$ROOT/android/app/src/main/AndroidManifest.xml"
 STRINGS="$ROOT/android/app/src/main/res/values/strings.xml"
+COLORS="$ROOT/android/app/src/main/res/values/colors.xml"
 
 # Toolchain (user-local install, mirrors ~/.zshrc)
 export JAVA_HOME="${JAVA_HOME:-$HOME/Library/Java/JavaVirtualMachines/jdk-17.0.20+8/Contents/Home}"
@@ -28,7 +29,7 @@ export PATH="$HOME/.local/node/bin:$JAVA_HOME/bin:$PATH"
 # Backups live OUTSIDE android/ — a stray backup inside res/ breaks the
 # resource-packaging step, which requires every file there to be .xml.
 BAK="$(mktemp -d)"
-for f in "$GRADLE" "$MANIFEST" "$STRINGS"; do
+for f in "$GRADLE" "$MANIFEST" "$STRINGS" "$COLORS"; do
   [ -f "$f" ] || { echo "Missing $f — run a prebuild first"; exit 1; }
   cp "$f" "$BAK/$(basename "$f")"
 done
@@ -37,6 +38,7 @@ restore() {
   cp "$BAK/build.gradle" "$GRADLE"
   cp "$BAK/AndroidManifest.xml" "$MANIFEST"
   cp "$BAK/strings.xml" "$STRINGS"
+  cp "$BAK/colors.xml" "$COLORS"
   rm -rf "$BAK"
 }
 trap restore EXIT
@@ -46,10 +48,15 @@ trap restore EXIT
 grep -q "applicationId 'com.coughcare.app'" "$GRADLE" || { echo "Unexpected applicationId in build.gradle"; exit 1; }
 grep -q 'expo-channel-name&quot;:&quot;production' "$MANIFEST" || { echo "Unexpected channel in AndroidManifest.xml"; exit 1; }
 grep -q '<string name="app_name">Cough Against TB</string>' "$STRINGS" || { echo "Unexpected app_name in strings.xml"; exit 1; }
+grep -q '<color name="iconBackground">#0B8280</color>' "$COLORS" || { echo "Unexpected iconBackground in colors.xml"; exit 1; }
 
 sed -i '' "s/applicationId 'com.coughcare.app'/applicationId 'com.coughcare.test'/" "$GRADLE"
 sed -i '' 's/expo-channel-name\&quot;:\&quot;production/expo-channel-name\&quot;:\&quot;test/' "$MANIFEST"
 sed -i '' 's|<string name="app_name">Cough Against TB</string>|<string name="app_name">CoughCare Test</string>|' "$STRINGS"
+# Same mark, amber background: testers with both apps installed can tell them
+# apart at a glance (amber = the TEST BUILD banner colour). Adaptive icons
+# only; the legacy pre-Android-8 icon stays teal.
+sed -i '' 's|<color name="iconBackground">#0B8280</color>|<color name="iconBackground">#F59E0B</color>|' "$COLORS"
 
 echo "Building CoughCare Test (com.coughcare.test, channel: test)..."
 # Bundle sequence shown as "#<n>" in the app; Metro inlines it during the

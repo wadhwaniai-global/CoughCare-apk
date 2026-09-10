@@ -98,7 +98,7 @@ const CaptureDiagnosticScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="light-content" backgroundColor="#2563EB" />
+            <StatusBar barStyle="light-content" backgroundColor="#0B8280" />
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="white" />
@@ -149,20 +149,20 @@ const CaptureDiagnosticScreen = () => {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
-    header: { backgroundColor: '#2563EB', padding: 16, paddingTop: 40, flexDirection: 'row', alignItems: 'center' },
+    header: { backgroundColor: '#0B8280', padding: 16, paddingTop: 40, flexDirection: 'row', alignItems: 'center' },
     backButton: { marginRight: 16 },
     headerTitle: { color: 'white', fontSize: 18, fontWeight: '600' },
-    headerSubtitle: { color: '#BFDBFE', fontSize: 12, marginTop: 2 },
+    headerSubtitle: { color: '#B2DFDB', fontSize: 12, marginTop: 2 },
     help: { fontSize: 13, color: '#475569', marginBottom: 12 },
     folderBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'white', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, padding: 12, marginBottom: 12 },
     folderBtnSet: { borderColor: '#86EFAC', backgroundColor: '#F0FDF4' },
     folderText: { fontSize: 14, color: '#334155', fontWeight: '600' },
     row: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-    srcBtn: { flex: 1, backgroundColor: '#2563EB', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 6, alignItems: 'center' },
+    srcBtn: { flex: 1, backgroundColor: '#0B8280', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 6, alignItems: 'center' },
     srcBtnActive: { backgroundColor: '#DC2626' },
     srcBtnDisabled: { opacity: 0.4 },
     srcBtnText: { color: 'white', fontWeight: '700', fontSize: 11 },
-    srcBtnSub: { color: '#DBEAFE', fontSize: 10, marginTop: 4 },
+    srcBtnSub: { color: '#E0F2F1', fontSize: 10, marginTop: 4 },
     take: { backgroundColor: 'white', borderRadius: 10, padding: 12, marginBottom: 8, borderWidth: 1, borderColor: '#E2E8F0' },
     takeSource: { fontWeight: '700', color: '#1E293B' },
     takeScore: { fontWeight: '700' },

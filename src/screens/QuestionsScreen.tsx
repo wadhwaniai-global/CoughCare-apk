@@ -99,7 +99,7 @@ export default function QuestionsScreen() {
 
   return (
     <LinearGradient
-      colors={['#158B95', '#0f6b73', '#e0f2f1']}
+      colors={['#0B8280', '#086663', '#e0f2f1']}
       style={styles.container}
     >
       <AppHeader variant="translucent" />
@@ -168,7 +168,7 @@ export default function QuestionsScreen() {
               disabled={currentQuestionIndex === 0}
               activeOpacity={0.8}
             >
-              <Ionicons name="chevron-back" size={20} color={currentQuestionIndex === 0 ? '#94A3B8' : '#158B95'} />
+              <Ionicons name="chevron-back" size={20} color={currentQuestionIndex === 0 ? '#94A3B8' : '#0B8280'} />
               <Text style={[
                 styles.navButtonText,
                 currentQuestionIndex === 0 && styles.navButtonTextDisabled,
