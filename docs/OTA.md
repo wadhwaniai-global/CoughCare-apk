@@ -3,8 +3,18 @@
 How to ship a JavaScript-only change to installed apps without redistributing a
 374 MB APK, and how to prove it landed.
 
-Everything here was verified end-to-end on 2026-08-15 against the
-`feature/ghana-release` branch.
+Everything here was verified end-to-end on 2026-08-15 (then on the
+`feature/ghana-release` branch, since replaced by `main`).
+
+## Branch workflow (since 2026-09-17)
+
+- **`test`** is the working branch. Commit and push day-to-day work here and
+  publish tester updates from here with `npm run ota:test`.
+- **`main`** only receives final, release-ready updates: fast-forward it from
+  `test` when a release is called final, then build the APK pair from `main`
+  with `scripts/build-field-apk.sh` and `scripts/build-test-apk.sh`.
+- Never commit on `main` directly. Before building release APKs, check that
+  `main` and `test` point at the same commit.
 
 ---
 
