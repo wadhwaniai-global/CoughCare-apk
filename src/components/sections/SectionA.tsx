@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { Dropdown } from '../forms/Dropdown';
 import { RadioButtonGroup } from '../forms/RadioButtonGroup';
 import { ParticipantFormData } from '../../types/participantForm';
-import {} from '../../utils/dateUtils';
 
 
 interface SectionAProps {
