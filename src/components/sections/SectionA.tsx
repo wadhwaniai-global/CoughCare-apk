@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Platform, ToastAndroid, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { Dropdown } from '../forms/Dropdown';
 import { RadioButtonGroup } from '../forms/RadioButtonGroup';
 import { ParticipantFormData } from '../../types/participantForm';
-import { formatDateDDMMYYYY } from '../../utils/dateUtils';
+import {} from '../../utils/dateUtils';
 
 
 interface SectionAProps {
@@ -23,7 +22,6 @@ export const SectionA: React.FC<SectionAProps> = ({
     setExpandedDropdown,
     errors = {},
 }) => {
-    const [showDatePicker, setShowDatePicker] = useState(false);
     const [isCapturingGps, setIsCapturingGps] = useState(false);
 
     const handleCaptureGps = async () => {
@@ -79,26 +77,6 @@ export const SectionA: React.FC<SectionAProps> = ({
         }
     };
 
-    const onDateChange = (event: any, selectedDate?: Date) => {
-        setShowDatePicker(false);
-        if (selectedDate) {
-            updateField('dateOfScreening', formatDateDDMMYYYY(selectedDate));
-        }
-    };
-
-    const handleManualDateChange = (text: string) => {
-        // Simple date mask: DD/MM/YYYY
-        let cleaned = text.replace(/\D/g, '');
-        let formatted = cleaned;
-        if (cleaned.length > 2) {
-            formatted = cleaned.slice(0, 2) + '/' + cleaned.slice(2);
-        }
-        if (cleaned.length > 4) {
-            formatted = formatted.slice(0, 5) + '/' + cleaned.slice(4, 8);
-        }
-        updateField('dateOfScreening', formatted);
-    };
-
     const handleNumericChange = (field: keyof ParticipantFormData, text: string, maxLength: number = 1000) => {
         const validText = text.replace(/[^0-9]/g, '');
         if (text !== validText) {
@@ -121,6 +99,15 @@ export const SectionA: React.FC<SectionAProps> = ({
                 </Text>
             </View>
             {errors['participantId'] && <Text style={styles.errorText}>{errors['participantId']}</Text>}
+
+            {/* Screening date is set by the app (today when the record is created,
+                the stored date when editing) and is deliberately not editable by
+                the collector: it is a fact about the encounter, not a form input. */}
+            <Text style={styles.label}>Date of Screening *</Text>
+            <View style={[styles.input, styles.readOnlyInput]}>
+                <Text style={styles.readOnlyText}>{formData.dateOfScreening}</Text>
+            </View>
+            {errors['dateOfScreening'] && <Text style={styles.errorText}>{errors['dateOfScreening']}</Text>}
 
             <Text style={styles.label}>Mobile Number *</Text>
             <TextInput
@@ -203,32 +190,6 @@ export const SectionA: React.FC<SectionAProps> = ({
                 value={formData.address}
                 onChangeText={(text) => handleTextChange('address', text)}
             />
-
-            <Text style={styles.label}>Date of Screening *</Text>
-            <View style={styles.dateContainer}>
-                <TextInput
-                    style={[styles.input, styles.dateInput, errors['dateOfScreening'] && styles.inputError]}
-                    placeholder="DD/MM/YYYY"
-                    keyboardType="numeric"
-                    maxLength={10}
-                    value={formData.dateOfScreening}
-                    onChangeText={handleManualDateChange}
-                />
-                <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.dateIconBtn}>
-                    <Ionicons name="calendar-outline" size={24} color="#64748B" />
-                </TouchableOpacity>
-            </View>
-            {errors['dateOfScreening'] && <Text style={styles.errorText}>{errors['dateOfScreening']}</Text>}
-
-            {showDatePicker && (
-                <DateTimePicker
-                    value={new Date()}
-                    mode="date"
-                    display="default"
-                    maximumDate={new Date()}
-                    onChange={onDateChange}
-                />
-            )}
 
             <Text style={styles.label}>Community Name (Optional)</Text>
             <TextInput
@@ -378,20 +339,5 @@ const styles = StyleSheet.create({
         color: '#EF4444',
         fontSize: 12,
         marginTop: 4,
-    },
-    dateContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    dateInput: {
-        flex: 1,
-    },
-    dateIconBtn: {
-        marginLeft: 8,
-        padding: 10,
-        backgroundColor: '#F1F5F9',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
     },
 });

@@ -67,9 +67,17 @@ export EXPO_PUBLIC_BUNDLE_SEQ="$(git -C "$ROOT" rev-list --count HEAD)"
 # Drop the cached bundle so every APK is labelled with the commit it was built from.
 rm -rf "$ROOT/android/app/build/generated/assets/createBundleReleaseJsAndAssets" \
        "$ROOT/android/app/build/generated/res/createBundleReleaseJsAndAssets"
+# Same problem, worse consequence: the expo-updates task that writes the EMBEDDED
+# asset manifest (assets/app.manifest) also reused a stale output (dated Aug 15)
+# in every build until 2026-09-17, so the APK listed the retired models and not
+# the CED graph, and cough analysis failed on any install running the embedded
+# bundle. Always regenerate it.
+rm -rf "$ROOT/android/app/build/generated/assets/createReleaseUpdatesResources"
 "$ROOT/android/gradlew" -p "$ROOT/android" :app:assembleRelease --console=plain
 
 OUT="$HOME/Desktop/CoughCare-TEST-$(date +%Y-%m-%d).apk"
+MANIFEST="$ROOT/android/app/build/generated/assets/createReleaseUpdatesResources/app.manifest"
+grep -q '"CED_int8.app"' "$MANIFEST" || { echo "Embedded manifest does not list the CED model; refusing to ship this APK"; exit 1; }
 cp "$ROOT/android/app/build/outputs/apk/release/app-release.apk" "$OUT"
 echo "Done: $OUT"
 echo "NOTE: android/ has been restored to field values. Rebuild before"
