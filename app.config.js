@@ -4,7 +4,7 @@ export default {
     owner: "wadhwani-ai-global",
     slug: "cough-against-tb",
     // Keep in sync with versionName in android/app/build.gradle (gitignored)
-    version: "2.1.0",
+    version: "2.2.0",
     orientation: "portrait",
     icon: "./assets/brand/icon.png",
     userInterfaceStyle: "light",

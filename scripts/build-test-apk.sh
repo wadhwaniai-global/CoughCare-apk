@@ -26,6 +26,14 @@ export JAVA_HOME="${JAVA_HOME:-$HOME/Library/Java/JavaVirtualMachines/jdk-17.0.2
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export PATH="$HOME/.local/node/bin:$JAVA_HOME/bin:$PATH"
 
+# Refuse to build with a backend override active: the app must derive its
+# backend from the OTA channel. An EXPO_PUBLIC_API_BASE_URL in .env or the
+# environment would silently point this build (test app included) at one URL.
+if [ -n "${EXPO_PUBLIC_API_BASE_URL:-}" ] || grep -qE '^[[:space:]]*EXPO_PUBLIC_API_BASE_URL=' "$ROOT/.env" 2>/dev/null; then
+  echo "EXPO_PUBLIC_API_BASE_URL override is set (env or .env); unset it before building." >&2
+  exit 1
+fi
+
 # Backups live OUTSIDE android/ — a stray backup inside res/ breaks the
 # resource-packaging step, which requires every file there to be .xml.
 BAK="$(mktemp -d)"

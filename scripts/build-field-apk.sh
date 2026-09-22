@@ -11,6 +11,14 @@ export JAVA_HOME="${JAVA_HOME:-$HOME/Library/Java/JavaVirtualMachines/jdk-17.0.2
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/Library/Android/sdk}"
 export PATH="$HOME/.local/node/bin:$JAVA_HOME/bin:$PATH"
 
+# Refuse to build with a backend override active: the app must derive its
+# backend from the OTA channel. An EXPO_PUBLIC_API_BASE_URL in .env or the
+# environment would silently point this build (test app included) at one URL.
+if [ -n "${EXPO_PUBLIC_API_BASE_URL:-}" ] || grep -qE '^[[:space:]]*EXPO_PUBLIC_API_BASE_URL=' "$ROOT/.env" 2>/dev/null; then
+  echo "EXPO_PUBLIC_API_BASE_URL override is set (env or .env); unset it before building." >&2
+  exit 1
+fi
+
 GRADLE="$ROOT/android/app/build.gradle"
 grep -q "applicationId 'com.coughcare.app'" "$GRADLE" || { echo "android/ is not in field state (applicationId)"; exit 1; }
 grep -q 'expo-channel-name&quot;:&quot;production' "$ROOT/android/app/src/main/AndroidManifest.xml" || { echo "android/ is not in field state (channel)"; exit 1; }

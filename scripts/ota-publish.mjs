@@ -172,6 +172,15 @@ if (errorCount > TSC_BASELINE_ERRORS) {
 }
 ok(errorCount === 0 ? 'No type errors' : `${errorCount} pre-existing errors, none added ${c.dim(`(baseline ${TSC_BASELINE_ERRORS})`)}`);
 
+// Refuse to publish with a backend override active (see build scripts):
+// the bundle must derive its backend from the OTA channel at runtime.
+{
+    const envFile = existsSync('.env') ? readFileSync('.env', 'utf8') : '';
+    if (process.env.EXPO_PUBLIC_API_BASE_URL || /^\s*EXPO_PUBLIC_API_BASE_URL=/m.test(envFile)) {
+        die('EXPO_PUBLIC_API_BASE_URL override is set (env or .env); unset it before publishing.');
+    }
+}
+
 // --------------------------------------------------------------- publish
 const extraArgs = process.argv.slice(3);
 const skipConfirm = extraArgs.includes('--yes');
