@@ -10,8 +10,8 @@
 # (also on failure). The field APK build (./gradlew :app:assembleRelease with
 # an untouched android/) is unaffected.
 #
-# Usage: scripts/build-test-apk.sh
-# Output: ~/Desktop/CoughCare-TEST-<date>.apk
+# Usage: scripts/build-test-apk.sh [--with-aab]
+# Output: ~/Desktop/CoughCare-TEST-<date>.apk (+ .aab with --with-aab)
 
 set -euo pipefail
 
@@ -81,7 +81,11 @@ rm -rf "$ROOT/android/app/build/generated/assets/createBundleReleaseJsAndAssets"
 # the CED graph, and cough analysis failed on any install running the embedded
 # bundle. Always regenerate it.
 rm -rf "$ROOT/android/app/build/generated/assets/createReleaseUpdatesResources"
-"$ROOT/android/gradlew" -p "$ROOT/android" :app:assembleRelease --console=plain
+# --with-aab also produces the Android App Bundle (for managed Google Play);
+# both outputs come from the same gradle run, so they share one JS bundle.
+TASKS=":app:assembleRelease"
+if [ "${1:-}" = "--with-aab" ]; then TASKS="$TASKS :app:bundleRelease"; fi
+"$ROOT/android/gradlew" -p "$ROOT/android" $TASKS --console=plain
 
 OUT="$HOME/Desktop/CoughCare-TEST-$(date +%Y-%m-%d).apk"
 # NOTE: a separate variable on purpose. This used to reassign MANIFEST, so the
@@ -91,6 +95,11 @@ EMBEDDED_MANIFEST="$ROOT/android/app/build/generated/assets/createReleaseUpdates
 grep -q '"CED_int8.app"' "$EMBEDDED_MANIFEST" || { echo "Embedded manifest does not list the CED model; refusing to ship this APK"; exit 1; }
 cp "$ROOT/android/app/build/outputs/apk/release/app-release.apk" "$OUT"
 echo "Done: $OUT"
+if [ "${1:-}" = "--with-aab" ]; then
+  AAB="${OUT%.apk}.aab"
+  cp "$ROOT/android/app/build/outputs/bundle/release/app-release.aab" "$AAB"
+  echo "Done: $AAB"
+fi
 grep -q 'expo-channel-name&quot;:&quot;production' "$MANIFEST" || echo "WARNING: android/ manifest is NOT back on the production channel; repair before any field build." >&2
 echo "NOTE: android/ has been restored to field values. Rebuild before"
 echo "distributing a FIELD apk if you use the build outputs directory directly —"

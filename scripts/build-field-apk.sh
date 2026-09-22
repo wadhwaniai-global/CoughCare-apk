@@ -3,8 +3,8 @@
 # OTA channel production. Uses the local android/ prebuild untouched and the
 # real release keystore (see android/app/build.gradle signingConfigs.release).
 #
-# Usage: scripts/build-field-apk.sh
-# Output: ~/Desktop/CoughCare-FIELD-<date>.apk
+# Usage: scripts/build-field-apk.sh [--with-aab]
+# Output: ~/Desktop/CoughCare-FIELD-<date>.apk (+ .aab with --with-aab)
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export JAVA_HOME="${JAVA_HOME:-$HOME/Library/Java/JavaVirtualMachines/jdk-17.0.20+8/Contents/Home}"
@@ -35,10 +35,19 @@ rm -rf "$ROOT/android/app/build/generated/assets/createBundleReleaseJsAndAssets"
 # bundle. Always regenerate it.
 rm -rf "$ROOT/android/app/build/generated/assets/createReleaseUpdatesResources"
 echo "Building Cough Against TB (com.coughcare.app, channel: production, seq #$EXPO_PUBLIC_BUNDLE_SEQ)..."
-"$ROOT/android/gradlew" -p "$ROOT/android" :app:assembleRelease --console=plain
+# --with-aab also produces the Android App Bundle (for managed Google Play);
+# both outputs come from the same gradle run, so they share one JS bundle.
+TASKS=":app:assembleRelease"
+if [ "${1:-}" = "--with-aab" ]; then TASKS="$TASKS :app:bundleRelease"; fi
+"$ROOT/android/gradlew" -p "$ROOT/android" $TASKS --console=plain
 
 OUT="$HOME/Desktop/CoughCare-FIELD-$(date +%Y-%m-%d).apk"
 MANIFEST="$ROOT/android/app/build/generated/assets/createReleaseUpdatesResources/app.manifest"
 grep -q '"CED_int8.app"' "$MANIFEST" || { echo "Embedded manifest does not list the CED model; refusing to ship this APK"; exit 1; }
 cp "$ROOT/android/app/build/outputs/apk/release/app-release.apk" "$OUT"
 echo "Done: $OUT"
+if [ "${1:-}" = "--with-aab" ]; then
+  AAB="${OUT%.apk}.aab"
+  cp "$ROOT/android/app/build/outputs/bundle/release/app-release.aab" "$AAB"
+  echo "Done: $AAB"
+fi
