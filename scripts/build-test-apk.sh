@@ -47,6 +47,9 @@ restore() {
   cp "$BAK/AndroidManifest.xml" "$MANIFEST"
   cp "$BAK/strings.xml" "$STRINGS"
   cp "$BAK/colors.xml" "$COLORS"
+  # Runs at EXIT, i.e. after the build: verify the field binding really is back.
+  grep -q 'expo-channel-name&quot;:&quot;production' "$MANIFEST" \
+    || echo "WARNING: android/ manifest is NOT back on the production channel; repair before any field build." >&2
   rm -rf "$BAK"
 }
 trap restore EXIT
@@ -100,7 +103,6 @@ if [ "${1:-}" = "--with-aab" ]; then
   cp "$ROOT/android/app/build/outputs/bundle/release/app-release.aab" "$AAB"
   echo "Done: $AAB"
 fi
-grep -q 'expo-channel-name&quot;:&quot;production' "$MANIFEST" || echo "WARNING: android/ manifest is NOT back on the production channel; repair before any field build." >&2
 echo "NOTE: android/ has been restored to field values. Rebuild before"
 echo "distributing a FIELD apk if you use the build outputs directory directly —"
 echo "android/app/build/outputs currently contains the TEST apk."
