@@ -40,6 +40,7 @@ export const useParticipantForm = (
         recording2: null,
         recording3: null,
         recordingBackground: null,
+        patientWearingMask: null,
         // Section E
         testResult: null,
         testDateCollection: '',

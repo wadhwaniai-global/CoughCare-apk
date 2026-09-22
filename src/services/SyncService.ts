@@ -216,6 +216,10 @@ class SyncService {
         test_site: participant.test_site,
         test_notes: participant.test_notes,
         analysis_result: analysisResult,
+        // Acoustic context for the cough takes: was the participant wearing a
+        // mask while recording? Mandatory on the form since seq 109; null only
+        // on records created by an older build and synced by this one.
+        patient_wearing_mask: participant.patient_wearing_mask == null ? null : participant.patient_wearing_mask === 1,
         // Per-recording detail: every uploaded file's own cough score, slot,
         // and whether the collector discarded it (re-record). file_id joins
         // against the top-level file_ids/file_references.

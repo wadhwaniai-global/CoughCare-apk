@@ -32,6 +32,9 @@ export interface ParticipantFormData {
     recording2: string | null;
     recording3: string | null;
     recordingBackground: string | null;
+    /** Was the participant wearing a mask while the cough samples were
+     *  recorded? Mandatory; affects the acoustic signal. null = unanswered. */
+    patientWearingMask: boolean | null;
     // Section E: Diagnostic Testing
     testResult: string | null;
     testDateCollection: string;

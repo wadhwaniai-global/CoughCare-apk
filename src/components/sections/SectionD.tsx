@@ -7,6 +7,7 @@ import { View, Text, StyleSheet, Platform, Alert } from 'react-native';
 import { Asset } from 'expo-asset';
 import { Ionicons } from '@expo/vector-icons';
 import { RecordingCard } from '../forms/RecordingCard';
+import { RadioButtonGroup } from '../forms/RadioButtonGroup';
 import { ParticipantFormData, AnalysisResult } from '../../types/participantForm';
 import { CustomAlert } from '../ui/CustomAlert';
 
@@ -120,6 +121,19 @@ export const SectionD: React.FC<SectionDProps> = ({
                 </Text>
             </View>
 
+            {/* Mask status is part of the acoustic context of every take, so it
+                is asked once here, before the recordings, and is mandatory.
+                Same card design as the consent question; neither answer is
+                "wrong", so both use the neutral highlight. */}
+            <View style={[styles.maskContainer, errors['patientWearingMask'] && styles.maskContainerError]}>
+                <Text style={styles.maskLabel}>Is the patient wearing a mask? *</Text>
+                <RadioButtonGroup
+                    value={formData.patientWearingMask}
+                    onSelect={(val) => updateField('patientWearingMask', val)}
+                />
+                {errors['patientWearingMask'] && <Text style={styles.errorText}>{errors['patientWearingMask']}</Text>}
+            </View>
+
             <RecordingCard
                 title="Cough Recording 1"
                 subtitle="Min: 5 seconds"
@@ -219,6 +233,25 @@ const styles = StyleSheet.create({
         color: '#086663',
         fontSize: 14,
         lineHeight: 20,
+    },
+    // Mirrors SectionA's consent card
+    maskContainer: {
+        backgroundColor: '#E0F2F1',
+        padding: 16,
+        paddingBottom: 0, // RadioButtonGroup carries its own bottom margin
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#B2DFDB',
+        marginBottom: 24,
+    },
+    maskContainerError: {
+        borderColor: '#EF4444',
+        backgroundColor: '#FEF2F2',
+    },
+    maskLabel: {
+        fontSize: 14,
+        color: '#475569',
+        fontWeight: '500',
     },
     errorText: {
         color: '#EF4444',

@@ -22,6 +22,7 @@ export interface Participant {
     data_collector_name: string;
     created_by?: string | null; // Login username that created the record; local-only, never sent to the server
     consent_obtained: number; // 0 or 1
+    patient_wearing_mask?: number | null; // 1/0, null = unanswered (draft) or pre-field record
     diabetes_status: string;
     hiv_status: string;
     covid_status: string;
@@ -106,6 +107,7 @@ export const initDatabase = async () => {
         community TEXT,
         data_collector_name TEXT NOT NULL,
         consent_obtained INTEGER NOT NULL,
+        patient_wearing_mask INTEGER, -- 1/0; NULL = unanswered
         diabetes_status TEXT NOT NULL,
         hiv_status TEXT NOT NULL,
         covid_status TEXT NOT NULL,
@@ -212,6 +214,7 @@ const migrateDatabase = async () => {
             { name: 'purged', sql: `ALTER TABLE participants ADD COLUMN purged INTEGER DEFAULT 0` },
             { name: 'sync_conflict', sql: `ALTER TABLE participants ADD COLUMN sync_conflict INTEGER DEFAULT 0` },
             { name: 'previous_participant_id', sql: `ALTER TABLE participants ADD COLUMN previous_participant_id TEXT` },
+            { name: 'patient_wearing_mask', sql: `ALTER TABLE participants ADD COLUMN patient_wearing_mask INTEGER` },
         ];
 
         for (const migration of migrations) {
@@ -324,6 +327,7 @@ export const saveParticipant = async (participant: Participant) => {
             community: normalizeValue(participant.community, null),
             data_collector_name: normalizeValue(participant.data_collector_name, ''),
             consent_obtained: normalizeValue(participant.consent_obtained, 0),
+            patient_wearing_mask: normalizeValue(participant.patient_wearing_mask, null),
             diabetes_status: normalizeValue(participant.diabetes_status, ''),
             hiv_status: normalizeValue(participant.hiv_status, ''),
             covid_status: normalizeValue(participant.covid_status, ''),
@@ -353,12 +357,13 @@ export const saveParticipant = async (participant: Participant) => {
             `INSERT OR REPLACE INTO participants (
                 participant_id, mobile_number, full_name, age, gender, address, date_of_screening,
                 region, district, facility, community, data_collector_name, consent_obtained,
+                patient_wearing_mask,
                 diabetes_status, hiv_status, covid_status, tobacco_use, tobacco_duration,
                 alcohol_use, alcohol_use_frequency, alcohol_duration, previous_tb, last_tb_year,
                 tb_treatment_completed, recurring_tb,
                 symptoms, test_done, test_type, test_date_collection, test_date_result,
                 test_result, test_site, test_notes, status, analysis_result, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 normalizedParticipant.participant_id,
                 normalizedParticipant.mobile_number,
@@ -373,6 +378,7 @@ export const saveParticipant = async (participant: Participant) => {
                 normalizedParticipant.community,
                 normalizedParticipant.data_collector_name,
                 normalizedParticipant.consent_obtained,
+                normalizedParticipant.patient_wearing_mask,
                 normalizedParticipant.diabetes_status,
                 normalizedParticipant.hiv_status,
                 normalizedParticipant.covid_status,
@@ -826,7 +832,7 @@ export const purgeSyncedParticipantData = async (participantId: string): Promise
             `UPDATE participants SET
                 age = 0, gender = '', date_of_screening = '',
                 district = '', facility = '', community = NULL,
-                data_collector_name = '', consent_obtained = 0,
+                data_collector_name = '', consent_obtained = 0, patient_wearing_mask = NULL,
                 diabetes_status = '', hiv_status = '', covid_status = '',
                 tobacco_use = 0, tobacco_duration = NULL,
                 alcohol_use = 0, alcohol_use_frequency = NULL, alcohol_duration = NULL,

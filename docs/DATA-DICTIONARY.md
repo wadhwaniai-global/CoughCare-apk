@@ -89,6 +89,12 @@ threshold 0.45). The CED detector (CED-tiny + LoRA, int8, single graph over a
 test on the `test` channel from #92; its release seq on `main` is TBD and will
 be added to the version notes below.
 
+## form_data — recording context
+
+| Field | Type | Values |
+|---|---|---|
+| `patient_wearing_mask` | boolean \| null | Was the participant wearing a mask while the cough samples were recorded (asked once per screening, in the recording section; mandatory since seq 109). `null` only on records created by a pre-109 build; absent entirely on records synced by pre-109 builds. |
+
 ## form_data — per-recording metadata
 
 `recordings` (array): one entry per uploaded file, kept **and rejected**.
@@ -174,6 +180,7 @@ post-sync purge there. Server-side records are pseudonymous.
 | seq < 68 | payload includes `mobile_number`, `gps_latitude`, `gps_longitude` |
 | seq < 67 | audio is 16 kHz |
 | seq < 99 | no `recordings[].quality` object and no `device_build` |
+| seq < 109 | no `patient_wearing_mask` |
 | CED detector builds (test channel #92+; main seq TBD) | `analysis_result` has no `segment_probabilities`/`num_segments`; `threshold_used` = 0.4758; per-recording `confidence` values come from a different model and are not comparable with earlier scores |
 
 **Exclude internal data** (backend guidance, 2026-08): drop forms where

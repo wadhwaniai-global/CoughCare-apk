@@ -677,6 +677,10 @@ const ViewRecordScreen = () => {
                             <Text style={styles.sectionTitle}>Audio Recordings</Text>
                         </View>
                         <View style={styles.sectionContent}>
+                            <InfoRow
+                                label="Patient Wearing Mask"
+                                value={participant.patient_wearing_mask === 1 ? 'Yes' : participant.patient_wearing_mask === 0 ? 'No' : 'Not answered'}
+                            />
                             {(() => {
                                 // Create a map to ensure we only show one recording per type (latest if duplicates exist)
                                 const recordingMap = new Map<string, Recording>();

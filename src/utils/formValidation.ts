@@ -122,6 +122,10 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
     }
 
     // Section D: Cough & Audio Recording
+    if (formData.patientWearingMask === null || formData.patientWearingMask === undefined) {
+        errors.push({ field: 'patientWearingMask', message: 'Please indicate whether the patient is wearing a mask', section: 'D' });
+    }
+
     // Check if recordings exist and meet minimum duration requirements
     if (!formData.recording1) {
         errors.push({ field: 'recording1', message: 'Cough Recording 1 is required (minimum 5 seconds)', section: 'D' });

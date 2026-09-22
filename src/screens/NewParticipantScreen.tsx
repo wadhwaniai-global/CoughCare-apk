@@ -239,6 +239,7 @@ const NewParticipantScreen = () => {
                     gpsLatitude: gpsMatch ? gpsMatch[1] : null,
                     gpsLongitude: gpsMatch ? gpsMatch[2] : null,
                     consentObtained: participant.consent_obtained === 1 ? true : participant.consent_obtained === 0 ? false : null,
+                    patientWearingMask: participant.patient_wearing_mask === 1 ? true : participant.patient_wearing_mask === 0 ? false : null,
                     diabetesStatus: participant.diabetes_status || null,
                     hivStatus: participant.hiv_status || null,
                     covidStatus: participant.covid_status || null,
@@ -482,6 +483,8 @@ const NewParticipantScreen = () => {
                 // loader reads back as unanswered (it only maps 1/0 to Yes/No).
                 // The columns are NOT NULL, so null itself cannot be stored.
                 consent_obtained: formData.consentObtained === null ? -1 : formData.consentObtained ? 1 : 0,
+                // Nullable column, so unanswered is stored as NULL directly
+                patient_wearing_mask: formData.patientWearingMask === null ? null : formData.patientWearingMask ? 1 : 0,
                 diabetes_status: formData.diabetesStatus || '',
                 hiv_status: formData.hivStatus || '',
                 covid_status: formData.covidStatus || '',
@@ -663,6 +666,7 @@ const NewParticipantScreen = () => {
                 data_collector_name: submitCollectorName,
                 created_by: username || null,
                 consent_obtained: formData.consentObtained ? 1 : 0,
+                patient_wearing_mask: formData.patientWearingMask === null ? null : formData.patientWearingMask ? 1 : 0,
                 diabetes_status: formData.diabetesStatus || '',
                 hiv_status: formData.hivStatus || '',
                 covid_status: formData.covidStatus || '',
