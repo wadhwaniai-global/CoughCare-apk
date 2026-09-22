@@ -84,10 +84,14 @@ rm -rf "$ROOT/android/app/build/generated/assets/createReleaseUpdatesResources"
 "$ROOT/android/gradlew" -p "$ROOT/android" :app:assembleRelease --console=plain
 
 OUT="$HOME/Desktop/CoughCare-TEST-$(date +%Y-%m-%d).apk"
-MANIFEST="$ROOT/android/app/build/generated/assets/createReleaseUpdatesResources/app.manifest"
-grep -q '"CED_int8.app"' "$MANIFEST" || { echo "Embedded manifest does not list the CED model; refusing to ship this APK"; exit 1; }
+# NOTE: a separate variable on purpose. This used to reassign MANIFEST, so the
+# EXIT-time restore() copied the AndroidManifest.xml backup onto this generated
+# file instead, leaving android/ bound to the TEST channel after every build.
+EMBEDDED_MANIFEST="$ROOT/android/app/build/generated/assets/createReleaseUpdatesResources/app.manifest"
+grep -q '"CED_int8.app"' "$EMBEDDED_MANIFEST" || { echo "Embedded manifest does not list the CED model; refusing to ship this APK"; exit 1; }
 cp "$ROOT/android/app/build/outputs/apk/release/app-release.apk" "$OUT"
 echo "Done: $OUT"
+grep -q 'expo-channel-name&quot;:&quot;production' "$MANIFEST" || echo "WARNING: android/ manifest is NOT back on the production channel; repair before any field build." >&2
 echo "NOTE: android/ has been restored to field values. Rebuild before"
 echo "distributing a FIELD apk if you use the build outputs directory directly —"
 echo "android/app/build/outputs currently contains the TEST apk."
