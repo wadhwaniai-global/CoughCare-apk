@@ -95,6 +95,51 @@ be added to the version notes below.
 |---|---|---|
 | `patient_wearing_mask` | boolean \| null | Was the participant wearing a mask while the cough samples were recorded (asked once per screening, in the recording section; mandatory since seq 109). `null` only on records created by a pre-109 build; absent entirely on records synced by pre-109 builds. |
 
+### `patient_wearing_mask` in detail
+
+- **Where:** `forms.form_data.patient_wearing_mask` (DocumentDB; queryable as
+  `form_data.patient_wearing_mask`). One value per screening, not per file:
+  the collector answers once, before the recordings, and it applies to all
+  takes of that participant (kept and rejected).
+- **Type:** JSON boolean. `true` = mask worn, `false` = no mask.
+- **Three states to handle:**
+
+  | Stored value | Meaning | Which records |
+  |---|---|---|
+  | `true` / `false` | collector's answer (mandatory; submit is blocked without it) | created on seq ≥ 109 |
+  | `null` | record was created by a pre-109 build (no answer possible) and synced by a ≥ 109 build | rare, transitional |
+  | key absent | record created **and** synced by a pre-109 build | all rows with `app_bundle_seq` < 109 |
+
+  Treat `null` and absent identically ("unknown"). Do not default unknown to
+  `false`: an unknown is not a "no mask".
+- **On the device:** SQLite `participants.patient_wearing_mask INTEGER`
+  (`1`/`0`, `NULL` = unanswered). Cleared by purge-after-sync like all other
+  answers. Never travels back from the server.
+- **Example** (release 2.2.0, seq 112):
+
+  ```json
+  {
+    "form_data": {
+      "participant_id": "GHA-000009999202609220003",
+      "patient_wearing_mask": true,
+      "recordings": [
+        { "file_id": "…", "type": "cough_1", "rejected": false, "confidence": 0.61, "duration": 6 },
+        { "file_id": "…", "type": "background", "rejected": false, "confidence": null, "duration": 11 }
+      ],
+      "app_bundle_seq": "112"
+    }
+  }
+  ```
+
+- **Query hints:** masked share per facility/collector:
+  `{ "form_data.patient_wearing_mask": true }` vs `false`; unknowns:
+  `{ "form_data.patient_wearing_mask": { "$in": [null] } }` (matches both null
+  and absent in MongoDB/DocumentDB semantics). Model teams: compare
+  `recordings[].confidence` distributions between masked and unmasked takes.
+- **Seed data:** the `seed_batch: "mask-demo-2026-09-25"` rows on the test
+  backend cover all three states (true / false / null / absent) across two
+  internal accounts.
+
 ## form_data — per-recording metadata
 
 `recordings` (array): one entry per uploaded file, kept **and rejected**.
