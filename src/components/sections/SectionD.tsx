@@ -18,9 +18,14 @@ interface SectionDProps {
     recordingDuration: number;
     recordedDurations: Record<string, number>;
     analysisResults: Record<string, AnalysisResult>;
+    /** Slots whose stopped take is still being finished (spinner, no Start) */
+    processingKeys: Record<string, true>;
     onStartRecording: (key: string) => void;
     onStopRecording: (key: string) => Promise<string | null>;
     onClearRecording: (key: string) => void;
+    /** "No Cough Detected" asked-once memory, kept outside this section */
+    wasNoCoughAsked: (uri: string) => boolean;
+    markNoCoughAsked: (uri: string) => void;
     /** Testing-only sample injection; omit to hide the flask button */
     onUseSample?: (key: string) => Promise<void>;
     errors?: Record<string, string>;
@@ -33,9 +38,12 @@ export const SectionD: React.FC<SectionDProps> = ({
     recordingDuration,
     recordedDurations,
     analysisResults,
+    processingKeys,
     onStartRecording,
     onStopRecording,
     onClearRecording,
+    wasNoCoughAsked,
+    markNoCoughAsked,
     onUseSample,
     errors = {},
 }) => {
@@ -86,11 +94,19 @@ export const SectionD: React.FC<SectionDProps> = ({
         onClearRecording(key);
     };
 
+    const SLOT_TITLES: Record<string, string> = {
+        recording1: 'Cough Recording 1',
+        recording2: 'Cough Recording 2',
+        recording3: 'Cough Recording 3',
+    };
+
     const handleNoCoughDetected = (key: string) => {
         setAlertConfig({
             visible: true,
             title: 'No Cough Detected',
-            message: 'We could not detect a clear cough sound in your recording. Please re-record and make sure to cough clearly into the microphone.',
+            // Name the take: the popup covers the cards, and it can arrive
+            // after the collector has moved on to another recording
+            message: `We could not detect a clear cough sound in ${SLOT_TITLES[key] ?? 'your recording'}. Please re-record and make sure to cough clearly into the microphone.`,
             listItems: [],
             buttons: [
                 {
@@ -141,6 +157,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 audioUri={formData.recording1}
                 isRecorded={!!formData.recording1}
                 isRecording={activeRecordingKey === 'recording1'}
+                isProcessing={!!processingKeys['recording1']}
                 currentDuration={activeRecordingKey === 'recording1' ? recordingDuration : (recordedDurations['recording1'] || 0)}
                 minSeconds={5}
                 analysis={analysisResults['recording1']}
@@ -149,6 +166,8 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onReRecord={() => handleReRecord('recording1')}
                 onUseSample={handleUseSample ? () => handleUseSample('recording1') : undefined}
                 onNoCoughDetected={() => handleNoCoughDetected('recording1')}
+                wasNoCoughAsked={wasNoCoughAsked}
+                markNoCoughAsked={markNoCoughAsked}
                 error={errors['recording1']}
             />
 
@@ -159,6 +178,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 audioUri={formData.recording2}
                 isRecorded={!!formData.recording2}
                 isRecording={activeRecordingKey === 'recording2'}
+                isProcessing={!!processingKeys['recording2']}
                 currentDuration={activeRecordingKey === 'recording2' ? recordingDuration : (recordedDurations['recording2'] || 0)}
                 minSeconds={5}
                 analysis={analysisResults['recording2']}
@@ -167,6 +187,8 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onReRecord={() => handleReRecord('recording2')}
                 onUseSample={handleUseSample ? () => handleUseSample('recording2') : undefined}
                 onNoCoughDetected={() => handleNoCoughDetected('recording2')}
+                wasNoCoughAsked={wasNoCoughAsked}
+                markNoCoughAsked={markNoCoughAsked}
                 error={errors['recording2']}
             />
 
@@ -177,6 +199,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 audioUri={formData.recording3}
                 isRecorded={!!formData.recording3}
                 isRecording={activeRecordingKey === 'recording3'}
+                isProcessing={!!processingKeys['recording3']}
                 currentDuration={activeRecordingKey === 'recording3' ? recordingDuration : (recordedDurations['recording3'] || 0)}
                 minSeconds={5}
                 analysis={analysisResults['recording3']}
@@ -185,6 +208,8 @@ export const SectionD: React.FC<SectionDProps> = ({
                 onReRecord={() => handleReRecord('recording3')}
                 onUseSample={handleUseSample ? () => handleUseSample('recording3') : undefined}
                 onNoCoughDetected={() => handleNoCoughDetected('recording3')}
+                wasNoCoughAsked={wasNoCoughAsked}
+                markNoCoughAsked={markNoCoughAsked}
                 error={errors['recording3']}
             />
 
@@ -195,6 +220,7 @@ export const SectionD: React.FC<SectionDProps> = ({
                 audioUri={formData.recordingBackground}
                 isRecorded={!!formData.recordingBackground}
                 isRecording={activeRecordingKey === 'recordingBackground'}
+                isProcessing={!!processingKeys['recordingBackground']}
                 currentDuration={activeRecordingKey === 'recordingBackground' ? recordingDuration : (recordedDurations['recordingBackground'] || 0)}
                 minSeconds={10}
                 onStartRecording={() => onStartRecording('recordingBackground')}

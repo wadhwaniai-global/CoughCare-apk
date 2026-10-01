@@ -151,9 +151,11 @@ be added to the version notes below.
 | `type` | string | `cough_1` \| `cough_2` \| `cough_3` \| `background` |
 | `rejected` | boolean | true = discarded take (re-record), uploaded for model research |
 | `confidence` | number 0–1 \| null | that take's own score; null for `background` (never scored) |
-| `duration` | number \| null | seconds |
+| `duration` | number \| null | seconds. From seq 115: how long the take ran by the wall clock, whole seconds, at most 60 (a take stops on its own at 60 s and when the app leaves the screen). Earlier bundles counted on-screen timer ticks: the count froze while the app was off screen (such a take under-reads) and kept running while Section D was closed (a kept take could exceed 60). |
 | `audio_source` | string \| null | `MIC` \| `VOICE_RECOGNITION`: the Android microphone path used for this take. Fleet policy since 2026-09-10 is `MIC` on every device (uniform training data; VOICE_RECOGNITION was found to mangle cough audio on the Galaxy A07). Null on takes recorded before this field existed; `VOICE_RECOGNITION` only on pre-policy takes. |
-| `quality` | object \| null | On-device signal metrics for this take, computed once from the PCM right after recording (schema below). Null when the app could not compute them (never blocks the take). Absent on records from seq < 99. |
+| `quality` | object \| null | On-device signal metrics for this take, computed once from the PCM right after recording (schema below). Null when the app could not compute them (never blocks the take). Absent on records from seq < 99. Describes the take as recorded on the phone, before any upload trim. |
+| `upload_trimmed_to_seconds` | number, absent unless trimmed | `60`: the file on the phone was over the server's 25 MiB per-file limit, so only its first 60 s was uploaded (the same part the cough detector scored). Absent on every other take. Sent from seq 115; only takes recorded on earlier bundles can be that large. |
+| `original_file_bytes` | number, absent unless trimmed | Size of the phone's file before trimming. The length actually recorded is about (`original_file_bytes` − 44) / 96000 s at 48 kHz. Present only with `upload_trimmed_to_seconds`. |
 
 ### `recordings[].quality` object
 
@@ -168,7 +170,7 @@ All levels are dBFS (0 = full scale, more negative = quieter), rounded to 0.1 dB
 | `sample_rate` | number | Hz, from the WAV header (48000 on current builds) |
 | `file_seconds` | number | audio length implied by the file |
 | `wall_seconds` | number \| null | how long the recorder actually ran. `file_seconds` noticeably above `wall_seconds` means the platform padded zeros while the input started (A07: 6 s take gave 9 to 31 s files) |
-| `leading_zero_seconds` | number | exact-zero samples at the start of the file. This is the record-start dead time: any cough made during it was NOT captured. A07 MIC: 0 to 1.3 s; A07 VOICE_RECOGNITION: up to 5 s |
+| `leading_zero_seconds` | number | exact-zero samples at the start of the file. On a phone that pads (see `wall_seconds`) this includes the padding, so it overstates the record-start dead time. The audio actually lost at the start, the window in which a cough was NOT captured, is about `max(0, leading_zero_seconds − max(0, file_seconds − wall_seconds))`. A07 MIC: 0.1 to 1.4 s lost while its leading zeros ran 0.1 to 6.3 s (4 test takes); A07 VOICE_RECOGNITION: 21 to 24 s of zeros for about 4.4 to 5 s lost |
 | `interior_zero_seconds` | number | total length of exact-zero runs of 20 ms or more after the leading block (dropouts / buffer underruns; 0 on a healthy device) |
 | `peak_dbfs` | number \| null | loudest sample. Around -6 for a close cough on the A07; 0 means saturation |
 | `rms_dbfs` | number \| null | average level over the real audio (leading zeros excluded) |
@@ -182,7 +184,7 @@ Null floors: the take had under 0.5 s of real audio. Values are per take;
 give the peak / clipping read.
 
 Suggested dashboard checks (per `device_model`, then per `device_build`):
-median and spread of `leading_zero_seconds`, `noise_floor_dbfs`,
+median and spread of the start-up loss (`leading_zero_seconds` minus padding, above), `noise_floor_dbfs`,
 `peak_dbfs`, share of takes with `clipped_ratio > 0.001`, share with
 `interior_zero_seconds > 0`, and `|floor_post_dbfs - floor_pre_dbfs|`. A model
 that stands out on any of these is the one to inspect before trusting its
@@ -201,9 +203,16 @@ recordings as training data.
 ## Audio files (S3)
 
 WAV, mono, 16-bit. **48 kHz** since seq #67 (16 kHz before; 48 kHz on Galaxy
-A07 between #18bc227 and #67). 5–60 s (60 s hard cap since #51-era). Rejected
-takes are full-fidelity uploads. Object keys contain no participant data;
-linkage is only via the database.
+A07 between #18bc227 and #67). Intended length 5–60 s (ambient 10–60 s), but
+before seq 115 the 60 s stop was not always enforced: a take kept recording
+while Section D was closed or the app was off screen. Earlier bundles can
+therefore have uploaded takes of several minutes, up to the server's 25 MiB
+per-file limit (about 273 s at 48 kHz); a larger file was refused and held its
+record in Pending Sync. From seq 115 a take stops at 60 s by the wall clock and
+when the app leaves the screen, and any file over 25 MiB (only possible from an
+earlier bundle) is uploaded as its first 60 s, marked with
+`upload_trimmed_to_seconds`. Rejected takes are full-fidelity uploads. Object
+keys contain no participant data; linkage is only via the database.
 
 ## Deliberately NEVER sent (on-device only)
 
@@ -226,6 +235,7 @@ post-sync purge there. Server-side records are pseudonymous.
 | seq < 67 | audio is 16 kHz |
 | seq < 99 | no `recordings[].quality` object and no `device_build` |
 | seq < 109 | no `patient_wearing_mask` |
+| seq < 115 | `recordings[].duration` counted on-screen timer ticks: it under-reads takes made while the app was off screen and can exceed 60 on takes left running with Section D closed. `app_bundle_seq` is the bundle that synced the record, so records created on an earlier bundle and synced on 115 or later carry the newer number with these older durations; they are also the only records that can hold a trimmed take (`upload_trimmed_to_seconds`). Discards: before 115 the "No Cough Detected" question came back each time Section D was reopened, which inflated re-records; from 115 it is asked once per take, but a take cut short below the minimum by leaving the app must be re-recorded, which adds a small discard. |
 | CED detector builds (test channel #92+; main seq TBD) | `analysis_result` has no `segment_probabilities`/`num_segments`; `threshold_used` = 0.4758; per-recording `confidence` values come from a different model and are not comparable with earlier scores |
 
 **Exclude internal data** (backend guidance, 2026-08): drop forms where

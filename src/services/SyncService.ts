@@ -6,9 +6,11 @@
 
 import { apiService } from './ApiService';
 import { authService } from './AuthService';
+import { emitSessionEnded, isSessionEnded, SessionEndedError } from './sessionEvents';
 import { getBuildInfo } from '../utils/buildInfo';
 import { getDeviceModel, getDeviceBuild } from '../utils/audioRecorder';
 import type { AudioQuality } from '../utils/audioQuality';
+import { prepareTakeForUpload, uploadTrimFlags, PreparedUpload } from '../utils/oversizedTake';
 import {
   getPendingParticipants,
   getRecordingsByParticipantId,
@@ -34,6 +36,10 @@ export interface SyncResult {
   synced: number;
   failed: number;
   errors: string[];
+  /** The server ended the session: the run stopped at the first 401 and the
+   *  app is taking the collector to the Login screen. Records not yet synced
+   *  are untouched and sync after logging in again. */
+  sessionEnded?: boolean;
 }
 
 /** recordings.quality is stored as JSON text; ship it as an object. */
@@ -94,11 +100,26 @@ class SyncService {
       console.log(`[SequenceSeed] Seeded ${maxByPrefix.size} prefix(es) from ${forms.length} server form(s)`);
       return maxByPrefix.size;
     } catch (error) {
+      // A rejected session is not "best effort": the caller must know (the
+      // Re-issue flow must not rename a record on an unseeded sequence).
+      if (isSessionEnded(error)) throw error;
       console.warn('[SequenceSeed] Could not seed from server (will rely on local counter):', error);
       return 0;
     }
   }
   private syncProgressCallback?: (progress: SyncProgress) => void;
+
+  /**
+   * A sync run uploads one collector's records under that collector's login.
+   * If the session ended and someone else logged in on this phone while the
+   * run was still going, stop before the next request: otherwise the new
+   * account's token would carry the old account's records to the server.
+   */
+  private async assertSameAccount(runUsername: string): Promise<void> {
+    if ((await authService.getUsername()) !== runUsername) {
+      throw new SessionEndedError('missing');
+    }
+  }
 
   /**
    * Set callback for sync progress updates
@@ -119,16 +140,16 @@ class SyncService {
    * Upload a single file and return file info (file_id and checksum)
    */
   private async uploadFile(filePath: string): Promise<{ file_id: string; checksum: string }> {
+    let prepared: PreparedUpload | null = null;
     try {
-      // Check if file exists
-      const fileInfo = await FileSystem.getInfoAsync(filePath);
-      if (!fileInfo.exists) {
-        throw new Error(`File not found: ${filePath}`);
-      }
+      // A take over the server's per-file limit (it kept recording while the
+      // app was off screen or Section D was closed) goes up as its first 60 s;
+      // every other take goes up as is. Throws "File not found" as before.
+      prepared = await prepareTakeForUpload(filePath);
 
-      // Upload file
-      const result = await apiService.uploadFile(filePath);
-      
+      // Upload under the take's own name: original_filename keeps its start time
+      const result = await apiService.uploadFile(prepared.uri, filePath.split('/').pop());
+
       if (!result.file_id) {
         throw new Error('No file_id returned from server');
       }
@@ -143,7 +164,12 @@ class SyncService {
       };
     } catch (error: any) {
       console.error(`[SyncService] Error uploading file ${filePath}:`, error);
+      if (isSessionEnded(error)) throw error; // keep its type: the run must stop
       throw new Error(`Failed to upload file: ${error.message}`);
+    } finally {
+      if (prepared?.temporary) {
+        await FileSystem.deleteAsync(prepared.uri, { idempotent: true }).catch(() => {});
+      }
     }
   }
 
@@ -162,6 +188,8 @@ class SyncService {
       duration: number | null;
       audio_source: string | null;
       quality: AudioQuality | null;
+      upload_trimmed_to_seconds?: number;
+      original_file_bytes?: number;
     }>
   ): Promise<{
     form_id: string;
@@ -258,9 +286,10 @@ class SyncService {
   }
 
   /**
-   * Sync a single participant transactionally
+   * Sync a single participant transactionally, under the login the run
+   * started with (runUsername)
    */
-  private async syncParticipant(participant: Participant): Promise<void> {
+  private async syncParticipant(participant: Participant, runUsername: string): Promise<void> {
     const database = await getDB();
     const participantId = participant.participant_id;
 
@@ -279,7 +308,12 @@ class SyncService {
       // The server identity is stored on each recording row so a retried sync
       // re-sends the COMPLETE file_ids list — previously, files uploaded on a
       // failed earlier attempt were skipped and silently dropped from the form.
-      const fileEntries: Array<{ file_id: string; checksum: string; recording: Recording }> = [];
+      const fileEntries: Array<{
+        file_id: string;
+        checksum: string;
+        recording: Recording;
+        trim: Awaited<ReturnType<typeof uploadTrimFlags>>;
+      }> = [];
 
       for (const recording of recordings) {
         try {
@@ -287,6 +321,7 @@ class SyncService {
           let checksum = recording.checksum || null;
 
           if (!(recording.synced === 1 && fileId && checksum)) {
+            await this.assertSameAccount(runUsername);
             const fileInfo = await this.uploadFile(recording.file_path);
             fileId = fileInfo.file_id;
             checksum = fileInfo.checksum;
@@ -298,7 +333,9 @@ class SyncService {
             );
           }
 
-          fileEntries.push({ file_id: fileId!, checksum: checksum!, recording });
+          // Recomputed from the original on every attempt (it stays on the
+          // phone until the purge), so a retry still reports a trimmed upload
+          fileEntries.push({ file_id: fileId!, checksum: checksum!, recording, trim: await uploadTrimFlags(recording.file_path) });
         } catch (error: any) {
           console.error(
             `[SyncService] Failed to upload recording ${recording.recording_type}:`,
@@ -313,7 +350,7 @@ class SyncService {
       const fileIds = fileEntries.map(({ file_id, checksum }) => ({ file_id, checksum }));
 
       // Per-file metadata rides inside form_data; file_id is the join key.
-      const recordingsMeta = fileEntries.map(({ file_id, recording }) => ({
+      const recordingsMeta = fileEntries.map(({ file_id, recording, trim }) => ({
         file_id,
         // strip the uniqueness suffix off rejected takes: "cough_1_rej_..." -> "cough_1"
         type: recording.recording_type.replace(/_rej_.*$/, ''),
@@ -325,9 +362,12 @@ class SyncService {
         // on-device signal metrics (level, clipping, noise floor, start-up
         // zero padding); null when they could not be computed
         quality: parseQuality(recording.quality),
+        // only for a take uploaded as its first 60 s (utils/oversizedTake.ts)
+        ...trim,
       }));
 
       // Step 2: Upload form metadata with file IDs
+      await this.assertSameAccount(runUsername);
       const serverResponse = await this.uploadFormMetadata(participant, fileIds, recordingsMeta);
 
       // Step 3: Mark participant as synced
@@ -433,8 +473,10 @@ class SyncService {
     // Only sync records created by the currently logged-in user
     const username = await authService.getUsername();
     if (!username) {
-      console.warn('[SyncService] No logged-in user, skipping sync');
-      return { success: false, synced: 0, failed: 0, errors: ['Not logged in'] };
+      // Storage holds no session although the UI showed one: same remedy as a 401
+      console.warn('[SyncService] No logged-in user, ending the session');
+      emitSessionEnded('missing');
+      return { success: false, synced: 0, failed: 0, errors: [], sessionEnded: true };
     }
 
     this.isSyncing = true;
@@ -445,13 +487,13 @@ class SyncService {
       const total = pendingParticipants.length;
 
       if (total === 0) {
-        this.isSyncing = false;
         return { success: true, synced: 0, failed: 0, errors: [] };
       }
 
       const errors: string[] = [];
       let synced = 0;
       let failed = 0;
+      let sessionEnded = false;
 
       // Update progress
       this.updateProgress({ total, completed: 0 });
@@ -467,9 +509,15 @@ class SyncService {
             current: `Syncing ${participant.full_name || participant.participant_id}...`,
           });
 
-          await this.syncParticipant(participant);
+          await this.syncParticipant(participant, username);
           synced++;
         } catch (error: any) {
+          if (isSessionEnded(error)) {
+            // Every later request would be refused the same way. Stop here;
+            // this and the remaining records stay pending, untouched.
+            sessionEnded = true;
+            break;
+          }
           failed++;
           const errorMsg = `Failed to sync ${participant.participant_id}: ${error.message}`;
           errors.push(errorMsg);
@@ -482,21 +530,22 @@ class SyncService {
         });
       }
 
-      this.isSyncing = false;
       return {
-        success: failed === 0,
+        success: failed === 0 && !sessionEnded,
         synced,
         failed,
         errors,
+        sessionEnded,
       };
     } catch (error: any) {
-      this.isSyncing = false;
       return {
         success: false,
         synced: 0,
         failed: 0,
         errors: [error.message || 'Sync failed'],
       };
+    } finally {
+      this.isSyncing = false;
     }
   }
 

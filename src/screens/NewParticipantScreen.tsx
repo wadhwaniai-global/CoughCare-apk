@@ -45,7 +45,7 @@ import { SectionB } from '../components/sections/SectionB';
 import { SectionC } from '../components/sections/SectionC';
 import { SectionD } from '../components/sections/SectionD';
 import { CustomAlert } from '../components/ui/CustomAlert';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth, useSignOutHold } from '../contexts/AuthContext';
 
 if (Platform.OS === 'android') {
     if (UIManager.setLayoutAnimationEnabledExperimental) {
@@ -67,6 +67,10 @@ const NewParticipantScreen = () => {
     const [editingStatus, setEditingStatus] = useState<string | null>(null);
     const insets = useSafeAreaInsets();
     const { profile, username } = useAuth();
+    // The form lives only in this screen's state until Save Draft / Submit:
+    // if the server ends the session meanwhile, Login waits until the
+    // collector leaves this screen, so nothing typed or recorded is lost.
+    useSignOutHold();
     const [expandedSection, setExpandedSection] = useState<string | null>('A');
     const [expandedDropdown, setExpandedDropdown] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -98,13 +102,27 @@ const NewParticipantScreen = () => {
         recordedDurations,
         analysisResults,
         takeQuality,
+        processingKeys,
         startRecording,
         stopRecording,
         clearRecording,
+        wasNoCoughAsked,
+        markNoCoughAsked,
         analyzeAudioManually,
         initRecordedDurations,
         initAnalysisResults,
-    } = useAudioRecording();
+    } = useAudioRecording({
+        // A take the hook stopped on its own (60 s cap, app left the screen)
+        // goes into the form even when Section D is closed
+        onAutoStop: (key, uri) => handleUpdateField(key as keyof ParticipantFormData, uri),
+    });
+
+    // A take is running or being finished: the form must not move on (closing
+    // Section D, Submit's jump to the first error, Save Draft) until it is done
+    const isRecordingBusy = activeRecordingKey !== null || Object.keys(processingKeys).length > 0;
+    const showRecordingInProgress = () => {
+        Alert.alert('Recording in progress', 'Finish the recording first.');
+    };
 
     const SLOT_BY_KEY: Record<string, string> = {
         recording1: 'cough_1',
@@ -322,6 +340,11 @@ const NewParticipantScreen = () => {
     const pendingScrollSection = React.useRef<string | null>(null);
 
     const toggleSection = (section: string) => {
+        // Opening another section closes D and unmounts its cards mid-take
+        if (isRecordingBusy) {
+            showRecordingInProgress();
+            return;
+        }
         LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
         const opening = expandedSection !== section;
         setExpandedSection(opening ? section : null);
@@ -420,6 +443,11 @@ const NewParticipantScreen = () => {
     };
 
     const handleSaveDraft = async () => {
+        // Saving now would drop a take that is still running or being finished
+        if (isRecordingBusy) {
+            showRecordingInProgress();
+            return;
+        }
         try {
             console.log('Save Draft button clicked');
             setIsSubmitting(true);
@@ -530,6 +558,12 @@ const NewParticipantScreen = () => {
     };
 
     const handleSubmit = async () => {
+        // With gaps in A to C, Submit jumps to the first error and so closes D
+        // mid-take; and a take still being finished is not in the form yet
+        if (isRecordingBusy) {
+            showRecordingInProgress();
+            return;
+        }
         console.log('Submit button clicked');
         console.log('Form data:', formData);
         console.log('Recorded durations:', recordedDurations);
@@ -829,9 +863,12 @@ const NewParticipantScreen = () => {
                         recordingDuration={recordingDuration}
                         recordedDurations={recordedDurations}
                         analysisResults={analysisResults}
+                        processingKeys={processingKeys}
                         onStartRecording={startRecording}
                         onStopRecording={stopRecording}
                         onClearRecording={handleClearRecording}
+                        wasNoCoughAsked={wasNoCoughAsked}
+                        markNoCoughAsked={markNoCoughAsked}
                         // The flask (Use Sample) button is a pipeline health
                         // check for testers only — field builds never show it.
                         onUseSample={isTestBuild() ? handleUseSample : undefined}

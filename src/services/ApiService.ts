@@ -5,6 +5,7 @@
 
 import { authService } from './AuthService';
 import { getApiBaseUrl } from '../utils/apiConfig';
+import { emitSessionEnded, SessionEndedError, isSessionEnded } from './sessionEvents';
 
 // Log the API base URL on module load for debugging
 // NOTE: no module-scope URL resolution here — see utils/apiConfig.ts.
@@ -24,44 +25,55 @@ class ApiService {
   }
 
   /**
-   * Get authorization header with access token
+   * The stored token, or a SessionEndedError. No request ever leaves the
+   * phone without an Authorization header: the server would answer 422 with
+   * a list-shaped detail (shown to collectors as "[object Object]").
    */
-  async getAuthHeaders(): Promise<Record<string, string>> {
+  private async requireToken(): Promise<string> {
     const token = await authService.getAccessToken();
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+    if (!token) {
+      emitSessionEnded('missing');
+      throw new SessionEndedError('missing');
     }
-
-    return headers;
+    return token;
   }
 
   /**
-   * Handle API errors
+   * Handle API errors. A 401 ends the session the request was sent with:
+   * the token is cleared and AuthContext is told (it shows the Login screen).
+   * A late 401 for an older token never ends a newer session.
    */
-  private async handleError(response: Response): Promise<never> {
+  private async handleError(response: Response, sentToken: string): Promise<never> {
     let errorData: any;
     try {
       errorData = await response.json();
     } catch {
-      errorData = { detail: `HTTP ${response.status}: ${response.statusText}` };
+      errorData = {};
     }
 
+    if (response.status === 401) {
+      const current = await authService.getAccessToken();
+      // A newer token means the collector already logged in again and this
+      // answer belongs to the old session: leave the new one alone.
+      if (current === null || current === sentToken) {
+        if (current === sentToken) await authService.endSession();
+        emitSessionEnded('expired'); // AuthContext ignores repeats
+        throw new SessionEndedError('expired');
+      }
+    }
+
+    // FastAPI validation errors carry a list in `detail`; never show "[object Object]"
+    const detail = errorData?.detail;
+    const message =
+      typeof detail === 'string' ? detail
+        : Array.isArray(detail) ? (detail.map((d: any) => d?.msg).filter(Boolean).join('; ') || `Request failed (${response.status})`)
+        : (typeof errorData?.message === 'string' ? errorData.message : `Request failed (${response.status})`);
+
     const error: ApiError = {
-      message: errorData.detail || errorData.message || 'An error occurred',
+      message,
       status: response.status,
       data: errorData,
     };
-
-    // If unauthorized, logout user
-    if (response.status === 401) {
-      await authService.logout();
-      // Navigation will be handled by AppNavigator detecting auth state change
-    }
-
     throw error;
   }
 
@@ -73,12 +85,13 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${getApiBaseUrl()}${endpoint}`;
-    const headers = await this.getAuthHeaders();
+    const token = await this.requireToken();
 
     // Merge headers
     const requestHeaders = {
-      ...headers,
+      'Content-Type': 'application/json',
       ...(options.headers || {}),
+      Authorization: `Bearer ${token}`,
     };
 
     const response = await fetch(url, {
@@ -87,7 +100,7 @@ class ApiService {
     });
 
     if (!response.ok) {
-      await this.handleError(response);
+      await this.handleError(response, token);
     }
 
     // Handle empty responses
@@ -142,10 +155,7 @@ class ApiService {
    * Returns: { file_id, checksum, file_path }
    */
   async uploadFile(fileUri: string, fileName?: string): Promise<{ file_id: string; checksum: string; file_path: string }> {
-    const token = await authService.getAccessToken();
-    if (!token) {
-      throw new Error('Not authenticated');
-    }
+    const token = await this.requireToken();
 
     // Create FormData
     const formData = new FormData();
@@ -176,7 +186,7 @@ class ApiService {
       });
 
       if (!response.ok) {
-        await this.handleError(response);
+        await this.handleError(response, token);
       }
 
       const result = await response.json();
@@ -188,16 +198,11 @@ class ApiService {
       return result;
     } catch (error: any) {
       console.error('[ApiService] File upload error:', error);
-      
-      // Provide more helpful error messages
+      if (isSessionEnded(error)) throw error;
+
+      // This text reaches the collector's Sync alert; the URL is in the log above
       if (error.message?.includes('Network request failed') || error.message?.includes('Failed to fetch')) {
-        throw new Error(
-          `Cannot connect to server at ${getApiBaseUrl()}.\n\n` +
-          `Please ensure:\n` +
-          `1. Backend server is running\n` +
-          `2. If using Android emulator, the URL should use 10.0.2.2\n` +
-          `3. Check your network connection`
-        );
+        throw new Error('Cannot reach the server. Check the internet connection and try again.');
       }
       
       throw error;

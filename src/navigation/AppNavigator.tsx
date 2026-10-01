@@ -88,10 +88,12 @@ function AppStack() {
 }
 
 export default function AppNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isBooting } = useAuth();
 
-  // Show loading indicator while checking auth state
-  if (isLoading) {
+  // Spinner only while the stored session is read at app start. Login and
+  // logout must not swap the navigator out: that remounted LoginScreen and
+  // wiped what the collector had typed, including the error message.
+  if (isBooting) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#0B8280' }}>
         <ActivityIndicator size="large" color="#FFFFFF" />

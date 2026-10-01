@@ -7,9 +7,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Platform }
 import { Ionicons } from '@expo/vector-icons';
 import { AnalysisResult } from '../../types/participantForm';
 import { AudioPlayButton } from '../ui/AudioPlayButton';
-
-/** Recordings auto-stop at this length; guards storage and upload size. */
-const MAX_RECORDING_SECONDS = 60;
+import { MAX_RECORDING_SECONDS } from '../../hooks/useAudioRecording';
 
 interface RecordingCardProps {
     title: string;
@@ -19,6 +17,8 @@ interface RecordingCardProps {
     audioUri?: string | null;
     isRecorded: boolean;
     isRecording: boolean;
+    /** The take was stopped and is still being finished (metrics, analysis) */
+    isProcessing?: boolean;
     currentDuration: number;
     minSeconds: number;
     analysis?: AnalysisResult;
@@ -27,6 +27,10 @@ interface RecordingCardProps {
     onReRecord: () => void;
     onUseSample?: () => void;
     onNoCoughDetected?: () => void;
+    /** Whether the "No Cough Detected" question was already asked for a take
+     *  (kept above the card, which unmounts whenever Section D is closed) */
+    wasNoCoughAsked?: (uri: string) => boolean;
+    markNoCoughAsked?: (uri: string) => void;
     error?: string;
 }
 
@@ -37,6 +41,7 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
     audioUri,
     isRecorded,
     isRecording,
+    isProcessing = false,
     currentDuration,
     minSeconds,
     analysis,
@@ -45,17 +50,20 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
     onReRecord,
     onUseSample,
     onNoCoughDetected,
+    wasNoCoughAsked,
+    markNoCoughAsked,
     error,
 }) => {
-    // Track if we've already shown the no-cough popup for this analysis
-    const [hasShownNoCoughPopup, setHasShownNoCoughPopup] = React.useState(false);
-
-    // Check if no cough detected and trigger popup (only for cough recordings, not ambient)
+    // Ask "No Cough Detected" once per take (only for cough recordings, not
+    // ambient). The take is identified by its file, and the asked-list lives
+    // above this card: the card unmounts whenever Section D is closed, so a
+    // flag in its own state made the question come back on every return.
     React.useEffect(() => {
         const isAmbientRecording = recordingKey === 'recordingBackground';
         if (
             !isAmbientRecording &&
             isRecorded &&
+            audioUri &&
             !isRecording &&
             !analysis?.loading &&
             analysis?.result &&
@@ -63,34 +71,15 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
             // an analysis restored from a saved record is old news — the
             // popup is only for takes recorded just now
             !analysis.result.restored &&
-            !hasShownNoCoughPopup &&
+            !wasNoCoughAsked?.(audioUri) &&
             onNoCoughDetected
         ) {
-            setHasShownNoCoughPopup(true);
+            markNoCoughAsked?.(audioUri);
             onNoCoughDetected();
         }
-    }, [isRecorded, isRecording, analysis, hasShownNoCoughPopup, onNoCoughDetected, recordingKey]);
+    }, [isRecorded, audioUri, isRecording, analysis, wasNoCoughAsked, markNoCoughAsked, onNoCoughDetected, recordingKey]);
 
-    // Reset popup tracking when recording is cleared
-    React.useEffect(() => {
-        if (!isRecorded) {
-            setHasShownNoCoughPopup(false);
-        }
-    }, [isRecorded]);
-
-    // Hard cap: auto-stop any recording at 60 seconds. The ref guards against
-    // the timer ticking again while the async stop is still in flight.
-    const autoStopFired = React.useRef(false);
-    React.useEffect(() => {
-        if (!isRecording) {
-            autoStopFired.current = false;
-            return;
-        }
-        if (currentDuration >= MAX_RECORDING_SECONDS && !autoStopFired.current) {
-            autoStopFired.current = true;
-            onStopRecording();
-        }
-    }, [isRecording, currentDuration, onStopRecording]);
+    // The 60 s cap is enforced by useAudioRecording (wall clock), not here.
     const progress = Math.min(currentDuration / minSeconds, 1);
     const remaining = Math.max(minSeconds - currentDuration, 0);
     const meetsMinimum = currentDuration >= minSeconds;
@@ -170,7 +159,7 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
                 ]}>
                     {remaining > 0
                         ? `Record at least ${remaining} more seconds`
-                        : "✓ Minimum reached. Auto-stops at 1:00"}
+                        : `✓ Minimum reached. Auto-stops at ${formatTime(MAX_RECORDING_SECONDS)}`}
                 </Text>
             )}
 
@@ -244,11 +233,13 @@ export const RecordingCard: React.FC<RecordingCardProps> = ({
                 </View>
             )}
 
-            {/* Buttons - Hide during analysis, show loader */}
-            {analysis?.loading ? (
+            {/* Buttons - Hide while the take is being finished, show loader */}
+            {analysis?.loading || isProcessing ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color="#0B8280" />
-                    <Text style={styles.loadingText}>Analyzing audio...</Text>
+                    <Text style={styles.loadingText}>
+                        {analysis?.loading ? 'Analyzing audio...' : 'Saving recording...'}
+                    </Text>
                 </View>
             ) : isRecording ? (
                 <TouchableOpacity

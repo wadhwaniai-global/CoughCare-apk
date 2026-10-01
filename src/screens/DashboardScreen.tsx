@@ -17,11 +17,14 @@ import { syncService, SyncProgress } from '../services/SyncService';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert } from 'react-native';
 import { getBuildInfoLine, isTestBuild } from '../utils/buildInfo';
+import { useSessionExpired } from '../hooks/useSessionExpired';
 
 const DashboardScreen = () => {
     const navigation = useNavigation<DashboardScreenNavigationProp>();
     const route = useRoute<DashboardScreenRouteProp>();
     const { logout, username, profile } = useAuth();
+    // The login has run out by the phone's clock (works offline; see the hook)
+    const sessionExpired = useSessionExpired();
 
     const [stats, setStats] = useState({ pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0 });
     // Static for the lifetime of the process - the running bundle cannot change mid-session
@@ -183,6 +186,12 @@ const DashboardScreen = () => {
         try {
             const result = await syncService.syncPendingForms();
 
+            if (result.sessionEnded) {
+                // The app is switching to the Login screen, which says why.
+                // Records not synced yet stay on the phone, untouched.
+                return;
+            }
+
             if (result.success) {
                 setLastSyncTime(new Date().toLocaleString());
                 Alert.alert(
@@ -191,12 +200,13 @@ const DashboardScreen = () => {
                     [{ text: 'OK' }]
                 );
             } else {
+                // Never "Complete" when something failed (it read as success)
                 const errorMsg = result.errors.length > 0
                     ? result.errors.join('\n')
-                    : 'Sync completed with errors';
+                    : 'Sync did not finish. Try again.';
                 Alert.alert(
-                    'Sync Complete',
-                    `Synced: ${result.synced}, Failed: ${result.failed}\n\n${errorMsg}`,
+                    result.synced > 0 ? 'Sync Incomplete' : 'Sync Failed',
+                    `Synced: ${result.synced}, Failed: ${result.failed}\n\nRecords that did not sync are still on this phone.\n\n${errorMsg}`,
                     [{ text: 'OK' }]
                 );
             }
@@ -281,6 +291,15 @@ const DashboardScreen = () => {
             </View>
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 80 }}>
+                {/* Collection carries on after the login runs out; only syncing
+                    needs a new login, and logging in needs internet */}
+                {sessionExpired && (
+                    <View style={styles.sessionNotice}>
+                        <Ionicons name="time-outline" size={18} color="#92400E" />
+                        <Text style={styles.sessionNoticeText}>Session expired: relogin before next sync</Text>
+                    </View>
+                )}
+
                 {/* Stats Cards */}
                 {/* Record life cycle order: draft -> awaiting -> pending -> synced */}
                 <View style={styles.statsContainer}>
@@ -552,6 +571,23 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         padding: 16,
+    },
+    sessionNotice: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 12,
+        marginBottom: 16,
+        backgroundColor: '#FEF3C7',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#FCD34D',
+    },
+    sessionNoticeText: {
+        marginLeft: 8,
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#92400E',
+        flex: 1,
     },
     statsContainer: {
         flexDirection: 'row',

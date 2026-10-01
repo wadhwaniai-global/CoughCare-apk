@@ -25,7 +25,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { getParticipantById, getRecordingsByParticipantId, saveParticipant, reissueParticipantId, Participant, Recording } from '../services/DatabaseService';
 import { syncService } from '../services/SyncService';
-import { useAuth } from '../contexts/AuthContext';
+import { isSessionEnded } from '../services/sessionEvents';
+import { useAuth, useSignOutHold } from '../contexts/AuthContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { CustomAlert } from '../components/ui/CustomAlert';
 import { AudioPlayButton } from '../components/ui/AudioPlayButton';
@@ -80,6 +81,9 @@ const ViewRecordScreen = () => {
                                 `New ID: ${newId}\n(was ${oldId})\n\nThe record can now be synced. Update any paper forms that carry the old ID.`
                             );
                         } catch (error: any) {
+                            // Session ended during the re-seed: nothing was renamed; the
+                            // app is taking the collector to the Login screen.
+                            if (isSessionEnded(error)) return;
                             Alert.alert('Re-issue failed', error?.message || 'Could not re-issue the participant ID.');
                         } finally {
                             setReissuing(false);
@@ -94,6 +98,9 @@ const ViewRecordScreen = () => {
     const [recordings, setRecordings] = useState<Recording[]>([]);
     const [loading, setLoading] = useState(true);
     const [isEditingTestResults, setIsEditingTestResults] = useState(false);
+    // Unsaved diagnosis edits: if the session ends meanwhile, Login waits
+    // until the editor is closed (saved or cancelled)
+    useSignOutHold(isEditingTestResults);
     const [saving, setSaving] = useState(false);
     const [expandedDropdown, setExpandedDropdown] = useState<string | null>(null);
 

@@ -11,7 +11,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -24,11 +23,16 @@ import { FONTS, COLORS } from '../theme';
 import { getBuildInfoLine, isTestBuild } from '../utils/buildInfo';
 
 export default function LoginScreen() {
-  const { login, isLoading } = useAuth();
-  const [username, setUsername] = useState('');
+  const { login, sessionNotice, lastUsername } = useAuth();
+  // After the server ended a session, log back in to the same account: the
+  // records waiting on this phone belong to it (scoped by username).
+  const [username, setUsername] = useState(lastUsername ?? '');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Local: this screen stays mounted while logging in, so the typed username,
+  // the inline error and the in-button spinner all survive a failed attempt
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
     // Validation
@@ -42,14 +46,16 @@ export default function LoginScreen() {
     }
 
     setError(null);
+    setIsLoading(true);
 
     try {
       await login({ username: username.trim(), password });
       // Navigation will be handled by AppNavigator based on auth state
     } catch (err: any) {
-      const errorMessage = err.message || 'Login failed. Please check your credentials.';
-      setError(errorMessage);
-      Alert.alert('Login Failed', errorMessage);
+      setError(err?.message || 'Login failed. Check your username and password.');
+      if (err?.status === 401) setPassword('');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -85,6 +91,14 @@ export default function LoginScreen() {
                 </View>
               )}
             </View>
+
+            {/* Why the collector is here again (session ended by the server) */}
+            {sessionNotice && (
+              <View style={styles.noticeContainer}>
+                <Ionicons name="information-circle" size={18} color="#0369A1" />
+                <Text style={styles.noticeText}>{sessionNotice}</Text>
+              </View>
+            )}
 
             {/* Login Form */}
             <View style={styles.form}>
@@ -267,6 +281,22 @@ const styles = StyleSheet.create({
   },
   eyeIcon: {
     padding: 4,
+  },
+  noticeContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 12,
+    backgroundColor: '#E0F2FE',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  noticeText: {
+    marginLeft: 8,
+    fontSize: 14,
+    fontFamily: FONTS.regular,
+    color: '#0369A1',
+    flex: 1,
   },
   errorContainer: {
     flexDirection: 'row',
