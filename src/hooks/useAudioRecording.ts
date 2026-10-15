@@ -5,6 +5,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Platform, Alert, AppState } from 'react-native';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
 import { detectCoughFromUrl } from '../utils/onnxInference';
 import { AnalysisResult } from '../types/participantForm';
 import { AudioRecorder } from '../utils/audioRecorder';
@@ -22,6 +23,28 @@ import { computeAudioQuality, AudioQuality } from '../utils/audioQuality';
 export const MAX_RECORDING_SECONDS = 60;
 
 const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+
+/**
+ * A take whose file holds less audio than this was not recorded at all: the
+ * microphone delivered nothing (held by another app or a call, or the
+ * permission is off), so the recorder wrote a bare 44-byte WAV header. Three
+ * such files reached the server on builds before 116 (dashboard alert
+ * "Identical audio across participants", 2026-10-15). Nothing in them is
+ * worth keeping, so the take is refused at Stop and the collector records
+ * again.
+ */
+const MIN_AUDIO_SECONDS = 0.5;
+const WAV_HEADER_BYTES = 44;
+
+const holdsNoAudio = async (uri: string, quality: AudioQuality | null): Promise<boolean> => {
+    if (quality) return quality.file_seconds < MIN_AUDIO_SECONDS;
+    try {
+        const info = await FileSystem.getInfoAsync(uri);
+        return !info.exists || ((info as any).size ?? 0) <= WAV_HEADER_BYTES;
+    } catch {
+        return false; // unknown: keep the take rather than lose a real one
+    }
+};
 
 /**
  * Keep the screen on while a take runs (at most 60 s): a screen that times
@@ -70,6 +93,10 @@ export const useAudioRecording = (options: UseAudioRecordingOptions = {}) => {
     // card cannot start a second take while the first starts or records
     const activeKeyRef = useRef<string | null>(null);
     const startedAtRef = useRef(0);
+    // The native start in flight. A stop that arrives meanwhile (the app
+    // leaving the screen right after Start) waits for it: stopping a recorder
+    // that has not started yet left it running with nothing to stop it.
+    const startPromiseRef = useRef<Promise<boolean> | null>(null);
     // The stop in flight; later callers (Stop tap, cap, app leaving) share it
     const stopPromiseRef = useRef<Promise<string | null> | null>(null);
     const onAutoStopRef = useRef(options.onAutoStop);
@@ -134,37 +161,44 @@ export const useAudioRecording = (options: UseAudioRecordingOptions = {}) => {
         if (activeKeyRef.current || stopPromiseRef.current || !recorderRef.current) return;
         activeKeyRef.current = key;
 
-        try {
-            // Ensure audio mode is set for recording
-            await Audio.setAudioModeAsync({
-                allowsRecordingIOS: true,
-                playsInSilentModeIOS: true,
-                staysActiveInBackground: true,
-            });
+        const starting = (async (): Promise<boolean> => {
+            try {
+                // Ensure audio mode is set for recording
+                await Audio.setAudioModeAsync({
+                    allowsRecordingIOS: true,
+                    playsInSilentModeIOS: true,
+                    staysActiveInBackground: true,
+                });
 
-            await recorderRef.current.start();
-            keepScreenOn(true);
+                await recorderRef.current!.start();
+                keepScreenOn(true);
 
-            startedAtRef.current = nowMs();
-            setActiveRecordingKey(key);
-            setRecordingDuration(0);
+                startedAtRef.current = nowMs();
+                setActiveRecordingKey(key);
+                setRecordingDuration(0);
 
-            // The timer shows wall-clock seconds and enforces the cap. If the
-            // app was paused, the first tick after it comes back catches up.
-            recordingInterval.current = setInterval(() => {
-                const seconds = elapsedSeconds();
-                setRecordingDuration(seconds);
-                if (seconds >= MAX_RECORDING_SECONDS) {
-                    void autoStop();
-                }
-            }, 250);
-
-        } catch (err) {
-            activeKeyRef.current = null;
-            keepScreenOn(false);
-            console.error('Failed to start recording', err);
-            Alert.alert('Error', 'Failed to start recording.');
-        }
+                // The timer shows wall-clock seconds and enforces the cap. If the
+                // app was paused, the first tick after it comes back catches up.
+                recordingInterval.current = setInterval(() => {
+                    const seconds = elapsedSeconds();
+                    setRecordingDuration(seconds);
+                    if (seconds >= MAX_RECORDING_SECONDS) {
+                        void autoStop();
+                    }
+                }, 250);
+                return true;
+            } catch (err) {
+                activeKeyRef.current = null;
+                keepScreenOn(false);
+                console.error('Failed to start recording', err);
+                Alert.alert('Error', 'Failed to start recording.');
+                return false;
+            } finally {
+                startPromiseRef.current = null;
+            }
+        })();
+        startPromiseRef.current = starting;
+        await starting;
     };
 
     const stopRecording = (key: string): Promise<string | null> => {
@@ -173,8 +207,10 @@ export const useAudioRecording = (options: UseAudioRecordingOptions = {}) => {
 
         // The length is taken when the stop is requested, capped: the native
         // stop takes a moment, and a capped take must not be stored as 61 s
-        // (the dashboard treats kept takes over 60 s as an app fault).
-        const finalDuration = Math.min(elapsedSeconds(), MAX_RECORDING_SECONDS);
+        // (the dashboard treats kept takes over 60 s as an app fault). A stop
+        // requested while the start is still in flight is a 0 s take.
+        const starting = startPromiseRef.current;
+        const finalDuration = starting ? 0 : Math.min(elapsedSeconds(), MAX_RECORDING_SECONDS);
         if (recordingInterval.current) {
             clearInterval(recordingInterval.current);
             recordingInterval.current = null;
@@ -182,8 +218,16 @@ export const useAudioRecording = (options: UseAudioRecordingOptions = {}) => {
         setProcessing(key, true);
 
         const run = (async (): Promise<string | null> => {
+          try {
             let uri: string | null = null;
             try {
+                // Let a start in flight finish first; if it failed, there is
+                // nothing to stop (the start already reset the state)
+                if (starting && !(await starting)) return null;
+                if (recordingInterval.current) {
+                    clearInterval(recordingInterval.current);
+                    recordingInterval.current = null;
+                }
                 uri = await recorderRef.current!.stop();
             } catch (error) {
                 console.error('Failed to stop recording', error);
@@ -198,30 +242,35 @@ export const useAudioRecording = (options: UseAudioRecordingOptions = {}) => {
                 setActiveRecordingKey(null);
                 setRecordingDuration(0);
             }
+            if (!uri) return null;
 
-            try {
-                if (uri) {
-                    setRecordedDurations(prev => ({ ...prev, [key]: finalDuration }));
+            // Cheap (one pass over the PCM) and fail-safe: a null never
+            // blocks the take. Awaited so the metrics exist by the time
+            // the form can be saved.
+            const quality = await computeAudioQuality(uri, recorderRef.current?.getLastTakeWallSeconds() ?? null);
 
-                    // Cheap (one pass over the PCM) and fail-safe: a null never
-                    // blocks the take. Awaited so the metrics exist by the time
-                    // the form can be saved.
-                    const quality = await computeAudioQuality(uri, recorderRef.current?.getLastTakeWallSeconds() ?? null);
-                    setTakeQuality(prev => ({ ...prev, [key]: quality }));
-
-                    // The ambient clip is never scored for cough — SectionD renders no
-                    // analysis for it — and it is the longest recording in the form
-                    // (10s minimum), so running the ONNX pipeline on it is pure cost and
-                    // risk. The cough recordings are still awaited: submission reads
-                    // analysisResults, so analysis must finish before the form is savable.
-                    if (key !== 'recordingBackground') {
-                        await analyzeAudio(key, uri);
-                    }
-                }
-                return uri;
-            } finally {
-                setProcessing(key, false);
+            if (await holdsNoAudio(uri, quality)) {
+                await FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => {});
+                Alert.alert('Nothing was recorded', 'Check that no other app is using the microphone, then record again.');
+                return null;
             }
+
+            setRecordedDurations(prev => ({ ...prev, [key]: finalDuration }));
+            setTakeQuality(prev => ({ ...prev, [key]: quality }));
+
+            // The ambient clip is never scored for cough — SectionD renders no
+            // analysis for it — and it is the longest recording in the form
+            // (10s minimum), so running the ONNX pipeline on it is pure cost and
+            // risk. The cough recordings are still awaited: submission reads
+            // analysisResults, so analysis must finish before the form is savable.
+            if (key !== 'recordingBackground') {
+                await analyzeAudio(key, uri);
+            }
+            return uri;
+          } finally {
+            // Whatever happened above, the card gets its buttons back
+            setProcessing(key, false);
+          }
         })();
 
         stopPromiseRef.current = run;

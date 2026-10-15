@@ -918,6 +918,9 @@ const ViewRecordScreen = () => {
                                                 />
                                             )}
 
+                                            {/* A test that was not done is answered above ("Was a test
+                                                done?" No or Not yet); as a result value the server could
+                                                not read it (removed in build 116) */}
                                             <Dropdown
                                                 label="TB Diagnosis Result *"
                                                 value={testFormData.testResult}
@@ -926,7 +929,6 @@ const ViewRecordScreen = () => {
                                                     'Negative',
                                                     'Pending',
                                                     'Inconclusive',
-                                                    'Not done'
                                                 ]}
                                                 onSelect={(val: string) => {
                                                     setTestFormData({ ...testFormData, testResult: val });

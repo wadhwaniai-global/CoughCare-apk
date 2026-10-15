@@ -61,7 +61,7 @@ a non-Pending result.
 |---|---|---|
 | `test_done` | string | `Yes` \| `No` \| `Not yet` (Not yet never appears on synced records) |
 | `test_type` | string \| null | `GeneXpert` \| `Smear Microscopy` \| `Culture` \| `Chest X-ray` (main form) \| `Chest X-Ray (CXR)` \| `Other` (record editor) — two editors, two spellings of X-ray; normalize |
-| `test_result` | string \| null | `Positive` \| `Negative` \| `Indeterminate` (main form) \| `Inconclusive` \| `Not done` (record editor) \| `Pending` (never on synced records) |
+| `test_result` | string \| null | `Positive` \| `Negative` \| `Indeterminate` (main form) \| `Inconclusive` (record editor) \| `Pending` (never on synced records). `Not done` was offered by the record editor until seq 115 and reached the server on a few records with `test_done = "Yes"`; read it as no test (the backend does so since 2026-10). |
 | `test_date_collection`, `test_date_result` | string \| null | `DD/MM/YYYY` (main form) **or** `YYYY-MM-DD` (record editor) — mixed formats, normalize when displaying |
 | `test_site` | string \| null | free text |
 | `test_notes` | string \| null | free text |
@@ -236,6 +236,7 @@ post-sync purge there. Server-side records are pseudonymous.
 | seq < 99 | no `recordings[].quality` object and no `device_build` |
 | seq < 109 | no `patient_wearing_mask` |
 | seq < 115 | `recordings[].duration` counted on-screen timer ticks: it under-reads takes made while the app was off screen and can exceed 60 on takes left running with Section D closed. `app_bundle_seq` is the bundle that synced the record, so records created on an earlier bundle and synced on 115 or later carry the newer number with these older durations; they are also the only records that can hold a trimmed take (`upload_trimmed_to_seconds`). Discards: before 115 the "No Cough Detected" question came back each time Section D was reopened, which inflated re-records; from 115 it is asked once per take, but a take cut short below the minimum by leaving the app must be re-recorded, which adds a small discard. |
+| seq < 116 | `test_result` may be `Not done` on a tested record (read as no test). A take whose file held no audio (a bare 44-byte WAV; the microphone delivered nothing) could be stored and uploaded, kept or discarded; from 116 such a take is refused at Stop and never saved, so empty files no longer reach the server. |
 | CED detector builds (test channel #92+; main seq TBD) | `analysis_result` has no `segment_probabilities`/`num_segments`; `threshold_used` = 0.4758; per-recording `confidence` values come from a different model and are not comparable with earlier scores |
 
 **Exclude internal data** (backend guidance, 2026-08): drop forms where
