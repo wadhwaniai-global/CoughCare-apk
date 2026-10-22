@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   Image,
@@ -19,8 +20,39 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../contexts/AuthContext';
+import { getStats, getUnsyncedByOtherLogins } from '../services/DatabaseService';
 import { FONTS, COLORS } from '../theme';
 import { getBuildInfoLine, isTestBuild } from '../utils/buildInfo';
+import { hiddenRecordsQuestion } from '../utils/hiddenRecords';
+
+/**
+ * Records are scoped to the login that saved them. A login as someone else on
+ * a phone holding another login's unsynced records makes those records vanish
+ * from view (they are still there). Ask first, when this login has no
+ * unsynced records of its own on the phone and another login does: the one
+ * case where the phone would look empty though it is not. On a phone the
+ * person is already working from, nothing is asked. A database problem never
+ * blocks a login.
+ */
+const confirmLoginHidesRecords = async (loginAs: string): Promise<boolean> => {
+  try {
+    const others = await getUnsyncedByOtherLogins(loginAs);
+    if (others.length === 0) return true;
+    const own = await getStats(loginAs);
+    if (own.pending + own.awaiting + own.drafts > 0) return true;
+    const question = hiddenRecordsQuestion(others, loginAs);
+    if (Platform.OS === 'web') return window.confirm(question);
+    return await new Promise<boolean>((resolve) => {
+      Alert.alert('Records on this phone', question, [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Log in anyway', onPress: () => resolve(true) },
+      ], { cancelable: true, onDismiss: () => resolve(false) });
+    });
+  } catch (error) {
+    console.warn('[Login] Could not check for records under other logins:', error);
+    return true;
+  }
+};
 
 export default function LoginScreen() {
   const { login, sessionNotice, lastUsername } = useAuth();
@@ -49,6 +81,7 @@ export default function LoginScreen() {
     setIsLoading(true);
 
     try {
+      if (!(await confirmLoginHidesRecords(username.trim()))) return;
       await login({ username: username.trim(), password });
       // Navigation will be handled by AppNavigator based on auth state
     } catch (err: any) {

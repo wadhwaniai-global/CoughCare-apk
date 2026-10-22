@@ -772,6 +772,26 @@ export const getStats = async (createdBy: string) => {
     }
 };
 
+/**
+ * Unsynced records on this phone saved under OTHER logins: username and
+ * count, largest first, empty when there are none. Records are scoped to the
+ * login that saved them (created_by), so these are invisible to `username`
+ * and cannot sync until their own login is back. The Dashboard says so, and
+ * the Login screen asks before a login that would hide them (2026-10-22: two
+ * phones exchanged between collectors made 8 records "disappear" this way).
+ * Drafts count: they are unsynced too.
+ */
+export const getUnsyncedByOtherLogins = async (username: string): Promise<{ username: string; count: number }[]> => {
+    const database = await getDB();
+    const rows = await database.getAllAsync<{ created_by: string | null; count: number }>(
+        `SELECT created_by, COUNT(*) as count FROM participants
+         WHERE status != 'synced' AND COALESCE(created_by, '') != ?
+         GROUP BY created_by ORDER BY count DESC`,
+        [username]
+    );
+    return rows.map((r) => ({ username: r.created_by || 'an unknown login', count: r.count }));
+};
+
 export const getPendingParticipants = async (createdBy: string): Promise<Participant[]> => {
     const database = await getDB();
     try {

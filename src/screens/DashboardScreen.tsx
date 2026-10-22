@@ -12,7 +12,8 @@ import { RouteProp, useRoute } from '@react-navigation/native';
 type DashboardScreenRouteProp = RouteProp<RootStackParamList, 'Dashboard'>;
 
 import { useFocusEffect } from '@react-navigation/native';
-import { getParticipants, getStats, viewDatabaseContents } from '../services/DatabaseService';
+import { getParticipants, getStats, getUnsyncedByOtherLogins, viewDatabaseContents } from '../services/DatabaseService';
+import { hiddenRecordsNotice, type HiddenRecords } from '../utils/hiddenRecords';
 import { syncService, SyncProgress } from '../services/SyncService';
 import { useAuth } from '../contexts/AuthContext';
 import { Alert } from 'react-native';
@@ -25,6 +26,8 @@ const DashboardScreen = () => {
     const { logout, username, profile } = useAuth();
     // The login has run out by the phone's clock (works offline; see the hook)
     const sessionExpired = useSessionExpired();
+    // Unsynced records on this phone saved under other logins: invisible here, named below
+    const [hiddenRecords, setHiddenRecords] = useState<HiddenRecords>([]);
 
     const [stats, setStats] = useState({ pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0 });
     // Static for the lifetime of the process - the running bundle cannot change mid-session
@@ -50,8 +53,10 @@ const DashboardScreen = () => {
             if (!username) {
                 setStats({ pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0 });
                 setRecentCases([]);
+                setHiddenRecords([]);
                 return;
             }
+            setHiddenRecords(await getUnsyncedByOtherLogins(username));
             const fetchedStats = await getStats(username);
             setStats(fetchedStats);
 
@@ -297,6 +302,15 @@ const DashboardScreen = () => {
                     <View style={styles.sessionNotice}>
                         <Ionicons name="time-outline" size={18} color="#92400E" />
                         <Text style={styles.sessionNoticeText}>Session expired: relogin before next sync</Text>
+                    </View>
+                )}
+
+                {/* Records saved under another login are still here, only out of
+                    sight; say so instead of letting them look lost */}
+                {hiddenRecords.length > 0 && (
+                    <View style={styles.sessionNotice}>
+                        <Ionicons name="people-outline" size={18} color="#92400E" />
+                        <Text style={styles.hiddenNoticeText}>{hiddenRecordsNotice(hiddenRecords)}</Text>
                     </View>
                 )}
 
@@ -586,6 +600,15 @@ const styles = StyleSheet.create({
         marginLeft: 8,
         fontSize: 14,
         fontWeight: '600',
+        color: '#92400E',
+        flex: 1,
+    },
+    // Two lines of text: regular weight and a little leading read better than the one-line bold notice
+    hiddenNoticeText: {
+        marginLeft: 8,
+        fontSize: 14,
+        fontWeight: '500',
+        lineHeight: 20,
         color: '#92400E',
         flex: 1,
     },
