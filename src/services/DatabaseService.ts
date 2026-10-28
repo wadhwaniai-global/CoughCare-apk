@@ -49,6 +49,9 @@ export interface Participant {
     purged?: number; // 1 = synced and stripped to dashboard-display fields only
     sync_conflict?: number; // 1 = server rejected this participant_id as a duplicate (409); enables Re-issue ID
     previous_participant_id?: string | null; // set when the ID was re-issued after a 409 (lineage, also sent to server)
+    consent_withdrawn_at?: string | null; // ISO time the collector withdrew consent on a SYNCED record (ViewRecordScreen); null = consent stands
+    consent_withdrawal_reason?: string | null; // optional free text typed with it
+    consent_withdrawal_reported?: number; // 1 once the server acknowledged it (SyncService.reportWithdrawals); 0 = reported at the next sync
     analysis_result?: string | null; // JSON string for ONNX result
     file_ids?: string | null; // JSON array of file IDs from server
     sync_attempts?: number; // Number of sync attempts
@@ -139,7 +142,10 @@ export const initDatabase = async () => {
         created_by TEXT, -- Login username that created the record (local-only)
         purged INTEGER DEFAULT 0, -- synced + stripped to dashboard fields only
         sync_conflict INTEGER DEFAULT 0, -- 409 duplicate participant_id from server
-        previous_participant_id TEXT -- prior ID when re-issued after a 409
+        previous_participant_id TEXT, -- prior ID when re-issued after a 409
+        consent_withdrawn_at TEXT, -- consent withdrawn on a synced record; reported to the server at the next sync
+        consent_withdrawal_reason TEXT,
+        consent_withdrawal_reported INTEGER DEFAULT 0
       );
 
       CREATE TABLE IF NOT EXISTS recordings (
@@ -215,6 +221,9 @@ const migrateDatabase = async () => {
             { name: 'sync_conflict', sql: `ALTER TABLE participants ADD COLUMN sync_conflict INTEGER DEFAULT 0` },
             { name: 'previous_participant_id', sql: `ALTER TABLE participants ADD COLUMN previous_participant_id TEXT` },
             { name: 'patient_wearing_mask', sql: `ALTER TABLE participants ADD COLUMN patient_wearing_mask INTEGER` },
+            { name: 'consent_withdrawn_at', sql: `ALTER TABLE participants ADD COLUMN consent_withdrawn_at TEXT` },
+            { name: 'consent_withdrawal_reason', sql: `ALTER TABLE participants ADD COLUMN consent_withdrawal_reason TEXT` },
+            { name: 'consent_withdrawal_reported', sql: `ALTER TABLE participants ADD COLUMN consent_withdrawal_reported INTEGER DEFAULT 0` },
         ];
 
         for (const migration of migrations) {
@@ -758,17 +767,20 @@ export const getStats = async (createdBy: string) => {
         const drafts = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'draft' AND created_by = ?`, [createdBy]);
         const synced = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE status = 'synced' AND created_by = ?`, [createdBy]);
         const total = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE created_by = ?`, [createdBy]);
+        // Consent withdrawals the server has not acknowledged yet: Sync has work even with nothing pending
+        const withdrawals = await database.getFirstAsync<{ count: number }>(`SELECT COUNT(*) as count FROM participants WHERE consent_withdrawn_at IS NOT NULL AND COALESCE(consent_withdrawal_reported, 0) = 0 AND created_by = ?`, [createdBy]);
 
         return {
             pending: pending?.count || 0,
             awaiting: awaiting?.count || 0,
             drafts: drafts?.count || 0,
             synced: synced?.count || 0,
-            total: total?.count || 0
+            total: total?.count || 0,
+            withdrawals: withdrawals?.count || 0
         };
     } catch (error) {
         console.error("Error fetching stats:", error);
-        return { pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0 };
+        return { pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0, withdrawals: 0 };
     }
 };
 
@@ -901,4 +913,52 @@ export const getDraftParticipants = async (createdBy: string): Promise<Participa
         console.error("Error fetching draft participants:", error);
         return [];
     }
+};
+
+// ---------------------------------------------------------------------------
+// Consent withdrawal (synced records only)
+// ---------------------------------------------------------------------------
+
+/**
+ * The collector reports that a participant has withdrawn consent. Offered on
+ * SYNCED records only: an unsynced record has not left the phone. Nothing is
+ * deleted by this, here or on the server: the next sync reports it
+ * (SyncService.reportWithdrawals) and the study team deletes the participant's
+ * data from the server by hand. The record and the contact details kept for
+ * follow-up stay on the phone. One way: a withdrawal is never taken back here.
+ */
+export const withdrawConsent = async (participantId: string, reason: string | null | undefined): Promise<void> => {
+    const database = await getDB();
+    const trimmed = (reason || '').trim().slice(0, 300);
+    await database.runAsync(
+        `UPDATE participants
+         SET consent_withdrawn_at = ?, consent_withdrawal_reason = ?, consent_withdrawal_reported = 0
+         WHERE participant_id = ? AND status = 'synced' AND consent_withdrawn_at IS NULL`,
+        [new Date().toISOString(), trimmed || null, participantId]
+    );
+};
+
+export interface PendingWithdrawal {
+    participant_id: string;
+    consent_withdrawn_at: string;
+    consent_withdrawal_reason: string | null;
+}
+
+/** Withdrawals the server has not acknowledged yet, oldest first, for this login's records. */
+export const getUnreportedWithdrawals = async (createdBy: string): Promise<PendingWithdrawal[]> => {
+    const database = await getDB();
+    return database.getAllAsync<PendingWithdrawal>(
+        `SELECT participant_id, consent_withdrawn_at, consent_withdrawal_reason FROM participants
+         WHERE consent_withdrawn_at IS NOT NULL AND COALESCE(consent_withdrawal_reported, 0) = 0 AND created_by = ?
+         ORDER BY consent_withdrawn_at`,
+        [createdBy]
+    );
+};
+
+export const markWithdrawalReported = async (participantId: string): Promise<void> => {
+    const database = await getDB();
+    await database.runAsync(
+        `UPDATE participants SET consent_withdrawal_reported = 1 WHERE participant_id = ?`,
+        [participantId]
+    );
 };

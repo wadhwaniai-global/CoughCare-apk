@@ -29,7 +29,7 @@ const DashboardScreen = () => {
     // Unsynced records on this phone saved under other logins: invisible here, named below
     const [hiddenRecords, setHiddenRecords] = useState<HiddenRecords>([]);
 
-    const [stats, setStats] = useState({ pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0 });
+    const [stats, setStats] = useState({ pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0, withdrawals: 0 });
     // Static for the lifetime of the process - the running bundle cannot change mid-session
     const buildInfoLine = React.useMemo(() => getBuildInfoLine(), []);
     const [isOnline, setIsOnline] = useState(true);
@@ -51,7 +51,7 @@ const DashboardScreen = () => {
     const loadData = async () => {
         try {
             if (!username) {
-                setStats({ pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0 });
+                setStats({ pending: 0, awaiting: 0, drafts: 0, synced: 0, total: 0, withdrawals: 0 });
                 setRecentCases([]);
                 setHiddenRecords([]);
                 return;
@@ -70,6 +70,7 @@ const DashboardScreen = () => {
                 region: p.region,
                 recordStatus: p.status || 'pending',
                 syncConflict: p.sync_conflict === 1,
+                consentWithdrawn: !!p.consent_withdrawn_at,
                 analysis: p.analysis_result ? JSON.parse(p.analysis_result) : null
             }));
             setRecentCases(formattedCases);
@@ -162,16 +163,21 @@ const DashboardScreen = () => {
             return;
         }
 
-        if (stats.pending === 0) {
+        if (stats.pending === 0 && stats.withdrawals === 0) {
             Alert.alert('Nothing to sync', 'There are no pending records to upload.');
             return;
         }
 
         // Syncing is a one-way door: synced records can no longer be edited.
-        // Make the user confirm so corrections happen before upload.
+        // Make the user confirm so corrections happen before upload. Consent
+        // withdrawals (synced records) are reported in the same run.
+        const parts: string[] = [];
+        if (stats.pending > 0) parts.push(`${stats.pending} record(s) will be uploaded to the server.`);
+        if (stats.withdrawals > 0) parts.push(`${stats.withdrawals} consent withdrawal(s) will be reported to the study team.`);
+        if (stats.pending > 0) parts.push('Once synced, records can no longer be edited. Please make sure all corrections are done before syncing.');
         Alert.alert(
             'Sync records?',
-            `${stats.pending} record(s) will be uploaded to the server.\n\nOnce synced, records can no longer be edited. Please make sure all corrections are done before syncing.`,
+            parts.join('\n\n'),
             [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Sync now', onPress: () => performSync() },
@@ -197,21 +203,27 @@ const DashboardScreen = () => {
                 return;
             }
 
+            const reported = result.withdrawalsReported || 0;
+            const withdrawalLine = reported > 0 ? `${reported} consent withdrawal(s) reported to the study team.` : '';
             if (result.success) {
                 setLastSyncTime(new Date().toLocaleString());
-                Alert.alert(
-                    'Sync Complete',
-                    `Successfully synced ${result.synced} record(s).`,
-                    [{ text: 'OK' }]
-                );
+                const lines = [];
+                if (result.synced > 0 || reported === 0) lines.push(`Successfully synced ${result.synced} record(s).`);
+                if (withdrawalLine) lines.push(withdrawalLine);
+                Alert.alert('Sync Complete', lines.join('\n'), [{ text: 'OK' }]);
             } else {
                 // Never "Complete" when something failed (it read as success)
                 const errorMsg = result.errors.length > 0
                     ? result.errors.join('\n')
                     : 'Sync did not finish. Try again.';
+                const unreported = result.withdrawalsFailed || 0;
                 Alert.alert(
-                    result.synced > 0 ? 'Sync Incomplete' : 'Sync Failed',
-                    `Synced: ${result.synced}, Failed: ${result.failed}\n\nRecords that did not sync are still on this phone.\n\n${errorMsg}`,
+                    result.synced > 0 || reported > 0 ? 'Sync Incomplete' : 'Sync Failed',
+                    `Synced: ${result.synced}, Failed: ${result.failed}`
+                    + (withdrawalLine ? `\n${withdrawalLine}` : '')
+                    + (unreported > 0 ? `\n${unreported} consent withdrawal(s) not reported yet.` : '')
+                    + (result.failed > 0 ? '\n\nRecords that did not sync are still on this phone.' : '')
+                    + `\n\n${errorMsg}`,
                     [{ text: 'OK' }]
                 );
             }
@@ -436,6 +448,7 @@ const DashboardScreen = () => {
                                         )}
                                         <View style={[
                                             styles.statusBadge,
+                                            item.consentWithdrawn ? { backgroundColor: '#FEE2E2' } :
                                             item.recordStatus === 'pending' ? { backgroundColor: '#E0F2F1' } :
                                                 item.recordStatus === 'awaiting_diagnosis' ? { backgroundColor: '#FEF3C7' } :
                                                     item.recordStatus === 'synced' ? { backgroundColor: '#DCFCE7' } :
@@ -443,12 +456,14 @@ const DashboardScreen = () => {
                                         ]}>
                                             <Text style={[
                                                 styles.statusText,
+                                                item.consentWithdrawn ? { color: '#B91C1C' } :
                                                 item.recordStatus === 'pending' ? { color: '#0284C7' } :
                                                     item.recordStatus === 'awaiting_diagnosis' ? { color: '#D97706' } :
                                                         item.recordStatus === 'synced' ? { color: '#16A34A' } :
                                                             { color: '#6366F1' }
                                             ]}>
-                                                {item.recordStatus === 'pending' ? 'Pending Sync' :
+                                                {item.consentWithdrawn ? 'Consent withdrawn' :
+                                                item.recordStatus === 'pending' ? 'Pending Sync' :
                                                     item.recordStatus === 'awaiting_diagnosis' ? 'Awaiting Diagnosis' :
                                                         item.recordStatus === 'synced' ? 'Synced' : 'Draft'}
                                             </Text>

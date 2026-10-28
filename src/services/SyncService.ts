@@ -17,6 +17,8 @@ import {
   purgeSyncedParticipantData,
   upsertSequenceSeed,
   setSyncConflict,
+  getUnreportedWithdrawals,
+  markWithdrawalReported,
   getDB,
   Participant,
   Recording,
@@ -40,6 +42,10 @@ export interface SyncResult {
    *  app is taking the collector to the Login screen. Records not yet synced
    *  are untouched and sync after logging in again. */
   sessionEnded?: boolean;
+  /** Consent withdrawals (synced records) reported to the server in this run,
+   *  and ones the server did not acknowledge (reported again next sync). */
+  withdrawalsReported?: number;
+  withdrawalsFailed?: number;
 }
 
 /** recordings.quality is stored as JSON text; ship it as an object. */
@@ -451,6 +457,56 @@ class SyncService {
   }
 
   /**
+   * Report consent withdrawals (ViewRecordScreen "Withdraw consent" on a
+   * synced record) that the server has not acknowledged yet. One request
+   * each; a 2xx marks it reported, anything else leaves it for the next
+   * sync. A server that does not know the endpoint yet answers 404 and is
+   * treated the same way. Nothing is deleted by this: the server keeps the
+   * withdrawal aside for the study team to act on by hand.
+   */
+  private async reportWithdrawals(runUsername: string): Promise<{
+    counts: { withdrawalsReported: number; withdrawalsFailed: number };
+    errors: string[];
+    sessionEnded: boolean;
+  }> {
+    const counts = { withdrawalsReported: 0, withdrawalsFailed: 0 };
+    const errors: string[] = [];
+    let waiting: Awaited<ReturnType<typeof getUnreportedWithdrawals>> = [];
+    try {
+      waiting = await getUnreportedWithdrawals(runUsername);
+    } catch (error) {
+      console.warn('[SyncService] Could not read consent withdrawals:', error);
+      return { counts, errors, sessionEnded: false };
+    }
+    const build = getBuildInfo();
+    for (const w of waiting) {
+      try {
+        await this.assertSameAccount(runUsername);
+        await apiService.reportConsentWithdrawal({
+          participant_id: w.participant_id,
+          withdrawn_at: w.consent_withdrawn_at,
+          reason: w.consent_withdrawal_reason || undefined,
+          app_channel: build.channel,
+          app_bundle_seq: /^\d+$/.test(build.bundleSeq) ? Number(build.bundleSeq) : undefined,
+          app_update_id: build.bundleId,
+          device_model: getDeviceModel(),
+        });
+        await markWithdrawalReported(w.participant_id);
+        counts.withdrawalsReported++;
+        console.log(`[SyncService] Consent withdrawal reported for ${w.participant_id}`);
+      } catch (error: any) {
+        if (isSessionEnded(error)) {
+          return { counts, errors, sessionEnded: true };
+        }
+        counts.withdrawalsFailed++;
+        errors.push(`Consent withdrawal for ${w.participant_id} not reported (${error?.message || 'request failed'}). It will be reported at the next sync.`);
+        console.warn(`[SyncService] Consent withdrawal for ${w.participant_id} not reported:`, error);
+      }
+    }
+    return { counts, errors, sessionEnded: false };
+  }
+
+  /**
    * Sync all pending participants
    */
   async syncPendingForms(): Promise<SyncResult> {
@@ -482,15 +538,28 @@ class SyncService {
     this.isSyncing = true;
 
     try {
+      // Consent withdrawals first: small requests, and the study team should
+      // hear of a withdrawal even when a record upload fails afterwards.
+      const withdrawals = await this.reportWithdrawals(username);
+      if (withdrawals.sessionEnded) {
+        return { success: false, synced: 0, failed: 0, errors: [], sessionEnded: true, ...withdrawals.counts };
+      }
+
       // Get the current user's pending participants
       const pendingParticipants = await getPendingParticipants(username);
       const total = pendingParticipants.length;
 
       if (total === 0) {
-        return { success: true, synced: 0, failed: 0, errors: [] };
+        return {
+          success: withdrawals.counts.withdrawalsFailed === 0,
+          synced: 0,
+          failed: 0,
+          errors: withdrawals.errors,
+          ...withdrawals.counts,
+        };
       }
 
-      const errors: string[] = [];
+      const errors: string[] = [...withdrawals.errors];
       let synced = 0;
       let failed = 0;
       let sessionEnded = false;
@@ -531,11 +600,12 @@ class SyncService {
       }
 
       return {
-        success: failed === 0 && !sessionEnded,
+        success: failed === 0 && withdrawals.counts.withdrawalsFailed === 0 && !sessionEnded,
         synced,
         failed,
         errors,
         sessionEnded,
+        ...withdrawals.counts,
       };
     } catch (error: any) {
       return {

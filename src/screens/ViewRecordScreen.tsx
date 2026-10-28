@@ -17,13 +17,14 @@ import {
     ToastAndroid,
     KeyboardAvoidingView,
     Platform,
+    Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { getParticipantById, getRecordingsByParticipantId, saveParticipant, reissueParticipantId, Participant, Recording } from '../services/DatabaseService';
+import { getParticipantById, getRecordingsByParticipantId, saveParticipant, reissueParticipantId, withdrawConsent, Participant, Recording } from '../services/DatabaseService';
 import { syncService } from '../services/SyncService';
 import { isSessionEnded } from '../services/sessionEvents';
 import { useAuth, useSignOutHold } from '../contexts/AuthContext';
@@ -102,6 +103,10 @@ const ViewRecordScreen = () => {
     // until the editor is closed (saved or cancelled)
     useSignOutHold(isEditingTestResults);
     const [saving, setSaving] = useState(false);
+    // Consent withdrawal (synced records only): the confirmation sheet, its optional reason, and the save in flight
+    const [withdrawVisible, setWithdrawVisible] = useState(false);
+    const [withdrawReason, setWithdrawReason] = useState('');
+    const [withdrawing, setWithdrawing] = useState(false);
     const [expandedDropdown, setExpandedDropdown] = useState<string | null>(null);
 
     // Date picker states
@@ -179,6 +184,26 @@ const ViewRecordScreen = () => {
             return value.toString();
         }
         return String(value);
+    };
+
+    /**
+     * Consent withdrawn on a synced record. Marks the record on this phone and
+     * leaves the reporting to the next sync (SyncService.reportWithdrawals);
+     * nothing is deleted here or on the server by this. One way.
+     */
+    const handleWithdrawConsent = async () => {
+        if (!participant || withdrawing) return;
+        setWithdrawing(true);
+        try {
+            await withdrawConsent(participant.participant_id, withdrawReason);
+            setParticipant(await getParticipantById(participant.participant_id));
+            setWithdrawVisible(false);
+            setWithdrawReason('');
+        } catch (error: any) {
+            Alert.alert('Could not save', error?.message || 'Please try again.');
+        } finally {
+            setWithdrawing(false);
+        }
     };
 
     const getStatusBadgeColor = (status?: string) => {
@@ -468,6 +493,10 @@ const ViewRecordScreen = () => {
         const syncedConfidence = participant.analysis_result
             ? (() => { try { const r = JSON.parse(participant.analysis_result!); return typeof r?.confidence === 'number' ? `${(r.confidence * 100).toFixed(1)}%` : null; } catch { return null; } })()
             : null;
+        const withdrawn = !!participant.consent_withdrawn_at;
+        const withdrawnOn = withdrawn
+            ? new Date(participant.consent_withdrawn_at!).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+            : '';
         const retainedRows: Array<{ label: string; value: string }> = [
             { label: 'Participant ID', value: participant.participant_id },
             { label: 'Mobile Number', value: participant.mobile_number || 'N/A' },
@@ -486,11 +515,13 @@ const ViewRecordScreen = () => {
                         <Text style={styles.headerTitle}>View Record</Text>
                         <Text style={styles.headerSubtitle}>{participant.participant_id}</Text>
                     </View>
-                    <View style={[styles.statusBadge, { backgroundColor: '#DCFCE7' }]}>
-                        <Text style={[styles.statusBadgeText, { color: '#16A34A' }]}>Synced</Text>
+                    <View style={[styles.statusBadge, { backgroundColor: withdrawn ? '#FEE2E2' : '#DCFCE7' }]}>
+                        <Text style={[styles.statusBadgeText, { color: withdrawn ? '#B91C1C' : '#16A34A' }]}>
+                            {withdrawn ? 'Consent withdrawn' : 'Synced'}
+                        </Text>
                     </View>
                 </View>
-                <ScrollView contentContainerStyle={{ padding: 24 }}>
+                <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: Math.max(24, insets.bottom + 24) }}>
                     <View style={{ alignItems: 'center', marginTop: 24, marginBottom: 24 }}>
                         <Ionicons name="cloud-done" size={64} color="#16A34A" />
                         <Text style={{ fontSize: 18, fontWeight: '600', color: '#1E293B', marginTop: 16 }}>
@@ -514,7 +545,82 @@ const ViewRecordScreen = () => {
                             </View>
                         ))}
                     </View>
+
+                    {/* Consent withdrawal: offered on synced records only (an unsynced
+                        record has not left the phone). The server keeps the report aside
+                        for the study team to delete by hand; nothing is deleted by the app. */}
+                    {withdrawn ? (
+                        <View style={{ backgroundColor: '#FEF2F2', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#FECACA', marginTop: 16 }}>
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: '#991B1B', marginBottom: 4 }}>Consent withdrawn</Text>
+                            <Text style={{ fontSize: 12, color: '#7F1D1D', lineHeight: 18 }}>
+                                {`Withdrawn on ${withdrawnOn}. `}
+                                {participant.consent_withdrawal_reported
+                                    ? 'Reported to the study team, who will remove this participant\'s data from the server.'
+                                    : 'Not reported yet. Tap Sync on the home screen to report it to the study team.'}
+                            </Text>
+                            {participant.consent_withdrawal_reason ? (
+                                <Text style={{ fontSize: 12, color: '#7F1D1D', marginTop: 8 }}>
+                                    {`Reason: ${participant.consent_withdrawal_reason}`}
+                                </Text>
+                            ) : null}
+                        </View>
+                    ) : (
+                        <View style={{ marginTop: 24 }}>
+                            <TouchableOpacity
+                                onPress={() => setWithdrawVisible(true)}
+                                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 13, borderRadius: 12, borderWidth: 1, borderColor: '#FCA5A5', backgroundColor: 'white' }}
+                            >
+                                <Ionicons name="hand-left-outline" size={18} color="#B91C1C" style={{ marginRight: 6 }} />
+                                <Text style={{ color: '#B91C1C', fontWeight: '600', fontSize: 15 }}>Withdraw consent</Text>
+                            </TouchableOpacity>
+                            <Text style={{ fontSize: 12, color: '#64748B', textAlign: 'center', marginTop: 8, lineHeight: 17 }}>
+                                If the participant no longer agrees to take part, report it here. The study team removes their data from the server.
+                            </Text>
+                        </View>
+                    )}
                 </ScrollView>
+
+                <Modal visible={withdrawVisible} transparent animationType="fade" onRequestClose={() => { if (!withdrawing) setWithdrawVisible(false); }}>
+                    <KeyboardAvoidingView
+                        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                        style={{ flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.55)', justifyContent: 'center', padding: 24 }}
+                    >
+                        <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 20 }}>
+                            <Text style={{ fontSize: 18, fontWeight: '700', color: '#1E293B' }}>Withdraw consent?</Text>
+                            <Text style={{ fontSize: 14, color: '#475569', marginTop: 8, lineHeight: 20 }}>
+                                {`${participant.participant_id} no longer takes part in the study. The study team is told at the next sync and removes the participant's data from the server. This phone keeps the record and its contact details. This cannot be undone.`}
+                            </Text>
+                            <TextInput
+                                value={withdrawReason}
+                                onChangeText={setWithdrawReason}
+                                placeholder="Reason (optional)"
+                                placeholderTextColor="#9CA3AF"
+                                maxLength={300}
+                                multiline
+                                editable={!withdrawing}
+                                style={{ marginTop: 14, borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, padding: 12, minHeight: 64, textAlignVertical: 'top', color: '#1E293B', fontSize: 14 }}
+                            />
+                            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 16 }}>
+                                <TouchableOpacity
+                                    onPress={() => { setWithdrawVisible(false); setWithdrawReason(''); }}
+                                    disabled={withdrawing}
+                                    style={{ paddingVertical: 10, paddingHorizontal: 16 }}
+                                >
+                                    <Text style={{ color: '#475569', fontWeight: '600', fontSize: 15 }}>Cancel</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={handleWithdrawConsent}
+                                    disabled={withdrawing}
+                                    style={{ backgroundColor: '#DC2626', borderRadius: 10, paddingVertical: 10, paddingHorizontal: 16, marginLeft: 8, minWidth: 150, alignItems: 'center' }}
+                                >
+                                    {withdrawing
+                                        ? <ActivityIndicator color="white" />
+                                        : <Text style={{ color: 'white', fontWeight: '700', fontSize: 15 }}>Withdraw consent</Text>}
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </KeyboardAvoidingView>
+                </Modal>
             </SafeAreaView>
         );
     }

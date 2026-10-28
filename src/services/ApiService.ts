@@ -226,6 +226,24 @@ class ApiService {
   }> {
     return this.post('/forms', formData);
   }
+
+  /**
+   * Report a consent withdrawal (ViewRecordScreen, synced records). The
+   * server keeps it aside for deletion by hand; nothing is deleted by this
+   * call. 201 the first time, 200 when the server already has it: both mean
+   * "reported".
+   */
+  async reportConsentWithdrawal(body: {
+    participant_id: string;
+    withdrawn_at: string;
+    reason?: string;
+    app_channel: string;
+    app_bundle_seq?: number;
+    app_update_id?: string;
+    device_model?: string;
+  }): Promise<{ participant_id: string; status: string; already_reported: boolean }> {
+    return this.post('/forms/consent-withdrawals', body);
+  }
 }
 
 export const apiService = new ApiService();
