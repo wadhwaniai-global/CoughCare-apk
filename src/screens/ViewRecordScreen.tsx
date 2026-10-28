@@ -574,7 +574,7 @@ const ViewRecordScreen = () => {
                                 <Text style={{ color: '#B91C1C', fontWeight: '600', fontSize: 15 }}>Withdraw consent</Text>
                             </TouchableOpacity>
                             <Text style={{ fontSize: 12, color: '#64748B', textAlign: 'center', marginTop: 8, lineHeight: 17 }}>
-                                If the participant no longer agrees to take part, report it here. The study team removes their data from the server.
+                                If the participant no longer agrees to take part, report it here. The data will then be removed from the server.
                             </Text>
                         </View>
                     )}
@@ -588,7 +588,7 @@ const ViewRecordScreen = () => {
                         <View style={{ backgroundColor: 'white', borderRadius: 16, padding: 20 }}>
                             <Text style={{ fontSize: 18, fontWeight: '700', color: '#1E293B' }}>Withdraw consent?</Text>
                             <Text style={{ fontSize: 14, color: '#475569', marginTop: 8, lineHeight: 20 }}>
-                                {`${participant.participant_id} no longer takes part in the study. The study team is told at the next sync and removes the participant's data from the server. This phone keeps the record and its contact details. This cannot be undone.`}
+                                {`${participant.participant_id} no longer takes part in the study. The withdrawal is noted at the next sync and the participant's data is removed from the server. This cannot be undone.`}
                             </Text>
                             <TextInput
                                 value={withdrawReason}
