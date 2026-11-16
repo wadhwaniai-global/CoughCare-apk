@@ -37,7 +37,7 @@ const isoToDDMMYYYY = (value?: string | null): string => {
     const m = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
     return m ? `${m[3]}/${m[2]}/${m[1]}` : value;
 };
-import { AlcoholUse, AnalysisResult, ParticipantFormData } from '../types/participantForm';
+import { AlcoholUse, AnalysisResult, COLLECTION_SITES, CollectionSite, ParticipantFormData } from '../types/participantForm';
 import { todayDDMMYYYY } from '../utils/dateUtils';
 import { AccordionSection } from '../components/forms/AccordionSection';
 import { SectionA } from '../components/sections/SectionA';
@@ -251,6 +251,10 @@ const NewParticipantScreen = () => {
                     mobileNumber: participant.mobile_number || '',
                     age: participant.age ? String(participant.age) : '',
                     gender: participant.gender || null,
+                    // Only the two known answers count; anything else reads as unanswered
+                    collectionSite: (COLLECTION_SITES as readonly string[]).includes(participant.collection_site || '')
+                        ? (participant.collection_site as CollectionSite)
+                        : null,
                     address: cleanAddress,
                     dateOfScreening: participant.date_of_screening || todayDDMMYYYY(),
                     community: participant.community || '',
@@ -498,6 +502,7 @@ const NewParticipantScreen = () => {
                 full_name: formData.participantId || '',
                 age: parseInt(formData.age) || 0,
                 gender: formData.gender || '',
+                collection_site: formData.collectionSite || null,
                 address: addressForDb,
                 date_of_screening: formData.dateOfScreening || todayDDMMYYYY(),
                 region: profile?.region || '',
@@ -691,6 +696,7 @@ const NewParticipantScreen = () => {
                 full_name: formData.participantId || '',
                 age: parseInt(formData.age) || 0,
                 gender: formData.gender || '',
+                collection_site: formData.collectionSite || null,
                 address: submitAddressForDb,
                 date_of_screening: formData.dateOfScreening || todayDDMMYYYY(),
                 region: profile?.region || '',

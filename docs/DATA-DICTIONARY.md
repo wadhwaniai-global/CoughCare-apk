@@ -19,9 +19,11 @@ recording, WAV).
 | `previous_participant_id` | string (absent otherwise) | Present only when the app re-issued the ID after the server rejected the original as a duplicate (409). Same 25-char format; lets a re-issued record be traced to the ID that may already be on paper. |
 | `age` | integer | years |
 | `gender` | string | `Male` \| `Female` \| `Transgender` |
+| `collection_site` | string \| null | `Health Facility` \| `Community`: where the screening took place. Mandatory on the form since seq 120; `null` on a record created by an older build and synced by 120 or later without being reopened |
 | `date_of_screening` | string | `DD/MM/YYYY` |
 | `region`, `district`, `facility` | string | from the collector's profile (`TEST` for internal accounts) |
-| `community` | string \| null | optional free text |
+| `community` | string \| null | optional free text (the community's name; not the same thing as `collection_site`) |
+| `gps_latitude`, `gps_longitude` | number \| null | decimal degrees (WGS 84), 6 decimal places: where the phone was when the collector tapped Capture GPS in Section A, i.e. the place of screening. Capture is mandatory on the form; `null` only when the stored fix cannot be read. Sent since seq 120, and by builds before 68; builds 68 to 119 kept it on the phone |
 | `data_collector_name` | string | collector's profile name (staff, not participant) |
 | `consent_obtained` | boolean | always true on synced records (required to submit) |
 
@@ -219,10 +221,15 @@ keys contain no participant data; linkage is only via the database.
 - Participant **full name** (never truly collected — duplicates the ID)
 - Participant **address** (free text)
 - Participant **mobile number**
-- **GPS coordinates** of the screening
 
 These live only on the enrolling collector's device and survive the
 post-sync purge there. Server-side records are pseudonymous.
+
+The **GPS coordinates** of the screening were on this list between seq 68 and
+119. Since seq 120 they are sent (`gps_latitude`, `gps_longitude`); the phone
+keeps its copy as before. For a `Community` screening the position can be close
+to where a participant lives, so treat the two fields as location data wherever
+they are stored or shared.
 
 ## Version notes for dashboards (filter by `app_bundle_seq`)
 
@@ -235,6 +242,7 @@ post-sync purge there. Server-side records are pseudonymous.
 | seq < 67 | audio is 16 kHz |
 | seq < 99 | no `recordings[].quality` object and no `device_build` |
 | seq < 109 | no `patient_wearing_mask` |
+| seq < 120 | no `collection_site`; no `gps_latitude`/`gps_longitude` between seq 68 and 119. `app_bundle_seq` is the bundle that synced the record: one created on an older bundle and synced on 120 or later carries its GPS position (it was always captured) and `collection_site: null`, unless the collector reopened it and answered |
 | seq < 115 | `recordings[].duration` counted on-screen timer ticks: it under-reads takes made while the app was off screen and can exceed 60 on takes left running with Section D closed. `app_bundle_seq` is the bundle that synced the record, so records created on an earlier bundle and synced on 115 or later carry the newer number with these older durations; they are also the only records that can hold a trimmed take (`upload_trimmed_to_seconds`). Discards: before 115 the "No Cough Detected" question came back each time Section D was reopened, which inflated re-records; from 115 it is asked once per take, but a take cut short below the minimum by leaving the app must be re-recorded, which adds a small discard. |
 | seq < 116 | `test_result` may be `Not done` on a tested record (read as no test). A take whose file held no audio (a bare 44-byte WAV; the microphone delivered nothing) could be stored and uploaded, kept or discarded; from 116 such a take is refused at Stop and never saved, so empty files no longer reach the server. |
 | CED detector builds (test channel #92+; main seq TBD) | `analysis_result` has no `segment_probabilities`/`num_segments`; `threshold_used` = 0.4758; per-recording `confidence` values come from a different model and are not comparable with earlier scores |

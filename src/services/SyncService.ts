@@ -8,6 +8,7 @@ import { apiService } from './ApiService';
 import { authService } from './AuthService';
 import { emitSessionEnded, isSessionEnded, SessionEndedError } from './sessionEvents';
 import { getBuildInfo } from '../utils/buildInfo';
+import { parseGpsTag } from '../utils/gpsTag';
 import { getDeviceModel, getDeviceBuild } from '../utils/audioRecorder';
 import type { AudioQuality } from '../utils/audioQuality';
 import { prepareTakeForUpload, uploadTrimFlags, PreparedUpload } from '../utils/oversizedTake';
@@ -211,11 +212,19 @@ class SyncService {
         ? JSON.parse(participant.analysis_result)
         : null;
 
-      // PII minimization (2026-08-28): full_name, address, mobile_number and
-      // GPS coordinates are deliberately NOT sent. Contact/location details
-      // for participant follow-up live only on the collector's device (they
-      // survive purge-after-sync); the server-side record is pseudonymous —
-      // participant_id is the only linkage.
+      // PII minimization (2026-08-28): full_name, address and mobile_number
+      // are deliberately NOT sent. Contact details for participant follow-up
+      // live only on the collector's device (they survive purge-after-sync);
+      // the server-side record is pseudonymous — participant_id is the only
+      // linkage.
+      //
+      // The GPS position of the screening IS sent again since seq 120, as
+      // gps_latitude / gps_longitude in decimal degrees (builds 68 to 119 held
+      // it back; builds before 68 sent it under the same names). It is where
+      // the phone was when the collector tapped Capture in Section A. It is
+      // read out of the address column's [GPS:lat,lng] tag; the address text
+      // itself still never leaves the phone.
+      const gps = parseGpsTag(participant.address);
       const formDataObject = {
         participant_id: participant.participant_id,
         // Present only when the ID was re-issued after a server 409 (lineage)
@@ -227,6 +236,12 @@ class SyncService {
         district: participant.district,
         facility: participant.facility,
         community: participant.community,
+        // Where the screening took place: 'Health Facility' | 'Community'.
+        // Mandatory on the form since seq 120; null only on records created
+        // by an older build and synced by this one.
+        collection_site: participant.collection_site ?? null,
+        gps_latitude: gps ? gps.latitude : null,
+        gps_longitude: gps ? gps.longitude : null,
         data_collector_name: participant.data_collector_name,
         consent_obtained: participant.consent_obtained === 1,
         diabetes_status: participant.diabetes_status,

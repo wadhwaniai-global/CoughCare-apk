@@ -486,8 +486,9 @@ const ViewRecordScreen = () => {
     }
 
     // Synced records are purged on device (server owns the data). What
-    // remains — and is shown here — is the contact/location detail that is
-    // deliberately never uploaded and survives the purge for follow-up.
+    // remains — and is shown here — is the contact/location detail kept for
+    // follow-up, which survives the purge. The mobile number is never
+    // uploaded; the GPS position is, since seq 120.
     if (participant.status === 'synced') {
         const gpsMatch = (participant.address || '').match(/\[GPS:([-\d.]+),([-\d.]+)\]/);
         const syncedConfidence = participant.analysis_result
@@ -699,6 +700,7 @@ const ViewRecordScreen = () => {
                             <InfoRow label="Mobile Number" value={formatValue(participant.mobile_number)} />
                             <InfoRow label="Age" value={participant.age ? `${participant.age} years` : 'N/A'} />
                             <InfoRow label="Gender" value={formatValue(participant.gender)} />
+                            <InfoRow label="Collection Site" value={formatValue(participant.collection_site)} />
                             <InfoRow label="Screening Date" value={formatValue(participant.date_of_screening)} />
                             <InfoRow
                                 label="Consent"

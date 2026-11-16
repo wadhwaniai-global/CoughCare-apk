@@ -4,12 +4,19 @@
 
 export type AlcoholUse = 'Yes' | 'Occasional' | 'No' | null;
 
+/** Where the screening took place: at a health facility, or out in the
+ *  community. Asked on every record; these strings are what is stored on the
+ *  phone and sent to the server as `collection_site`. */
+export const COLLECTION_SITES = ['Health Facility', 'Community'] as const;
+export type CollectionSite = typeof COLLECTION_SITES[number];
+
 export interface ParticipantFormData {
     participantId: string;
     mobileNumber: string;
 
     age: string;
     gender: string | null;
+    collectionSite: CollectionSite | null;
     address: string;
     dateOfScreening: string;
     community: string;

@@ -39,6 +39,9 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
     if (!formData.gender) {
         errors.push({ field: 'gender', message: 'Gender is required', section: 'A' });
     }
+    if (!formData.collectionSite) {
+        errors.push({ field: 'collectionSite', message: 'Collection Site is required', section: 'A' });
+    }
     if (!formData.dateOfScreening || formData.dateOfScreening.trim() === '') {
         errors.push({ field: 'dateOfScreening', message: 'Date of Screening is required', section: 'A' });
     }

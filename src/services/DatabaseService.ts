@@ -13,6 +13,7 @@ export interface Participant {
     full_name: string;
     age: number;
     gender: string;
+    collection_site?: string | null; // 'Health Facility' | 'Community'; null = unanswered (draft) or a record made before the question existed
     address?: string | null;
     date_of_screening: string;
     region: string;
@@ -145,7 +146,8 @@ export const initDatabase = async () => {
         previous_participant_id TEXT, -- prior ID when re-issued after a 409
         consent_withdrawn_at TEXT, -- consent withdrawn on a synced record; reported to the server at the next sync
         consent_withdrawal_reason TEXT,
-        consent_withdrawal_reported INTEGER DEFAULT 0
+        consent_withdrawal_reported INTEGER DEFAULT 0,
+        collection_site TEXT -- 'Health Facility' | 'Community'; NULL = unanswered or pre-field record
       );
 
       CREATE TABLE IF NOT EXISTS recordings (
@@ -224,6 +226,7 @@ const migrateDatabase = async () => {
             { name: 'consent_withdrawn_at', sql: `ALTER TABLE participants ADD COLUMN consent_withdrawn_at TEXT` },
             { name: 'consent_withdrawal_reason', sql: `ALTER TABLE participants ADD COLUMN consent_withdrawal_reason TEXT` },
             { name: 'consent_withdrawal_reported', sql: `ALTER TABLE participants ADD COLUMN consent_withdrawal_reported INTEGER DEFAULT 0` },
+            { name: 'collection_site', sql: `ALTER TABLE participants ADD COLUMN collection_site TEXT` },
         ];
 
         for (const migration of migrations) {
@@ -359,7 +362,8 @@ export const saveParticipant = async (participant: Participant) => {
             test_notes: normalizeValue(participant.test_notes, null),
             status: normalizeValue(participant.status, 'draft'),
             analysis_result: normalizeValue(participant.analysis_result, null),
-            created_by: normalizeValue(participant.created_by, null)
+            created_by: normalizeValue(participant.created_by, null),
+            collection_site: normalizeValue(participant.collection_site, null)
         };
 
         const result = await database.runAsync(
@@ -371,8 +375,9 @@ export const saveParticipant = async (participant: Participant) => {
                 alcohol_use, alcohol_use_frequency, alcohol_duration, previous_tb, last_tb_year,
                 tb_treatment_completed, recurring_tb,
                 symptoms, test_done, test_type, test_date_collection, test_date_result,
-                test_result, test_site, test_notes, status, analysis_result, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                test_result, test_site, test_notes, status, analysis_result, created_by,
+                collection_site
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
                 normalizedParticipant.participant_id,
                 normalizedParticipant.mobile_number,
@@ -410,7 +415,8 @@ export const saveParticipant = async (participant: Participant) => {
                 normalizedParticipant.test_notes,
                 normalizedParticipant.status,
                 normalizedParticipant.analysis_result,
-                normalizedParticipant.created_by
+                normalizedParticipant.created_by,
+                normalizedParticipant.collection_site
             ]
         );
         return result.lastInsertRowId;
@@ -840,8 +846,10 @@ export const getAwaitingDiagnosisParticipants = async (createdBy: string): Promi
  * all form answers and every audio file, rejected takes included.
  *
  * Deliberately retained on-device (2026-08-28): mobile_number and address
- * (which carries the packed [GPS:lat,lng] tag). These are never uploaded —
- * the device is their only home, kept for participant follow-up.
+ * (which carries the packed [GPS:lat,lng] tag), kept for participant
+ * follow-up. The number and the address text are never uploaded — the device
+ * is their only home. The GPS position inside the tag is uploaded with the
+ * record since seq 120 (SyncService) and stays here as well.
  */
 export const purgeSyncedParticipantData = async (participantId: string): Promise<void> => {
     const database = await getDB();
@@ -863,7 +871,7 @@ export const purgeSyncedParticipantData = async (participantId: string): Promise
         await database.runAsync(
             `UPDATE participants SET
                 age = 0, gender = '', date_of_screening = '',
-                district = '', facility = '', community = NULL,
+                district = '', facility = '', community = NULL, collection_site = NULL,
                 data_collector_name = '', consent_obtained = 0, patient_wearing_mask = NULL,
                 diabetes_status = '', hiv_status = '', covid_status = '',
                 tobacco_use = 0, tobacco_duration = NULL,

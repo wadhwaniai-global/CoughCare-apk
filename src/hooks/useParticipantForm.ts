@@ -18,6 +18,7 @@ export const useParticipantForm = (
 
         age: '',
         gender: null,
+        collectionSite: null,
         address: '',
         dateOfScreening: todayDDMMYYYY(),
         community: '',

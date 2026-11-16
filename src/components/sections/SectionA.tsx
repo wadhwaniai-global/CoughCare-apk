@@ -3,7 +3,8 @@ import { View, Text, TextInput, StyleSheet, TouchableOpacity, Platform, ToastAnd
 import { Ionicons } from '@expo/vector-icons';
 import { Dropdown } from '../forms/Dropdown';
 import { RadioButtonGroup } from '../forms/RadioButtonGroup';
-import { ParticipantFormData } from '../../types/participantForm';
+import { OptionButtonGroup } from '../forms/OptionButtonGroup';
+import { ParticipantFormData, COLLECTION_SITES, CollectionSite } from '../../types/participantForm';
 
 
 interface SectionAProps {
@@ -178,6 +179,18 @@ export const SectionA: React.FC<SectionAProps> = ({
                     {errors['gender'] && <Text style={styles.errorText}>{errors['gender']}</Text>}
                 </View>
             </View>
+
+            {/* Where the screening is taking place. Not the free-text Community
+                Name further down: this is asked of every participant and has
+                two fixed answers. */}
+            <OptionButtonGroup
+                label="Collection Site *"
+                value={formData.collectionSite}
+                options={[...COLLECTION_SITES]}
+                weights={[1.3, 1]}
+                onSelect={(val) => updateField('collectionSite', val as CollectionSite)}
+            />
+            {errors['collectionSite'] && <Text style={styles.errorText}>{errors['collectionSite']}</Text>}
 
             <Text style={styles.label}>Address (Optional)</Text>
             <TextInput
