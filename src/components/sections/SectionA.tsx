@@ -5,6 +5,7 @@ import { Dropdown } from '../forms/Dropdown';
 import { RadioButtonGroup } from '../forms/RadioButtonGroup';
 import { OptionButtonGroup } from '../forms/OptionButtonGroup';
 import { ParticipantFormData, COLLECTION_SITES, CollectionSite } from '../../types/participantForm';
+import { isUnderage, UNDERAGE_MESSAGE } from '../../utils/eligibility';
 
 
 interface SectionAProps {
@@ -23,6 +24,9 @@ export const SectionA: React.FC<SectionAProps> = ({
     errors = {},
 }) => {
     const [isCapturingGps, setIsCapturingGps] = useState(false);
+    // The warning waits until the age field is left: "2" on the way to "25" is not a child.
+    const [ageFocused, setAgeFocused] = useState(false);
+    const underage = isUnderage(formData.age) && !ageFocused;
 
     const handleCaptureGps = async () => {
         try {
@@ -134,11 +138,13 @@ export const SectionA: React.FC<SectionAProps> = ({
                 <View style={[styles.col, { marginRight: 8 }]}>
                     <Text style={styles.label}>Age *</Text>
                     <TextInput
-                        style={[styles.input, errors['age'] && styles.inputError]}
+                        style={[styles.input, (errors['age'] || underage) && styles.inputError]}
                         placeholder="Years"
                         keyboardType="numeric"
                         maxLength={3}
                         value={formData.age}
+                        onFocus={() => setAgeFocused(true)}
+                        onBlur={() => setAgeFocused(false)}
                         onChangeText={(text) => {
                             // Only allow digits
                             const digitsOnly = text.replace(/\D/g, '');
@@ -179,6 +185,15 @@ export const SectionA: React.FC<SectionAProps> = ({
                     {errors['gender'] && <Text style={styles.errorText}>{errors['gender']}</Text>}
                 </View>
             </View>
+
+            {/* Under the minimum age: say so here, where the age was typed. The
+                screen locks sections B to D, Save Draft and Submit. */}
+            {underage && (
+                <View style={styles.errorBox}>
+                    <Ionicons name="warning" size={20} color="#F59E0B" style={{ marginRight: 8 }} />
+                    <Text style={[styles.errorText, styles.errorBoxText]}>{UNDERAGE_MESSAGE}</Text>
+                </View>
+            )}
 
             {/* Where the screening is taking place. Not the free-text Community
                 Name further down: this is asked of every participant and has
@@ -351,5 +366,10 @@ const styles = StyleSheet.create({
         color: '#EF4444',
         fontSize: 12,
         marginTop: 4,
+    },
+    // A sentence long enough to wrap: it takes the width left beside the icon.
+    errorBoxText: {
+        flex: 1,
+        marginTop: 0,
     },
 });

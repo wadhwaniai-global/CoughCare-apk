@@ -4,6 +4,7 @@
  */
 
 import { ParticipantFormData } from '../types/participantForm';
+import { isUnderage, MIN_AGE } from './eligibility';
 
 export interface ValidationError {
     field: string;
@@ -34,6 +35,8 @@ export const validateForm = (formData: ParticipantFormData, recordedDurations?: 
         const ageNum = parseInt(formData.age, 10);
         if (ageNum < 1 || ageNum > 125) {
             errors.push({ field: 'age', message: 'Age must be between 1 and 125', section: 'A' });
+        } else if (isUnderage(ageNum)) {
+            errors.push({ field: 'age', message: `Participant must be ${MIN_AGE} or older to take part in the study`, section: 'A' });
         }
     }
     if (!formData.gender) {

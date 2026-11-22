@@ -17,7 +17,7 @@ recording, WAV).
 |---|---|---|
 | `participant_id` | string | `GHA-{region 2}{facility 3}{collector 4}{YYYYMMDD}{seq 4}` (25 chars) — pseudonymous study ID, the only participant linkage. The collector code (backend-assigned per account; data collectors `0001` upward, internal accounts `9999` downward) makes it unique across devices and flags internal records; records minted before codes existed use the legacy 17-digit form `GHA-{region}{facility}{YYYYMMDD}{seq}` and CAN collide across collectors at one facility on one day (key on `form_id` for those). |
 | `previous_participant_id` | string (absent otherwise) | Present only when the app re-issued the ID after the server rejected the original as a duplicate (409). Same 25-char format; lets a re-issued record be traced to the ID that may already be on paper. |
-| `age` | integer | years |
+| `age` | integer | years. 18 or older on records created from seq 121: the form refuses anyone younger (see `src/utils/eligibility.ts`). |
 | `gender` | string | `Male` \| `Female` \| `Transgender` |
 | `collection_site` | string \| null | `Health Facility` \| `Community`: where the screening took place. Mandatory on the form since seq 120; `null` on a record created by an older build and synced by 120 or later without being reopened |
 | `date_of_screening` | string | `DD/MM/YYYY` |
@@ -242,6 +242,7 @@ they are stored or shared.
 | seq < 67 | audio is 16 kHz |
 | seq < 99 | no `recordings[].quality` object and no `device_build` |
 | seq < 109 | no `patient_wearing_mask` |
+| seq < 121 | `age` can be under 18: the form took any age from 1 to 125. The study enrols adults only, so those records are not eligible. |
 | seq < 120 | no `collection_site`; no `gps_latitude`/`gps_longitude` between seq 68 and 119. `app_bundle_seq` is the bundle that synced the record: one created on an older bundle and synced on 120 or later carries its GPS position (it was always captured) and `collection_site: null`, unless the collector reopened it and answered |
 | seq < 115 | `recordings[].duration` counted on-screen timer ticks: it under-reads takes made while the app was off screen and can exceed 60 on takes left running with Section D closed. `app_bundle_seq` is the bundle that synced the record, so records created on an earlier bundle and synced on 115 or later carry the newer number with these older durations; they are also the only records that can hold a trimmed take (`upload_trimmed_to_seconds`). Discards: before 115 the "No Cough Detected" question came back each time Section D was reopened, which inflated re-records; from 115 it is asked once per take, but a take cut short below the minimum by leaving the app must be re-recorded, which adds a small discard. |
 | seq < 116 | `test_result` may be `Not done` on a tested record (read as no test). A take whose file held no audio (a bare 44-byte WAV; the microphone delivered nothing) could be stored and uploaded, kept or discarded; from 116 such a take is refused at Stop and never saved, so empty files no longer reach the server. |

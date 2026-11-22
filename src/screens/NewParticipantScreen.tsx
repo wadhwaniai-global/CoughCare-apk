@@ -24,6 +24,7 @@ import { saveParticipant, saveRecording, getDB, getParticipantById, getRecording
 import { useParticipantForm } from '../hooks/useParticipantForm';
 import { useAudioRecording } from '../hooks/useAudioRecording';
 import { validateForm, formatValidationErrors } from '../utils/formValidation';
+import { isUnderage, UNDERAGE_MESSAGE } from '../utils/eligibility';
 import { gatedStatus } from '../utils/diagnosisGate';
 import { DETECTION_THRESHOLD } from '../utils/onnxInference';
 import { isTestBuild } from '../utils/buildInfo';
@@ -120,6 +121,11 @@ const NewParticipantScreen = () => {
     // A take is running or being finished: the form must not move on (closing
     // Section D, Submit's jump to the first error, Save Draft) until it is done
     const isRecordingBusy = activeRecordingKey !== null || Object.keys(processingKeys).length > 0;
+
+    // The rest of the form (B to D, so the recording too), Save Draft and Submit
+    // stay locked until consent is given and for anyone under the minimum age.
+    const underage = isUnderage(formData.age);
+    const locked = formData.consentObtained !== true || underage;
     const showRecordingInProgress = () => {
         Alert.alert('Recording in progress', 'Finish the recording first.');
     };
@@ -417,12 +423,24 @@ const NewParticipantScreen = () => {
         });
     }, [participantIdError]);
 
-    // Close sections B, C, D if consent is revoked
+    // Close sections B, C, D if consent is revoked or the age entered is under the minimum
     React.useEffect(() => {
-        if (formData.consentObtained !== true && expandedSection && expandedSection !== 'A') {
+        if (locked && expandedSection && expandedSection !== 'A') {
             setExpandedSection('A');
         }
-    }, [formData.consentObtained]);
+    }, [locked]);
+
+    const showNotEligible = (outcome: string) => {
+        setAlertConfig({
+            visible: true,
+            title: 'Not eligible',
+            message: `${UNDERAGE_MESSAGE} ${outcome}`,
+            listItems: [],
+            buttons: [{ text: 'OK', onPress: () => setAlertConfig(prev => ({ ...prev, visible: false })) }],
+            icon: 'alert-circle',
+            iconColor: '#EF4444',
+        });
+    };
 
     const handleUseSample = async (key: string) => {
         try {
@@ -450,6 +468,11 @@ const NewParticipantScreen = () => {
         // Saving now would drop a take that is still running or being finished
         if (isRecordingBusy) {
             showRecordingInProgress();
+            return;
+        }
+        // Not eligible: nothing of this person is kept on the phone, not even a draft
+        if (underage) {
+            showNotEligible('Nothing was saved.');
             return;
         }
         try {
@@ -567,6 +590,10 @@ const NewParticipantScreen = () => {
         // mid-take; and a take still being finished is not in the form yet
         if (isRecordingBusy) {
             showRecordingInProgress();
+            return;
+        }
+        if (underage) {
+            showNotEligible('This record cannot be submitted.');
             return;
         }
         console.log('Submit button clicked');
@@ -825,7 +852,7 @@ const NewParticipantScreen = () => {
                     section="B"
                     isExpanded={expandedSection === 'B'}
                     onToggle={() => toggleSection('B')}
-                    disabled={formData.consentObtained !== true}
+                    disabled={locked}
                     onLayout={(e) => onSectionLayout('B', e)}
                 >
                     <SectionB
@@ -843,7 +870,7 @@ const NewParticipantScreen = () => {
                     section="C"
                     isExpanded={expandedSection === 'C'}
                     onToggle={() => toggleSection('C')}
-                    disabled={formData.consentObtained !== true}
+                    disabled={locked}
                     onLayout={(e) => onSectionLayout('C', e)}
                 >
                     <SectionC
@@ -859,7 +886,7 @@ const NewParticipantScreen = () => {
                     section="D"
                     isExpanded={expandedSection === 'D'}
                     onToggle={() => toggleSection('D')}
-                    disabled={formData.consentObtained !== true}
+                    disabled={locked}
                     onLayout={(e) => onSectionLayout('D', e)}
                 >
                     <SectionD
@@ -984,9 +1011,9 @@ const NewParticipantScreen = () => {
                 <TouchableOpacity
                     style={[
                         styles.submitBtn,
-                        formData.consentObtained === true ? styles.submitBtnActive : {}
+                        !locked ? styles.submitBtnActive : {}
                     ]}
-                    disabled={formData.consentObtained !== true || isSubmitting}
+                    disabled={locked || isSubmitting}
                     onPress={() => {
                         console.log('Submit button pressed');
                         console.log('Consent obtained:', formData.consentObtained);
